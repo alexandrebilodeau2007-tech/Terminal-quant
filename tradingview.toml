@@ -23,22 +23,22 @@ interval = "D"
 style = "1"
 timezone = "America/Toronto"
 # Indicators added on load (names from the app's list, see interface/tradingview.py)
-indicators = ["Simple moving average", "RSI"]
-side_toolbar = true
-top_toolbar = true
+indicators = ["Exponential moving average", "Simple moving average", "RSI"]
+side_toolbar = false
+top_toolbar = false
 date_ranges = true
-legend = true
+legend = false
 details_panel = false
-hide_volume = false
+hide_volume = true
 # false = the settings panel is hidden: everyone sees exactly the base
 allow_changes = true
 
-# Indicator parameters (used when the indicator is in the list above).
+# Indicator parameters (used when the indicator is in the list above). All are computed on the close.
 # length = number of periods; mult = number of standard deviations of the Bollinger Bands.
 [parameters]
-"RSI" = { length = 14 }
-"Simple moving average" = { length = 50 }
-"Exponential moving average" = { length = 20 }
+"RSI" = { length = 21 }
+"Simple moving average" = { length = 200 }
+"Exponential moving average" = { length = 200 }
 "Bollinger Bands" = { length = 20, mult = 2.0 }
 
 # Colors (#RRGGBB format): candles, background and grid.

@@ -91,7 +91,7 @@ AIDE: dict[str, str] = {
 
 **Settings**: in *Display settings*, choose the style (candles, Heikin Ashi, line…), the interval, the indicators (RSI, MACD, Bollinger…) and their **period** (e.g. RSI 9 instead of 14), the **candle colors**, background and grid, the toolbars and the chart size. Indicator line colors cannot be saved (a TradingView limitation).
 
-**Charts-only window**: the *Open charts in a new window* button opens a page with only the charts, full width, using your current settings.
+**Charts-only window**: the *Open charts in a separate window* button opens a window with only the charts, using your current settings. Click once in it for full screen (no browser bar); move the mouse to the top of the window to show the **X** that closes it. Esc leaves full screen.
 
 **Why it is useful**: the best free charting interface. The base settings are the same for every visitor; what you change only lasts for your visit. TradingView symbols are not written like Yahoo symbols (see the Directory).
 """,

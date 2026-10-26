@@ -46,9 +46,9 @@ DISPOSITIONS = {1: "1 chart", 2: "2 side by side", 4: "4 in a grid (2 × 2)"}
 
 # Paramètres réglables par indicateur : nom affiché -> {entrée TradingView: (défaut, min, max, libellé)}.
 PARAMETRES = {
-    "RSI": {"length": (14, 2, 100, "RSI period")},
-    "Simple moving average": {"length": (50, 1, 500, "Simple MA period")},
-    "Exponential moving average": {"length": (20, 1, 500, "Exponential MA period")},
+    "RSI": {"length": (21, 2, 100, "RSI period")},
+    "Simple moving average": {"length": (200, 1, 500, "Simple MA period")},
+    "Exponential moving average": {"length": (200, 1, 500, "Exponential MA period")},
     "Bollinger Bands": {"length": (20, 2, 200, "Bands period"), "mult": (2.0, 0.5, 5.0, "Standard deviations")},
 }
 
@@ -70,8 +70,10 @@ SYMBOLE_SUR = re.compile(r"^[A-Za-z0-9:._!^/*+\-() ]{1,60}$")
 DEFAUTS = {
     "display": {
         "layout": 1, "single_height": 820, "grid_height": 520, "interval": "D", "style": "1",
-        "timezone": "America/Toronto", "indicators": [], "side_toolbar": True, "top_toolbar": True,
-        "date_ranges": True, "legend": True, "details_panel": False, "hide_volume": False,
+        "timezone": "America/Toronto",
+        "indicators": ["Exponential moving average", "Simple moving average", "RSI"],
+        "side_toolbar": False, "top_toolbar": False, "date_ranges": True, "legend": False,
+        "details_panel": False, "hide_volume": True,
         "allow_changes": True,
     },
     "parameters": {nom: {cle: v[0] for cle, v in entrees.items()} for nom, entrees in PARAMETRES.items()},

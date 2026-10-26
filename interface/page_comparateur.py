@@ -24,7 +24,7 @@ from config import JOURS_BOURSE_PAR_AN, TICKERS_TAUX
 from export.excel import exporter_excel
 from interface.aide import sous_titre, titre
 from interface.composants import metriques, note_methodo
-from interface import tradingview as tv
+from interface import tradingview as tv, vue_graphiques
 from interface.navigation import valeur_initiale
 from sources.marche import ErreurDonnees, convertir_en_devise_base, telecharger_prix
 
@@ -265,11 +265,11 @@ def _tradingview() -> None:
                                 "every visitor will see these settings.")
     else:
         reglages = base
-    # Fenêtre « graphiques seulement » : nouvel onglet, réglages du moment transmis dans l'adresse.
-    st.link_button("Open charts in a new window (charts only)", f"./?view=charts&cfg={tv.encoder(reglages)}",
-                   icon=":material/open_in_new:", type="primary", width="stretch",
-                   help="Opens a page with only the TradingView charts, full window, using the settings above. "
-                        "Tip: bookmark ?view=charts&layout=4 for a 4-chart grid with the base settings.")
+    # Fenêtre « graphiques seulement » : fenêtre popup à part, réglages du moment transmis dans l'adresse.
+    components.html(vue_graphiques.bouton_ouvrir(f"./?view=charts&fs=1&cfg={tv.encoder(reglages)}"), height=44)
+    st.caption("Opens a separate window with only the charts, using the settings above. One click there switches "
+               "to full screen (no browser bar); move the mouse to the top of the window to show the **X**. "
+               "Bookmark `?view=charts&layout=4` for a 4-chart grid with the base settings.")
     page, hauteur = tv.html_grille(reglages)
     components.html(page, height=hauteur)
     st.caption("In each chart: change the symbol, add indicators, draw, or open it in a large "

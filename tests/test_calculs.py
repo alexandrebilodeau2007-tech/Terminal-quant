@@ -344,13 +344,26 @@ def test_base_tradingview_valide():
     assert len(base["charts"]) == 4
 
 
+def test_base_par_defaut_demandee():
+    """Base voulue : EMA 200, SMA 200 et RSI 21 (sur la clôture), volume masqué."""
+    base = tv.charger_base()
+    aff = base["display"]
+    assert aff["indicators"] == ["Exponential moving average", "Simple moving average", "RSI"]
+    assert base["parameters"]["RSI"]["length"] == 21
+    assert base["parameters"]["Simple moving average"]["length"] == 200
+    assert base["parameters"]["Exponential moving average"]["length"] == 200
+    assert aff["hide_volume"] is True and aff["date_ranges"] is True
+    assert not (aff["side_toolbar"] or aff["top_toolbar"] or aff["legend"] or aff["details_panel"])
+    assert base["display"] == tv.DEFAUTS["display"]   # le secours (fichier absent) est identique
+
+
 def test_valider_rejette_les_valeurs_hors_liste():
     r = tv.valider({"display": {"layout": 3, "style": "99", "interval": "2D", "single_height": 99999,
                                   "indicators": ["RSI", "<script>"], "legend": "oui"},
                     "charts": [{"symbol": "</script><script>alert(1)</script>", "compare": "COMEX:SI1!"}]})
     assert r["display"]["layout"] == 1 and r["display"]["style"] == "1"
     assert r["display"]["interval"] == "D" and r["display"]["single_height"] == 1400
-    assert r["display"]["indicators"] == ["RSI"] and r["display"]["legend"] is True
+    assert r["display"]["indicators"] == ["RSI"] and r["display"]["legend"] is False  # valeur invalide -> défaut
     assert r["charts"][0]["symbol"] == "AMEX:SPY"          # symbole dangereux remplacé
     assert r["charts"][0]["compare"] == "COMEX:SI1!"
 
@@ -375,7 +388,7 @@ def test_config_widget_indicateurs_et_comparaison():
     base["display"]["indicators"] = ["RSI", "MACD"]
     cfg = tv.config_widget({"symbol": "NASDAQ:AAPL", "compare": "NASDAQ:MSFT"}, base["display"])
     # RSI a des paramètres -> objet {id, inputs} ; MACD n'en a pas -> identifiant seul
-    assert cfg["studies"] == [{"id": "RSI@tv-basicstudies", "inputs": {"length": 14}}, "MACD@tv-basicstudies"]
+    assert cfg["studies"] == [{"id": "RSI@tv-basicstudies", "inputs": {"length": 21}}, "MACD@tv-basicstudies"]
     assert cfg["overrides"]["mainSeriesProperties.candleStyle.upColor"] == "#2ECC71"
     assert cfg["compareSymbols"] == [{"symbol": "NASDAQ:MSFT", "position": "SameScale"}]
     _json.dumps(cfg)  # sérialisable

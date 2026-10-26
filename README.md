@@ -59,7 +59,7 @@ Works in any browser, on a computer or a phone. If the app is asleep (after a fe
 
 **Charts-only window** (TradingView grid filling the whole window, no menu or sidebar — handy on a second screen):
 
-- From the app: **CMP → TradingView charts → *Open charts in a new window (charts only)***. The window keeps the settings you chose.
+- From the app: **CMP → TradingView charts → *Open charts in a separate window (charts only)***. It opens a separate window (no tabs or bookmarks bar) with the settings you chose. Click once in it for **full screen** (no browser bar at all); move the mouse to the **top** of the window to show the small **X** that closes it (and a full-screen button). Esc leaves full screen.
 - Or bookmark the address directly:
   - [`/?view=charts`](https://terminal-quant-bilodeau.streamlit.app/?view=charts) — base settings from `tradingview.toml`
   - [`/?view=charts&layout=4`](https://terminal-quant-bilodeau.streamlit.app/?view=charts&layout=4) — forces a 2 × 2 grid (`layout=1`, `2` or `4`)
@@ -101,7 +101,7 @@ The *Convert* box expresses everything in the base currency, i.e. the return act
   settings for style, interval, indicators (and their parameters, e.g. RSI length), candle and background colors, toolbars and size.
   The **base settings are shared by all visitors**: they come from [`tradingview.toml`](tradingview.toml). To change them for everyone,
   adjust the display in the app, click *Export these settings as base*, then replace that file on GitHub.
-  The *Open charts in a new window* button opens the same grid alone, full window.
+  The *Open charts in a separate window* button opens the same grid alone in its own window.
 
 ### PORT — Portfolio & risk (Optimization & VaR tab)
 1. Select 2 to 20 **investable** assets (not `^TNX`: it is a rate, not a price).
