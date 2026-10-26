@@ -245,6 +245,16 @@ def html_grille(reglages: dict) -> tuple[str, int]:
     if reglages.get("_essai_tvjs"):  # TEMPORAIRE : ancienne bibliothèque tv.js
         cfg = config_widget(reglages["graphiques"][0], aff, reglages["parametres"], reglages["couleurs"])
         cfg.update({"container_id": "tv_essai", "width": "100%", "height": hauteur})
+        cfg["studies_overrides"] = {
+            "relative strength index.plot.color": "#F7D154",
+            "relative strength index.plot.linewidth": 3,
+            "relative strength index.hlines background.color": "#FF9F1C",
+            "relative strength index.upperlimit.color": "#FF5C5C",
+            "relative strength index.lowerlimit.color": "#2ECC71",
+            "rsi.plot.color": "#F7D154",
+            "moving average.plot.color": "#FFFFFF",
+            "moving average.plot.linewidth": 3,
+        }
         cfg.pop("autosize", None)
         page = (f"<style>html,body{{margin:0;padding:0;background:#0A0E14}}</style><div id='tv_essai' style='height:{hauteur}px'></div>"
                 "<script src='https://s3.tradingview.com/tv.js'></script>"
