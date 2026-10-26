@@ -206,7 +206,9 @@ def config_widget(graphique: dict, aff: dict, parametres: dict | None = None, co
 def _essai(i: int, cfg: dict) -> dict:
     """TEMPORAIRE : variantes pour identifier les options acceptées par le widget."""
     simples = [e["id"] if isinstance(e, dict) else e for e in cfg["studies"]]
-    if i == 1:   # indicateurs avec paramètres, sans couleurs
+    if i == 0:   # paramètres d'indicateurs + couleurs des bougies, sans couleurs d'indicateurs
+        cfg.pop("studies_overrides")
+    elif i == 1:   # indicateurs avec paramètres, sans couleurs
         cfg.pop("overrides"); cfg.pop("studies_overrides")
     elif i == 2:  # couleurs des bougies seulement
         cfg["studies"] = simples; cfg.pop("studies_overrides")
