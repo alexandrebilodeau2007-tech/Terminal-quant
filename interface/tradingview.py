@@ -203,6 +203,18 @@ def config_widget(graphique: dict, aff: dict, parametres: dict | None = None, co
     return config
 
 
+def _essai(i: int, cfg: dict) -> dict:
+    """TEMPORAIRE : variantes pour identifier les options acceptées par le widget."""
+    simples = [e["id"] if isinstance(e, dict) else e for e in cfg["studies"]]
+    if i == 1:   # indicateurs avec paramètres, sans couleurs
+        cfg.pop("overrides"); cfg.pop("studies_overrides")
+    elif i == 2:  # couleurs des bougies seulement
+        cfg["studies"] = simples; cfg.pop("studies_overrides")
+    elif i == 3:  # couleurs des indicateurs seulement
+        cfg["studies"] = simples; cfg.pop("overrides")
+    return cfg
+
+
 def html_grille(reglages: dict) -> tuple[str, int]:
     """Page HTML contenant 1, 2 ou 4 widgets, et sa hauteur totale en pixels."""
     aff = reglages["affichage"]
@@ -212,7 +224,7 @@ def html_grille(reglages: dict) -> tuple[str, int]:
     rangees = 1 if n <= 2 else 2
     ecart = 8
     blocs = []
-    for g in reglages["graphiques"][:n]:
+    for i_essai, g in enumerate(reglages["graphiques"][:n]):
         # Cadre extérieur de hauteur FIXE : le script TradingView réécrit le style de son
         # propre conteneur (height:100 %), il lui faut donc un parent dont la hauteur est connue.
         blocs.append(f"""
@@ -222,7 +234,7 @@ def html_grille(reglages: dict) -> tuple[str, int]:
       <div class="tradingview-widget-copyright" style="font:11px sans-serif;color:#8B98A9;height:24px;line-height:24px">
         <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank" style="color:#FF9F1C">Graphiques par TradingView</a></div>
       <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-      {json.dumps(config_widget(g, aff, reglages["parametres"], reglages["couleurs"]))}
+      {json.dumps(_essai(i_essai, config_widget(g, aff, reglages["parametres"], reglages["couleurs"])))}
       </script>
     </div>
   </div>""")

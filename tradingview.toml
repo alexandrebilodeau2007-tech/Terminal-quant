@@ -12,7 +12,7 @@
 
 [affichage]
 # Nombre de graphiques : 1, 2 (côte à côte) ou 4 (grille 2 x 2)
-disposition = 1
+disposition = 4
 # Hauteur de CHAQUE graphique, en pixels (400 à 1400)
 hauteur_simple = 820
 hauteur_grille = 520
