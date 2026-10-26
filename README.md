@@ -49,67 +49,7 @@ Marchés couverts : **actions** (US, TSX, international), **indices**, **commodi
 
 Fonctionne dans n'importe quel navigateur, sur ordinateur ou téléphone. Si l'app est en veille (après quelques jours sans visite), cliquer sur *« Yes, get this app back up! »* et attendre environ 30 secondes.
 
-> Pour héberger votre propre copie : voir [Déployer sur Streamlit Community Cloud](#déployer-sur-streamlit-community-cloud).
 
-### Option B — Sur Windows
-
-1. Installer **Python 3.12** depuis [python.org](https://www.python.org/downloads/) en cochant **« Add python.exe to PATH »**.
-2. Télécharger ce dépôt : bouton vert **Code → Download ZIP**, puis décompresser.
-3. Double-cliquer sur **`lancer_windows.bat`**.
-   - Au premier lancement, les bibliothèques s'installent (2 à 5 minutes).
-   - Le navigateur s'ouvre ensuite sur `http://localhost:8501`.
-   - Pour arrêter : fermer la fenêtre noire.
-
-### Option C — Sur macOS ou Linux (ou Windows en ligne de commande)
-
-```bash
-git clone https://github.com/alexandrebilodeau2007-tech/Terminal-quant.git
-cd Terminal-quant
-python3 -m venv .venv
-source .venv/bin/activate            # Windows : .venv\Scripts\activate
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-### Déployer sur Streamlit Community Cloud
-
-1. Faire un *fork* de ce dépôt (ou utiliser le vôtre).
-2. Sur [share.streamlit.io](https://share.streamlit.io), se connecter avec GitHub, puis **Create app**.
-3. Dépôt : `terminal-quant` · Branche : `main` · Fichier principal : `app.py`.
-4. **Advanced settings** → Python **3.12**. Dans **Secrets**, coller ses clés (voir la section 3).
-5. **Deploy**. Les clés restent sur le serveur : les visiteurs ne les voient jamais.
-
----
-
-## 3. Configurer les clés API
-
-Le terminal utilise **4 sources seulement, toutes gratuites**. Deux n'ont besoin d'aucune configuration.
-
-| Source | Utilisée pour | Configuration |
-|---|---|---|
-| **Yahoo Finance** (`yfinance`) | Prix de tous les marchés, options, états financiers hors SEC | Aucune |
-| **Banque du Canada** (API Valet) | Courbe des taux canadienne | Aucune |
-| **FRED** (Fed de St. Louis) | Courbe des taux US, écarts de crédit | Clé gratuite : créer un compte sur [fred.stlouisfed.org](https://fred.stlouisfed.org), puis *My Account → API Keys* |
-| **SEC EDGAR** | États financiers officiels des sociétés inscrites à la SEC | Pas de clé, mais la SEC exige d'identifier l'utilisateur par son nom et son courriel |
-
-**En local** : copier `.streamlit/secrets.toml.example` vers `.streamlit/secrets.toml` et remplir :
-
-```toml
-FRED_API_KEY = "votre_cle_fred"
-SEC_USER_AGENT = "Prénom Nom votre.courriel@exemple.com"
-```
-
-**En ligne** : coller ces deux mêmes lignes dans *Settings → Secrets* de l'application Streamlit.
-
-> `secrets.toml` est exclu de Git (`.gitignore`). **Ne publiez jamais vos clés dans le code.**
-
-Sans ces clés, le terminal fonctionne quand même :
-- sans clé FRED, seule la partie US de la section 5 est désactivée ;
-- sans User-Agent SEC, la section 3 utilise Yahoo (moins fiable, signalé à l'écran).
-
-La page **Accueil** du terminal indique l'état de chaque source.
-
----
 
 ## 4. Guide d'utilisation par section
 
