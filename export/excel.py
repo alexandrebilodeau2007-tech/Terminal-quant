@@ -8,11 +8,24 @@ sources, paramètres). Un chiffre sans sa provenance n'est pas vérifiable.
 from __future__ import annotations
 
 import io
+import re
 from datetime import datetime
 
 import pandas as pd
 
 from config import AVERTISSEMENT
+
+
+def _nom_onglet(nom: str, existants: list[str]) -> str:
+    """Nom d'onglet valide pour Excel : 31 caractères au plus, sans [ ] : * ? / \\,
+    et unique dans le classeur (sinon un numéro est ajouté)."""
+    propre = re.sub(r"[\[\]:*?/\\]", "-", nom).strip() or "Feuille"
+    propre = propre[:31]
+    candidat, i = propre, 2
+    while candidat in existants:
+        suffixe = f" ({i})"
+        candidat, i = propre[: 31 - len(suffixe)] + suffixe, i + 1
+    return candidat
 
 
 def exporter_excel(onglets: dict[str, pd.DataFrame], metadonnees: dict[str, object]) -> bytes:
@@ -35,7 +48,7 @@ def exporter_excel(onglets: dict[str, pd.DataFrame], metadonnees: dict[str, obje
             # Excel n'accepte pas les dates avec fuseau horaire ; on les retire.
             if isinstance(copie.index, pd.DatetimeIndex):
                 copie.index = copie.index.tz_localize(None).date
-            copie.to_excel(classeur, sheet_name=nom[:31])  # Excel limite les noms à 31 caractères
+            copie.to_excel(classeur, sheet_name=_nom_onglet(nom, classeur.book.sheetnames))
 
         # Mise en forme minimale : largeur de colonne adaptée au contenu.
         for feuille in classeur.book.worksheets:

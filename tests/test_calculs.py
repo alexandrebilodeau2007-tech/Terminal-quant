@@ -235,3 +235,95 @@ def test_dcf_gordon_simple():
 def test_dcf_refuse_g_superieur_wacc():
     with pytest.raises(ValueError):
         fondamentaux.dcf(100, [0.05], wacc=0.05, croissance_terminale=0.06, dette_nette=0, nb_actions=1)
+
+
+# ---------------------------------------------------------------- spreads
+from calculs import formule, profil_risque, spreads  # noqa: E402
+
+
+def test_spread_en_points_de_base():
+    idx = pd.to_datetime(["2026-01-02", "2026-01-05", "2026-01-06"])
+    ca = pd.Series([3.20, 3.25, 3.30], index=idx)
+    us = pd.Series([4.10, 4.15], index=idx[:2])          # une date manquante côté US
+    s = spreads.spread_pb(ca, us)
+    assert len(s) == 2                                    # dates communes seulement
+    assert s.iloc[0] == pytest.approx(-90.0)
+
+
+def test_statistiques_spread_zscore():
+    s = pd.Series([10.0, 20.0, 30.0, 40.0, 50.0], index=pd.bdate_range("2026-01-01", periods=5))
+    st_ = spreads.statistiques_spread(s)
+    assert st_["Actuel (pb)"] == 50.0
+    assert st_["z-score"] == pytest.approx((50 - 30) / s.std(ddof=1))
+    assert st_["Percentile historique"] == pytest.approx(0.8)
+
+
+def test_g_spread_interpolation():
+    """Exemple du docstring : État 5 ans 4,00 %, 10 ans 4,30 % -> 7 ans 4,12 % -> 118 pb."""
+    courbe = pd.Series({2: 3.80, 5: 4.00, 10: 4.30})
+    g = spreads.g_spread(5.30, courbe, 7)
+    assert g["Taux d'État interpolé (%)"] == pytest.approx(4.12)
+    assert g["G-spread (pb)"] == pytest.approx(118.0)
+
+
+def test_interpolation_sans_extrapolation():
+    courbe = pd.Series({2: 3.0, 10: 4.0})
+    assert spreads.interpoler_courbe(courbe, 30) == pytest.approx(4.0)
+
+
+# ---------------------------------------------------------------- formules
+@pytest.fixture
+def prix_formule():
+    idx = pd.bdate_range("2026-01-01", periods=3)
+    return pd.DataFrame({"GC=F": [2000.0, 2100.0, 2200.0], "SI=F": [25.0, 26.0, 27.5],
+                         "BTC-USD": [100.0, 110.0, 120.0], "USDCAD=X": [1.35, 1.36, 1.37]}, index=idx)
+
+
+def test_formule_ratio(prix_formule):
+    r = formule.calculer("GC=F / SI=F", prix_formule)
+    assert r.iloc[0] == pytest.approx(80.0)
+
+
+def test_formule_ticker_avec_tiret(prix_formule):
+    r = formule.calculer("BTC-USD * USDCAD=X", prix_formule)
+    assert r.iloc[-1] == pytest.approx(120 * 1.37)
+
+
+def test_formule_priorite_et_parentheses(prix_formule):
+    r = formule.calculer("(GC=F - SI=F * 10) / 2", prix_formule)
+    assert r.iloc[0] == pytest.approx((2000 - 250) / 2)
+
+
+@pytest.mark.parametrize("mauvaise", ["__import__('os')", "GC=F.__class__", "abs(GC=F)", "", "2 + 3", "GC=F / (SI=F"])
+def test_formule_refuse_le_code(mauvaise, prix_formule):
+    with pytest.raises(formule.ErreurFormule):
+        formule.calculer(mauvaise, prix_formule)
+
+
+def test_formule_division_par_zero(prix_formule):
+    prix_formule.loc[prix_formule.index[1], "SI=F"] = 0.0
+    assert len(formule.calculer("GC=F / SI=F", prix_formule)) == 2
+
+
+# ---------------------------------------------------------------- niveau de risque ACVM
+@pytest.mark.parametrize("sigma,attendu", [(0.05, "Faible"), (0.06, "Faible à moyen"), (0.159, "Moyen"),
+                                           (0.16, "Moyen à élevé"), (0.20, "Élevé"), (0.45, "Élevé")])
+def test_grille_acvm(sigma, attendu):
+    assert profil_risque.niveau_acvm(sigma)[1] == attendu
+
+
+def test_ecart_type_acvm_mensuel():
+    """Rendements mensuels alternant +3 % / -1 % : écart-type connu, annualisé par racine(12)."""
+    mois = pd.date_range("2016-01-31", periods=121, freq="ME")
+    r = np.tile([0.03, -0.01], 60)
+    prix = pd.Series(100 * np.concatenate([[1], np.cumprod(1 + r)]), index=mois)
+    sigma, n = profil_risque.ecart_type_acvm(prix)
+    assert n == 120
+    assert sigma == pytest.approx(pd.Series(r).std(ddof=1) * np.sqrt(12))
+
+
+def test_beta_connu():
+    rng = np.random.default_rng(7)
+    ref = pd.Series(rng.normal(0, 0.01, 2000), index=pd.bdate_range("2018-01-01", periods=2000))
+    actif = 1.5 * ref + pd.Series(rng.normal(0, 0.002, 2000), index=ref.index)
+    assert profil_risque.beta(actif, ref) == pytest.approx(1.5, abs=0.02)

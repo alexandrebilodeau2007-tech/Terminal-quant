@@ -15,7 +15,9 @@ import streamlit as st
 
 from calculs import options_math as om
 from export.excel import exporter_excel
+from interface.aide import sous_titre, titre
 from interface.composants import metriques, note_methodo
+from interface.navigation import valeur_initiale
 from sources import options as src
 
 
@@ -41,8 +43,10 @@ def _enrichir(df: pd.DataFrame, S: float, T: float, r: float, q: float, type_opt
 def _section_chaine() -> None:
     """Chaîne d'options réelle. Dans une fonction séparée pour pouvoir
     sortir tôt (return) sans bloquer l'onglet Calculatrice."""
+    sous_titre("Chaîne d'options", "opt_chaine")
+    valeur_initiale("opt_ticker", "SPY", "cmd_opt_ticker")
     c1, c2, c3 = st.columns(3)
-    ticker = c1.text_input("Sous-jacent (actions/FNB US)", "SPY", key="opt_ticker").strip().upper()
+    ticker = c1.text_input("Sous-jacent (actions/FNB US)", key="opt_ticker").strip().upper()
     r = c2.number_input("Taux sans risque (%)", 0.0, 20.0, 4.0, 0.1, key="opt_r") / 100
     q = c3.number_input("Rendement du dividende (%)", 0.0, 20.0, 1.2, 0.1, key="opt_q") / 100
     try:
@@ -106,16 +110,17 @@ def _section_chaine() -> None:
 
 
 def afficher(params: dict) -> None:
-    st.header("4 · Options")
-    st.caption("Chaînes d'options Yahoo (différées) · volatilité implicite et grecques recalculées (Black-Scholes-Merton).")
+    titre("Options", "opt", "OPT",
+          "Chaînes d'options Yahoo (différées) · volatilité implicite et grecques recalculées (Black-Scholes-Merton).")
 
-    onglet_chaine, onglet_calc = st.tabs(["Chaîne d'options", "Calculatrice Black-Scholes"])
+    onglet_chaine, onglet_calc = st.tabs([":material/view_list: Chaîne d'options", ":material/calculate: Calculatrice Black-Scholes"])
 
     with onglet_chaine:
         _section_chaine()
 
     # ======================================================= Calculatrice
     with onglet_calc:
+        sous_titre("Calculatrice Black-Scholes", "opt_calc")
         st.markdown("Pour tout sous-jacent (or, pétrole, devise…) : **tu fournis** spot, volatilité et taux. "
                     "Pour une option sur contrat à terme (modèle de Black 76), mets q = r.")
         c1, c2, c3 = st.columns(3)

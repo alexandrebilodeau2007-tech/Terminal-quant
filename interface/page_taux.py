@@ -18,6 +18,7 @@ import streamlit as st
 
 from calculs import obligations as ob
 from config import COURBE_BDC, COURBE_FRED, ECARTS_FRED
+from interface.aide import sous_titre, titre
 from interface.composants import metriques, note_methodo
 from sources.taux import cle_fred, courbe_a_une_date, serie_bdc, serie_fred
 
@@ -37,12 +38,14 @@ def _graphique_courbe(series: dict[float, pd.Series], titre: str) -> None:
 
 
 def afficher(params: dict) -> None:
-    st.header("5 · Taux & Obligations")
+    titre("Courbes & obligations", "taux", "YCRV", "Courbes des taux US (FRED) et canadienne (Banque du Canada), calculatrice obligataire.")
     debut = str((pd.Timestamp(params["fin"]) - pd.DateOffset(years=3)).date())
-    onglet_us, onglet_ca, onglet_calc = st.tabs(["États-Unis (FRED)", "Canada (Banque du Canada)", "Calculatrice obligataire"])
+    onglet_us, onglet_ca, onglet_calc = st.tabs([":material/flag: États-Unis (FRED)", ":material/flag: Canada (Banque du Canada)",
+                                                 ":material/calculate: Calculatrice obligataire"])
 
     # ------------------------------------------------------------ États-Unis
     with onglet_us:
+        sous_titre("Courbe du Trésor américain", "taux_courbe")
         cle = cle_fred()
         if not cle:
             st.warning("Clé FRED absente. Ajoute FRED_API_KEY dans .streamlit/secrets.toml (voir README).")
@@ -61,6 +64,7 @@ def afficher(params: dict) -> None:
 
     # ------------------------------------------------------------ Canada
     with onglet_ca:
+        sous_titre("Courbe du gouvernement du Canada", "taux_courbe")
         try:
             with st.spinner("Téléchargement Banque du Canada…"):
                 courbe_ca = {m: serie_bdc(code, debut) for m, code in COURBE_BDC.items()}
@@ -74,6 +78,7 @@ def afficher(params: dict) -> None:
 
     # ------------------------------------------------------------ Calculatrice
     with onglet_calc:
+        sous_titre("Calculatrice obligataire", "taux_calc")
         c1, c2, c3, c4 = st.columns(4)
         nominal = c1.number_input("Nominal", 1.0, value=100.0)
         coupon = c2.number_input("Coupon annuel (%)", 0.0, 30.0, 4.0, 0.125) / 100

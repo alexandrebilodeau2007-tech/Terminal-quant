@@ -167,3 +167,28 @@ def aligner_calendriers(prix: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     avant = len(prix)
     propre = prix.dropna(how="any")
     return propre, avant - len(propre)
+
+
+@st.cache_data(ttl=24 * 3600, show_spinner=False)
+def infos_fonds(ticker: str) -> dict:
+    """Composition d'un FNB (principaux titres, secteurs, classes d'actifs) via Yahoo.
+
+    Renvoie un dictionnaire vide si le ticker n'est pas un fonds ou si Yahoo
+    ne fournit pas ces données (fréquent pour certains FNB canadiens).
+    Chaque élément est lu séparément : une partie manquante n'empêche pas les autres.
+    """
+    resultat = {}
+    try:
+        fonds = yf.Ticker(ticker).funds_data
+    except Exception:
+        return resultat
+    for cle, attribut in (("principaux_titres", "top_holdings"), ("secteurs", "sector_weightings"),
+                          ("classes_actifs", "asset_classes"), ("description", "description")):
+        try:
+            valeur = getattr(fonds, attribut)
+        except Exception:
+            continue
+        if valeur is None or (hasattr(valeur, "empty") and valeur.empty) or (isinstance(valeur, (dict, str)) and not valeur):
+            continue
+        resultat[cle] = valeur
+    return resultat

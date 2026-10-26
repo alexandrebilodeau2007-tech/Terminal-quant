@@ -1,11 +1,14 @@
 """
-Section 2 — Risque & Portefeuille : VaR / CVaR et optimisation de Markowitz.
+PORT — Portefeuille & risque. Deux onglets :
 
-Déroulement :
+ONGLET 1 « Optimisation & VaR » — déroulement :
     1. Choix des actifs et des paramètres  ->  2. Données (converties, alignées, validées)
     3. Rendements attendus (historiques OU saisis par l'analyste)
     4. Optimisation (variance minimale, Sharpe maximal, ou poids manuels)
     5. Risque du portefeuille retenu (VaR, CVaR, backtest)  ->  6. Export Excel
+
+ONGLET 2 « Niveau de risque » : classement officiel ACVM d'un FNB, d'un titre
+ou d'un portefeuille personnalisé (écart-type des rendements mensuels sur 10 ans).
 """
 
 from __future__ import annotations
@@ -17,14 +20,18 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from calculs import optimisation as opt
+from calculs import profil_risque as pr
 from calculs import risque
 from calculs.rendements import drawdown, rendement_portefeuille, rendements_simples, statistiques
 from config import (FENETRE_BACKTEST_VAR, MAX_ACTIFS_PORTEFEUILLE, MIN_ACTIFS_PORTEFEUILLE,
                     MIN_OBSERVATIONS, POIDS_MAX_DEFAUT, TICKERS_TAUX)
 from export.excel import exporter_excel
+from config import GRILLE_RISQUE_ACVM
+from interface.aide import sous_titre, titre
 from interface.composants import metriques, note_methodo, selecteur_tickers, tableau_pourcent
+from interface.navigation import valeur_initiale
 from sources.marche import (ErreurDonnees, aligner_calendriers, convertir_en_devise_base,
-                            telecharger_prix)
+                            infos_fonds, telecharger_prix)
 
 
 def _valider(tickers: list[str]) -> str | None:
@@ -38,18 +45,28 @@ def _valider(tickers: list[str]) -> str | None:
 
 
 def afficher(params: dict) -> None:
-    st.header("2 · Risque & Portefeuille")
-    st.caption("VaR / CVaR (4 méthodes), backtest de Kupiec et optimisation de Markowitz (SciPy).")
+    titre("Portefeuille & risque", "port", "PORT",
+          "VaR / CVaR, backtest de Kupiec, optimisation de Markowitz et niveau de risque officiel (ACVM).")
+    onglet_opt, onglet_niveau = st.tabs([":material/insights: Optimisation & VaR",
+                                         ":material/speed: Niveau de risque (FNB / portefeuille)"])
+    with onglet_opt:
+        _onglet_optimisation(params)
+    with onglet_niveau:
+        _onglet_niveau(params)
 
+
+def _onglet_optimisation(params: dict) -> None:
+    sous_titre("Actifs et paramètres", "port_opt")
     # ------------------------------------------------------------ 1. Paramètres
     tickers = selecteur_tickers("risque", ["AAPL", "MSFT", "RY.TO", "GC=F", "TLT"],
-                                aide=f"{MIN_ACTIFS_PORTEFEUILLE} à {MAX_ACTIFS_PORTEFEUILLE} actifs investissables.")
+                                aide=f"{MIN_ACTIFS_PORTEFEUILLE} à {MAX_ACTIFS_PORTEFEUILLE} actifs investissables.",
+                                cle_commande="cmd_risque_libre")
     c1, c2, c3, c4 = st.columns(4)
     confiance = c1.selectbox("Niveau de confiance", [0.95, 0.99], format_func=lambda x: f"{x:.0%}")
     horizon = c2.selectbox("Horizon (jours de bourse)", [1, 5, 10, 21])
     poids_max = c3.slider("Poids maximum par actif", 0.10, 1.00, POIDS_MAX_DEFAUT, 0.05)
     rf = c4.number_input("Taux sans risque annuel (%)", 0.0, 20.0, 3.0, 0.25,
-                         help="Bon du Trésor 3 mois dans ta devise de base (voir section 5).") / 100
+                         help="Bon du Trésor 3 mois dans ta devise de base (voir YCRV).") / 100
     methode_cov = st.radio("Covariance", ["ledoit-wolf", "echantillon"], horizontal=True,
                            format_func=lambda m: "Ledoit-Wolf (recommandé)" if m == "ledoit-wolf" else "Échantillon")
 
@@ -77,7 +94,7 @@ def afficher(params: dict) -> None:
     rend = rendements_simples(prix).dropna()
 
     # ------------------------------------------------------------ 3. Rendements attendus
-    st.subheader("Rendements attendus (μ)")
+    sous_titre("Rendements attendus (μ)", "port_mu")
     st.markdown("La moyenne historique est **pré-remplie à titre indicatif**. "
                 "Remplace-la par **tes** hypothèses : c'est le paramètre qui influence le plus l'optimisation.")
     mu_hist = opt.rendements_attendus_historiques(rend)
@@ -89,7 +106,7 @@ def afficher(params: dict) -> None:
     cov = opt.covariance_annualisee(rend, methode_cov)
 
     # ------------------------------------------------------------ 4. Optimisation
-    st.subheader("Optimisation de Markowitz")
+    sous_titre("Optimisation de Markowitz", "port_opt")
     try:
         p_minvar = opt.variance_minimale(mu, cov, poids_max, rf)
         p_sharpe = opt.sharpe_maximal(mu, cov, poids_max, rf)
@@ -136,7 +153,7 @@ def afficher(params: dict) -> None:
         st.plotly_chart(fig, width="stretch")
 
     # ------------------------------------------------------------ 5. Risque
-    st.subheader("Risque du portefeuille")
+    sous_titre("Risque du portefeuille (VaR / CVaR)", "port_var")
     choix = st.radio("Portefeuille analysé", list(portefeuilles), horizontal=True)
     w = portefeuilles[choix].poids.values
     r_port = rendement_portefeuille(rend, w)
@@ -162,7 +179,7 @@ def afficher(params: dict) -> None:
     fig.update_layout(showlegend=False, xaxis_tickformat=".1%", height=380)
     st.plotly_chart(fig, width="stretch")
 
-    st.markdown("**Backtest de la VaR historique 1 jour (test de Kupiec)**")
+    sous_titre("Backtest de la VaR historique 1 jour (test de Kupiec)", "port_kupiec")
     kupiec = risque.backtest_kupiec(r_port, confiance, FENETRE_BACKTEST_VAR)
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("Exceptions observées", kupiec["exceptions"])
@@ -214,4 +231,162 @@ def afficher(params: dict) -> None:
         "- **Kupiec** : teste uniquement la FRÉQUENCE des exceptions, pas leur regroupement dans le temps (test de Christoffersen).\n"
         "- **Markowitz** : très sensible à μ. Le portefeuille de variance minimale n'utilise pas μ et est donc plus robuste. "
         "Long-only, poids plafonnés, convergence de SciPy vérifiée."
+    )
+
+
+# =====================================================================
+# ONGLET 2 — Niveau de risque (méthode ACVM)
+# =====================================================================
+
+REFERENCES = {"S&P/TSX composé (^GSPTSE)": "^GSPTSE", "S&P 500 (^GSPC)": "^GSPC",
+              "iShares S&P/TSX 60 (XIU.TO)": "XIU.TO", "Aucune": None}
+
+
+def _jauge(rang: int) -> None:
+    """Jauge horizontale à 5 cases, la case du niveau obtenu mise en évidence."""
+    cases = []
+    for i, (_, libelle) in enumerate(GRILLE_RISQUE_ACVM, start=1):
+        actif = i == rang
+        style = ("background:#FF9F1C;color:#0A0E14;font-weight:600" if actif
+                 else "background:#131A24;color:#8B98A9")
+        cases.append(f"<div style='flex:1;padding:10px 4px;text-align:center;{style};"
+                     f"border:1px solid #1F2A37;font-size:.85rem'>{libelle}</div>")
+    st.markdown(f"<div style='display:flex;gap:4px;margin:.4rem 0 .8rem 0'>{''.join(cases)}</div>",
+                unsafe_allow_html=True)
+
+
+def _graphique_glissant(prix: pd.Series) -> go.Figure:
+    """Écart-type annualisé sur 36 mois glissants, avec les seuils de la grille ACVM :
+    montre si le niveau de risque a changé dans le temps."""
+    r = pr.rendements_mensuels(prix)
+    glissant = r.rolling(36).std(ddof=1) * np.sqrt(12)
+    fig = go.Figure(go.Scatter(x=glissant.index, y=glissant, name="Écart-type 36 mois", line={"width": 2}))
+    for borne, libelle in GRILLE_RISQUE_ACVM[:-1]:
+        fig.add_hline(y=borne / 100, line_dash="dot", line_color="#8B98A9",
+                      annotation_text=f"{borne} %", annotation_position="right")
+    fig.update_layout(title="Écart-type annualisé sur 36 mois glissants (seuils ACVM en pointillés)",
+                      yaxis_tickformat=".0%", height=360, showlegend=False)
+    return fig
+
+
+def _onglet_niveau(params: dict) -> None:
+    sous_titre("Niveau de risque selon la méthode canadienne (ACVM)", "port_niveau")
+    st.caption("Période fixe de 10 ans se terminant à la date de fin globale (indépendante de la date de début), "
+               "comme l'exige la méthode officielle.")
+    mode = st.radio("Que veux-tu évaluer ?", ["Un FNB ou un titre", "Mon portefeuille (plusieurs actifs)"],
+                    horizontal=True, key="niv_mode")
+    reference_nom = st.selectbox("Indice de référence (pour le bêta et la corrélation)", list(REFERENCES), key="niv_ref")
+    reference = REFERENCES[reference_nom]
+
+    fin = pd.Timestamp(params["fin"])
+    debut = str((fin - pd.DateOffset(years=10, months=1)).date())
+
+    # ------------------------------------------------ séries de prix à évaluer
+    if mode == "Un FNB ou un titre":
+        valeur_initiale("niv_ticker", "XEQT.TO")
+        ticker = st.text_input("Ticker Yahoo du FNB ou du titre", key="niv_ticker",
+                               help="Ex. XEQT.TO, VFV.TO, XBB.TO, SPY, QQQ, AAPL.").strip().upper()
+        if not ticker:
+            return
+        a_telecharger = tuple(dict.fromkeys([ticker] + ([reference] if reference else [])))
+        try:
+            with st.spinner("Téléchargement de 10 ans de prix…"):
+                prix = telecharger_prix(a_telecharger, debut, params["fin"])
+        except ErreurDonnees as e:
+            st.error(str(e))
+            return
+        serie, nom, composition = prix[ticker].dropna(), ticker, None
+    else:
+        tickers = selecteur_tickers("niv_port", ["XIU.TO", "VFV.TO", "XBB.TO"])
+        if not 1 <= len(tickers) <= MAX_ACTIFS_PORTEFEUILLE:
+            st.info(f"Choisis de 1 à {MAX_ACTIFS_PORTEFEUILLE} actifs.")
+            return
+        taux = [t for t in tickers if t in TICKERS_TAUX]
+        if taux:
+            st.warning(f"{', '.join(taux)} : taux ou indicateurs, pas des actifs investissables.")
+            return
+        poids_df = st.data_editor(pd.DataFrame({"Poids (%)": np.full(len(tickers), round(100 / len(tickers), 2))},
+                                               index=tickers), key=f"niv_poids_{'_'.join(tickers)}")
+        poids = poids_df["Poids (%)"].astype(float) / 100
+        if abs(poids.sum() - 1) > 0.005 or (poids < 0).any():
+            st.warning(f"Les poids doivent être positifs et totaliser 100 % (actuellement {poids.sum():.2%}).")
+            return
+        try:
+            with st.spinner("Téléchargement et conversion de 10 ans de prix…"):
+                bruts = telecharger_prix(tuple(dict.fromkeys(tickers + ([reference] if reference else []))),
+                                         debut, params["fin"])
+                convertis, _ = convertir_en_devise_base(bruts[tickers], params["devise"], TICKERS_TAUX)
+                communs, _ = aligner_calendriers(convertis)
+        except ErreurDonnees as e:
+            st.error(str(e))
+            return
+        prix = bruts
+        serie = pr.valeur_portefeuille(communs, poids / poids.sum())
+        nom, composition = f"Portefeuille ({params['devise']})", None
+        st.caption(f"Portefeuille rééquilibré chaque jour, prix convertis en {params['devise']}, "
+                   f"historique commun depuis le {communs.index.min().date()}.")
+
+    ref_serie = prix[reference].dropna() if reference and reference in prix else None
+    resultat = pr.profil(serie, ref_serie)
+
+    # ------------------------------------------------ résultat principal
+    if resultat["Rang (1 à 5)"] == 0:
+        st.error("Moins de 12 mois d'historique : niveau de risque impossible à calculer.")
+        return
+    st.markdown(f"#### {nom} : niveau de risque **{resultat['Niveau ACVM']}**")
+    _jauge(resultat["Rang (1 à 5)"])
+    if not resultat["Historique complet (120 mois)"]:
+        st.warning(f"Seulement {resultat['Mois utilisés']} mois d'historique (120 exigés). Niveau **indicatif** : "
+                   "la méthode officielle complète l'historique avec un indice de référence.")
+
+    metriques({"Écart-type annualisé (méthode ACVM)": resultat["Écart-type annualisé (mensuel, ACVM)"],
+               "Volatilité (rendements quotidiens)": resultat["Volatilité annualisée (quotidienne)"],
+               "VaR historique 95 % (1 jour)": resultat["VaR historique 95 % (1 jour)"],
+               "Drawdown maximal": resultat["Drawdown maximal"]})
+    metriques({"Pire mois": resultat["Pire mois"], "Meilleur mois": resultat["Meilleur mois"],
+               "Mois positifs": resultat["Mois positifs"]}, "{:.2%}")
+    if ref_serie is not None:
+        metriques({"Bêta vs référence": resultat.get("Bêta vs référence"),
+                   "Corrélation vs référence": resultat.get("Corrélation vs référence")}, "{:.2f}")
+    st.caption(f"Calcul sur {resultat['Mois utilisés']} rendements mensuels.")
+
+    st.plotly_chart(_graphique_glissant(serie), width="stretch")
+
+    # ------------------------------------------------ composition du FNB (si Yahoo la fournit)
+    if mode == "Un FNB ou un titre":
+        composition = infos_fonds(nom)
+        if composition:
+            with st.expander("Composition du fonds (Yahoo Finance)", icon=":material/donut_large:"):
+                if "principaux_titres" in composition:
+                    st.markdown("**Principaux titres**")
+                    st.dataframe(composition["principaux_titres"], width="stretch")
+                if "secteurs" in composition:
+                    secteurs = pd.Series(composition["secteurs"], dtype=float).sort_values(ascending=False)
+                    secteurs = secteurs[secteurs > 0]
+                    if not secteurs.empty:
+                        st.plotly_chart(px.bar(secteurs, orientation="h", title="Poids par secteur",
+                                               labels={"value": "", "index": ""})
+                                        .update_layout(xaxis_tickformat=".0%", showlegend=False, height=360),
+                                        width="stretch")
+
+    # ------------------------------------------------ export
+    resume = pd.Series({k: v for k, v in resultat.items()}, name="Valeur").to_frame()
+    fichier = exporter_excel({"Profil de risque": resume, "Rendements mensuels": pr.rendements_mensuels(serie).to_frame("Rendement"),
+                              "Valeur": serie.to_frame("Valeur")},
+                             {"Évalué": nom, "Méthode": "ACVM, Règlement 81-102, annexe F (écart-type mensuel 10 ans, annualisé)",
+                              "Référence": reference_nom, "Fin de période": params["fin"],
+                              "Source": "Yahoo Finance, prix ajustés (approximation de la valeur liquidative)"})
+    st.download_button("Exporter le profil de risque (Excel)", fichier, key="niv_export",
+                       file_name=f"niveau_risque_{nom.split()[0]}.xlsx", icon=":material/download:",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    note_methodo(
+        "- **Méthode officielle** (ACVM, Règlement 81-102, annexe F) : écart-type des 120 derniers rendements "
+        "mensuels, annualisé par √12, classé dans la grille 6 / 11 / 16 / 20 %.\n"
+        "- **Approximation** : prix Yahoo ajustés au lieu de la valeur liquidative du fonds ; le mois en cours, "
+        "incomplet, est exclu.\n"
+        "- **Moins de 10 ans d'historique** : niveau indicatif. La méthode officielle complète avec un indice de référence.\n"
+        "- Un gestionnaire peut **relever** le niveau officiel s'il le juge raisonnable : le niveau publié peut donc être "
+        "plus élevé que celui calculé ici.\n"
+        "- **Bêta** : sensibilité aux mouvements de l'indice de référence (rendements quotidiens)."
     )

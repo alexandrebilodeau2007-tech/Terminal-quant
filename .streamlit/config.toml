@@ -1,0 +1,11 @@
+# Thème du terminal, inspiré des terminaux professionnels :
+# fond très sombre, accent ambre, texte clair. Lu automatiquement par Streamlit.
+[theme]
+base = "dark"
+primaryColor = "#FF9F1C"
+backgroundColor = "#0A0E14"
+secondaryBackgroundColor = "#131A24"
+textColor = "#E8E6E3"
+
+[browser]
+gatherUsageStats = false

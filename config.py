@@ -57,45 +57,24 @@ SOURCES_AUTORISEES = {
 }
 
 # ---------------------------------------------------------------------------
-# 5. Univers d'actifs prédéfini (tickers Yahoo Finance)
+# 5. Univers d'actifs (tiré du répertoire des tickers, voir repertoire.py)
 # ---------------------------------------------------------------------------
-# Ce sont des raccourcis : tu peux toujours taper n'importe quel ticker Yahoo.
+# UNIVERS = {famille: {nom: ticker Yahoo}}. La famille "Options" est exclue :
+# ses sous-jacents figurent déjà dans les autres familles.
+from repertoire import FAMILLES_NON_INVESTISSABLES, INDICATEURS_NON_INVESTISSABLES, REPERTOIRE  # noqa: E402
+
 UNIVERS = {
-    "Actions US": {
-        "Apple": "AAPL", "Microsoft": "MSFT", "Nvidia": "NVDA",
-        "Micron": "MU", "JPMorgan": "JPM", "Exxon": "XOM",
-    },
-    "Actions canadiennes (TSX)": {
-        "RBC": "RY.TO", "TD": "TD.TO", "Shopify": "SHOP.TO",
-        "CNR": "CNR.TO", "Enbridge": "ENB.TO", "Barrick": "ABX.TO",
-    },
-    "Indices": {
-        "S&P 500": "^GSPC", "Nasdaq 100": "^NDX", "S&P/TSX": "^GSPTSE",
-        "Dow Jones": "^DJI", "VIX": "^VIX",
-    },
-    "Commodités (contrats à terme)": {
-        "Or": "GC=F", "Argent": "SI=F", "Cuivre": "HG=F",
-        "Pétrole WTI": "CL=F", "Gaz naturel": "NG=F", "Maïs": "ZC=F",
-    },
-    "Forex": {
-        "USD/CAD": "USDCAD=X", "EUR/USD": "EURUSD=X", "USD/JPY": "USDJPY=X",
-        "GBP/USD": "GBPUSD=X", "EUR/CAD": "EURCAD=X",
-    },
-    "Obligations (FNB investissables)": {
-        "Trésor US 20+ ans": "TLT", "Trésor US 7-10 ans": "IEF",
-        "Trésor US 1-3 ans": "SHY", "Corporatif IG US": "LQD",
-        "High yield US": "HYG", "Obligations canadiennes": "XBB.TO",
-    },
-    "Taux (rendements, NON investissables)": {
-        "US 13 semaines": "^IRX", "US 5 ans": "^FVX",
-        "US 10 ans": "^TNX", "US 30 ans": "^TYX",
-    },
+    famille: {nom: yahoo for nom, yahoo, _tv, _note in lignes}
+    for famille, lignes in REPERTOIRE.items()
+    if not famille.startswith("Options")
 }
 
-# Tickers qui représentent un TAUX (en %) et non un prix. On ne peut pas
-# "acheter" ^TNX : ses variations ne sont pas des rendements. Balise :
-# ils sont refusés dans le module de portefeuille.
-TICKERS_TAUX = set(UNIVERS["Taux (rendements, NON investissables)"].values()) | {"^VIX"}
+# Tickers qui représentent un TAUX ou un indicateur (en %), pas un prix.
+# On ne peut pas "acheter" ^TNX : ses variations ne sont pas des rendements.
+# Balise : ils sont refusés dans le module de portefeuille.
+TICKERS_TAUX = {
+    yahoo for famille in FAMILLES_NON_INVESTISSABLES for _n, yahoo, _t, _no in REPERTOIRE[famille]
+} | INDICATEURS_NON_INVESTISSABLES
 
 # ---------------------------------------------------------------------------
 # 6. Séries FRED et Banque du Canada utilisées
@@ -110,6 +89,47 @@ ECARTS_FRED = {
     "Écart crédit IG (OAS)": "BAMLC0A0CM",
     "Écart crédit High Yield (OAS)": "BAMLH0A0HYM2",
 }
+
+# Séries de taux disponibles dans la section Spreads : nom affiché -> (source, code).
+# Toutes en % ; un spread entre deux d'entre elles est affiché en points de base.
+SERIES_TAUX = {
+    "US 3 mois": ("FRED", "DGS3MO"),
+    "US 2 ans": ("FRED", "DGS2"),
+    "US 5 ans": ("FRED", "DGS5"),
+    "US 10 ans": ("FRED", "DGS10"),
+    "US 30 ans": ("FRED", "DGS30"),
+    "US 10 ans réel (TIPS)": ("FRED", "DFII10"),
+    "Inflation anticipée 10 ans US (point mort)": ("FRED", "T10YIE"),
+    "Écart crédit IG US (OAS)": ("FRED", "BAMLC0A0CM"),
+    "Écart crédit BBB US (OAS)": ("FRED", "BAMLC0A4CBBB"),
+    "Écart crédit High Yield US (OAS)": ("FRED", "BAMLH0A0HYM2"),
+    "Canada 2 ans": ("BDC", "BD.CDN.2YR.DQ.YLD"),
+    "Canada 5 ans": ("BDC", "BD.CDN.5YR.DQ.YLD"),
+    "Canada 10 ans": ("BDC", "BD.CDN.10YR.DQ.YLD"),
+    "Canada long terme": ("BDC", "BD.CDN.LONG.DQ.YLD"),
+}
+
+# Spreads prêts à l'emploi : nom -> (série A, série B). Spread = A - B.
+SPREADS_PREDEFINIS = {
+    "Pente US 10 ans - 2 ans": ("US 10 ans", "US 2 ans"),
+    "Pente US 10 ans - 3 mois": ("US 10 ans", "US 3 mois"),
+    "Pente Canada 10 ans - 2 ans": ("Canada 10 ans", "Canada 2 ans"),
+    "Canada 10 ans - US 10 ans": ("Canada 10 ans", "US 10 ans"),
+    "Canada 2 ans - US 2 ans": ("Canada 2 ans", "US 2 ans"),
+    "Inflation : nominal 10 ans - réel 10 ans US": ("US 10 ans", "US 10 ans réel (TIPS)"),
+    "High Yield - IG (prime de risque des moins bien notées)": ("Écart crédit High Yield US (OAS)", "Écart crédit IG US (OAS)"),
+}
+
+# Grille officielle de classement du risque des fonds au Canada (ACVM, Règlement
+# 81-102, annexe F) : écart-type annualisé des rendements MENSUELS sur 10 ans.
+# (borne supérieure exclue en %, niveau)
+GRILLE_RISQUE_ACVM = [
+    (6, "Faible"),
+    (11, "Faible à moyen"),
+    (16, "Moyen"),
+    (20, "Moyen à élevé"),
+    (float("inf"), "Élevé"),
+]
 COURBE_BDC = {  # maturité (en années) -> code de série Banque du Canada
     2: "BD.CDN.2YR.DQ.YLD", 3: "BD.CDN.3YR.DQ.YLD", 5: "BD.CDN.5YR.DQ.YLD",
     7: "BD.CDN.7YR.DQ.YLD", 10: "BD.CDN.10YR.DQ.YLD", 30: "BD.CDN.LONG.DQ.YLD",

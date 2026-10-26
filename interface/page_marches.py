@@ -14,16 +14,18 @@ import streamlit as st
 
 from calculs.rendements import performance_periodes, rendements_simples
 from config import JOURS_BOURSE_PAR_AN, TICKERS_TAUX
+from interface.aide import sous_titre, titre
 from interface.composants import note_methodo, selecteur_tickers, tableau_pourcent
 from sources.marche import (ErreurDonnees, convertir_en_devise_base, telecharger_ohlc,
                             telecharger_prix)
 
 
 def afficher(params: dict) -> None:
-    st.header("1 · Marchés multi-actifs")
-    st.caption("Actions, indices, commodités, forex, obligations et taux — source : Yahoo Finance.")
+    titre("Marchés multi-actifs", "marches", "MKT",
+          "Actions, indices, commodités, forex, crypto, obligations et taux — source : Yahoo Finance.")
 
-    tickers = selecteur_tickers("marches", ["^GSPC", "^GSPTSE", "GC=F", "CL=F", "USDCAD=X", "TLT", "^TNX"])
+    tickers = selecteur_tickers("marches", ["^GSPC", "^GSPTSE", "GC=F", "CL=F", "USDCAD=X", "TLT", "^TNX"],
+                                cle_commande="cmd_marches_libre")
     convertir = st.checkbox(f"Convertir les prix en {params['devise']}", value=False,
                             help="Décoché : chaque actif dans sa devise d'origine (lecture du marché). "
                                  "Coché : rendement vécu par un investisseur dans ta devise.")
@@ -46,8 +48,8 @@ def afficher(params: dict) -> None:
     col_prix = [t for t in prix.columns if t not in TICKERS_TAUX]
 
     if col_prix:
-        st.subheader("Performance")
-        tableau_pourcent(performance_periodes(prix[col_prix]))
+        sous_titre("Performance", "marches_perf")
+        tableau_pourcent(performance_periodes(prix[col_prix]), signe=True)
 
         # Base 100 : chaque série divisée par son premier prix x 100.
         # Permet de comparer des actifs aux prix très différents (ex. or vs USD/CAD).
@@ -56,7 +58,7 @@ def afficher(params: dict) -> None:
         fig = px.line(base100, labels={"value": "Base 100", "index": "", "variable": "Actif"})
         st.plotly_chart(fig, width="stretch")
 
-        st.subheader("Risque et corrélations")
+        sous_titre("Risque et corrélations", "marches_risque")
         r = rendements_simples(prix[col_prix])
         vol = (r.std() * np.sqrt(JOURS_BOURSE_PAR_AN)).to_frame("Volatilité annualisée")
         # Volatilité sur les 3 derniers mois : montre si le risque actuel
@@ -72,11 +74,11 @@ def afficher(params: dict) -> None:
             st.plotly_chart(fig, width="stretch")
 
     if col_taux:
-        st.subheader("Taux et indicateurs de niveau (%)")
+        sous_titre("Taux et indicateurs de niveau (%)", "marches_risque")
         st.plotly_chart(px.line(prix[col_taux], labels={"value": "%", "index": "", "variable": ""}),
                         width="stretch")
 
-    st.subheader("Détail d'un actif")
+    sous_titre("Détail d'un actif", "marches_detail")
     choix = st.selectbox("Actif", tickers, key="marches_detail")
     try:
         ohlc = telecharger_ohlc(choix, params["debut"], params["fin"])

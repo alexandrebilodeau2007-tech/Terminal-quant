@@ -17,7 +17,9 @@ import streamlit as st
 
 from calculs import fondamentaux as fd
 from export.excel import exporter_excel
+from interface.aide import sous_titre, titre
 from interface.composants import metriques, note_methodo
+from interface.navigation import valeur_initiale
 from sources.etats_financiers import ErreurFondamentaux, donnees_de_marche, obtenir_etats_financiers
 from sources.marche import ErreurDonnees, telecharger_prix
 
@@ -52,10 +54,10 @@ def _taux_de_change(de: str, vers: str) -> float | None:
 
 
 def afficher(params: dict) -> None:
-    st.header("3 · Analyse fondamentale")
-    st.caption("Le terminal calcule. **Toi**, tu argumentes et tu conclus.")
+    titre("Analyse fondamentale", "fa", "FA", "Le terminal calcule. Toi, tu argumentes et tu conclus.")
+    valeur_initiale("fd_ticker", "AAPL", "cmd_fd_ticker")
 
-    ticker = st.text_input("Ticker (Yahoo)", "AAPL", key="fd_ticker").strip().upper()
+    ticker = st.text_input("Ticker (Yahoo)", key="fd_ticker", help="Ex. AAPL, MU, RY.TO, SHOP.TO").strip().upper()
     if not ticker:
         return
 
@@ -91,10 +93,13 @@ def afficher(params: dict) -> None:
     ratios = fd.calculer_ratios(t)
     valo = fd.ratios_valorisation(t, prix, actions)
 
-    onglets = st.tabs(["États financiers", "Ratios", "Valorisation & DCF", "Carnet d'analyse", "Export"])
+    onglets = st.tabs([":material/table_chart: États financiers", ":material/percent: Ratios",
+                       ":material/price_change: Valorisation & DCF", ":material/edit_note: Carnet d'analyse",
+                       ":material/download: Export"])
 
     # ------------------------------------------------ 1. États financiers
     with onglets[0]:
+        sous_titre("États financiers annuels", "fa_etats")
         st.caption(f"Montants en {etats.devise} (unités, non arrondis). BPA en {etats.devise} par action.")
         affichage = t.T.copy()
         affichage.columns = [d.strftime("%Y-%m-%d") for d in t.index]
@@ -102,6 +107,7 @@ def afficher(params: dict) -> None:
 
     # ------------------------------------------------ 2. Ratios
     with onglets[1]:
+        sous_titre("Ratios financiers", "fa_ratios")
         tableau = ratios.T.copy()
         tableau.columns = [d.strftime("%Y-%m") for d in ratios.index]
         # Format par défaut "1,85" (multiples), puis format % pour les lignes de RATIOS_POURCENT.
@@ -120,12 +126,13 @@ def afficher(params: dict) -> None:
 
     # ------------------------------------------------ 3. Valorisation & DCF
     with onglets[2]:
+        sous_titre("Multiples de valorisation", "fa_dcf")
         st.caption(f"Prix actuel / dernier exercice ({t.index[-1].date()}). Devise : {note_devise}.")
         metriques({k: valo[k] for k in ("P/E", "P/B", "P/S", "VE / EBIT")}, "{:.2f}x", par_ligne=5)
         metriques({"Rendement FCF": valo["Rendement FCF"]}, "{:.2%}", par_ligne=5)
         metriques({k: valo.get(k) for k in ("Capitalisation", "Valeur d'entreprise (VE)")}, "{:,.0f}", par_ligne=2)
 
-        st.subheader("DCF — tes hypothèses")
+        sous_titre("DCF — tes hypothèses", "fa_dcf")
         st.markdown("Aucune hypothèse n'est choisie à ta place. Les valeurs de départ sont **neutres** "
                     "(croissance 0 %) et doivent être remplacées puis justifiées dans le Carnet.")
         fcf_hist = ratios["Flux de trésorerie disponible (FCF)"].dropna()
@@ -178,6 +185,7 @@ def afficher(params: dict) -> None:
 
     # ------------------------------------------------ 4. Carnet d'analyse (rempli par l'analyste)
     with onglets[3]:
+        sous_titre("Carnet d'analyse", "fa_carnet")
         st.markdown("Ces champs sont **vides par conception** : le terminal ne rédige pas ta thèse. "
                     "Ils sont conservés pendant la session et inclus dans l'export Excel.")
         carnet = {}
@@ -186,6 +194,7 @@ def afficher(params: dict) -> None:
 
     # ------------------------------------------------ 5. Export
     with onglets[4]:
+        sous_titre("Exporter l'analyse", "fa_export")
         valo_df = pd.Series(valo, name="Valeur").to_frame()
         onglets_excel = {
             "États financiers": t, "Ratios": ratios,

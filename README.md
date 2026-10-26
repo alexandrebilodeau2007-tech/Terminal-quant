@@ -15,7 +15,6 @@ Projet d'**Alexandre Bilodeau**.
 
 1. [Ce que fait le terminal](#1-ce-que-fait-le-terminal)
 2. [Ouvrir le terminal](#2-ouvrir-le-terminal)
-3. [Configurer les clés API](#3-configurer-les-clés-api)
 4. [Guide d'utilisation par section](#4-guide-dutilisation-par-section)
 5. [Choix méthodologiques](#5-choix-méthodologiques)
 6. [Balises : ce que le terminal refuse de faire](#6-balises--ce-que-le-terminal-refuse-de-faire)
@@ -28,13 +27,23 @@ Projet d'**Alexandre Bilodeau**.
 
 ## 1. Ce que fait le terminal
 
-| # | Section | Contenu |
+Le terminal est organisé comme un terminal professionnel : chaque fonction a un **code** (comme sur Bloomberg),
+accessible par le menu du haut ou par la **barre de commande** à gauche.
+
+| Code | Fonction | Contenu |
 |---|---|---|
-| 1 | **Marchés multi-actifs** | Performance (1 mois, 3 mois, depuis le 1er janvier, 1 an), volatilité, matrice de corrélation, chandeliers avec moyennes mobiles. Actions, indices, commodités, forex, FNB obligataires, taux. |
-| 2 | **Risque & Portefeuille** | VaR et CVaR selon 4 méthodes (historique, paramétrique, Cornish-Fisher, Monte Carlo), backtest de Kupiec, frontière efficiente de Markowitz (SciPy), contributions au risque, drawdown, export Excel. |
-| 3 | **Analyse fondamentale** | États financiers annuels (SEC EDGAR, repli Yahoo), ratios (ROE, DuPont, marges, liquidité, solvabilité, P/E, P/B, VE/EBIT…), DCF avec **vos** hypothèses et tableau de sensibilité, carnet de thèse, export Excel. |
-| 4 | **Options** | Chaîne d'options filtrée par liquidité, smile de volatilité implicite, grecques (Black-Scholes-Merton), calculatrice pour tout sous-jacent. |
-| 5 | **Taux & Obligations** | Courbes des taux US (FRED) et canadienne (Banque du Canada), pentes et écarts de crédit, calculatrice obligataire (YTM, duration, convexité, DV01, chocs de taux). |
+| `HOME` | **Accueil** | Marchés du jour, tuiles d'accès aux fonctions, état des sources |
+| `TKR` | **Répertoire des tickers** | ~180 symboles classés par famille (actions US et TSX, indices, commodités, forex, crypto, FNB, obligations, taux, sous-jacents d'options), avec le symbole Yahoo et TradingView, recherche et export CSV |
+| `MKT` | **Marchés multi-actifs** | Performance (1 mois, 3 mois, depuis le 1er janvier, 1 an), volatilité, matrice de corrélation, chandeliers avec moyennes mobiles |
+| `CMP` | **Comparateur & formules** | Deux symboles face à face (base 100, ratio, corrélation et bêta glissants) · formules entre tickers comme sur TradingView (`GC=F / SI=F`, `CL=F - BZ=F`…) · graphique TradingView intégré |
+| `PORT` | **Portefeuille & risque** | Onglet *Optimisation & VaR* : VaR et CVaR (4 méthodes), Kupiec, Markowitz · onglet *Niveau de risque* : classement officiel ACVM d'un FNB, d'un titre ou d'un portefeuille, bêta, drawdown, composition du fonds |
+| `FA` | **Analyse fondamentale** | États financiers (SEC EDGAR, repli Yahoo), ratios, DuPont, P/E, DCF avec **vos** hypothèses et sensibilité, carnet de thèse, export Excel |
+| `OPT` | **Options** | Chaîne d'options filtrée par liquidité, smile de volatilité implicite, grecques, calculatrice Black-Scholes |
+| `YCRV` | **Courbes & obligations** | Courbes des taux US (FRED) et Canada (Banque du Canada), calculatrice obligataire (YTM, duration, convexité, DV01, chocs) |
+| `SPRD` | **Spreads de taux** | Tableau de bord des spreads suivis (pentes, Canada − US, inflation anticipée, crédit) avec z-score historique · spread entre deux taux au choix · G-spread d'une obligation d'entreprise |
+
+Chaque section et chaque onglet a un bouton **?** qui explique la fonction en langage simple, avec un exemple et
+son utilité.
 
 Marchés couverts : **actions** (US, TSX, international), **indices**, **commodités** (or, pétrole, cuivre, gaz, grains…),
 **forex**, **obligations** (FNB et courbes de taux), **options** (actions et FNB américains).
@@ -53,16 +62,38 @@ Fonctionne dans n'importe quel navigateur, sur ordinateur ou téléphone. Si l'a
 
 ## 4. Guide d'utilisation par section
 
-**Paramètres globaux** (barre latérale) : période d'analyse (5 ans par défaut) et **devise de base** (CAD ou USD).
+**Barre de commande** (à gauche) : tape un code suivi d'arguments, puis Entrée.
+
+| Commande | Effet |
+|---|---|
+| `FA AAPL` | Analyse fondamentale d'Apple |
+| `OPT SPY` | Options de SPY |
+| `CMP GC=F SI=F` | Compare l'or et l'argent |
+| `MKT AAPL MSFT ^GSPC` | Marchés avec ces tickers |
+| `PORT XIU.TO XBB.TO` | Portefeuille avec ces actifs |
+| `TKR banque` | Répertoire filtré sur « banque » |
+| `SPRD`, `YCRV`, `HOME` | Ouvre la fonction |
+
+**Paramètres globaux** (barre latérale, menu *Paramètres globaux*) : période d'analyse (5 ans par défaut) et **devise de base** (CAD ou USD).
 
 **Saisie des actifs** : liste prédéfinie, ou n'importe quel ticker Yahoo dans le champ libre.
 Exemples : `AAPL`, `RY.TO` (TSX), `GC=F` (or), `CL=F` (pétrole WTI), `USDCAD=X`, `^GSPC` (S&P 500), `TLT` (obligations du Trésor 20+ ans).
 
-### Section 1 — Marchés
+### TKR — Répertoire des tickers
+Choisir une famille ou chercher un mot (« or », « banque », « BTC »). Copier le ticker Yahoo pour le terminal,
+ou le symbole TradingView pour le graphique de CMP. Une option n'a pas de ticker propre : entrer le sous-jacent dans OPT.
+
+### MKT — Marchés
 Choisir des actifs de catégories différentes pour comparer leur performance en base 100 et leurs corrélations.
 La case *Convertir* exprime tout dans la devise de base, soit le rendement réellement vécu par un investisseur canadien.
 
-### Section 2 — Risque & Portefeuille
+### CMP — Comparateur & formules
+- **Deux symboles** : base 100, ratio A/B (monte = A fait mieux que B), corrélation et bêta glissants sur 60 jours.
+- **Formule** : `GC=F / SI=F`, `CL=F - BZ=F`, `(AAPL + MSFT + NVDA) / 3`, `BTC-USD * USDCAD=X`. Opérateurs `+ - * / **` et parenthèses ;
+  mettre des espaces autour du `-` entre deux tickers (`BTC-USD` est un seul ticker).
+- **Graphique TradingView** : symbole au format `BOURSE:SYMBOLE` (ex. `COMEX:GC1!`), second symbole superposé, indicateurs et dessins dans le graphique.
+
+### PORT — Portefeuille & risque (onglet Optimisation & VaR)
 1. Sélectionner de 2 à 20 actifs **investissables** (pas `^TNX` : c'est un taux, pas un prix).
 2. Choisir le niveau de confiance, l'horizon, le poids maximum par actif et le taux sans risque.
 3. **Rendements attendus (μ)** : la moyenne historique est pré-remplie. **Remplacez-la par vos hypothèses** ;
@@ -72,7 +103,14 @@ La case *Convertir* exprime tout dans la devise de base, soit le rendement réel
 6. Vérifier le backtest de Kupiec : une p-value < 0,05 signifie que la VaR est mal calibrée.
 7. Exporter vers Excel (poids, hypothèses, covariance, VaR, backtest, métadonnées).
 
-### Section 3 — Analyse fondamentale
+### PORT — onglet Niveau de risque
+Entrer un FNB ou un titre (ex. `XEQT.TO`), ou composer un portefeuille avec ses poids. Le terminal applique la
+**méthode officielle de l'ACVM** (Règlement 81-102, annexe F) : écart-type annualisé des rendements mensuels sur 10 ans,
+classé Faible (< 6 %), Faible à moyen (6-11 %), Moyen (11-16 %), Moyen à élevé (16-20 %) ou Élevé (≥ 20 %).
+S'ajoutent le bêta contre un indice, le drawdown, les meilleurs et pires mois, l'évolution du risque sur 36 mois
+glissants et, quand Yahoo la fournit, la composition du fonds.
+
+### FA — Analyse fondamentale
 1. Entrer un ticker. La source (EDGAR ou Yahoo) et la devise des états sont affichées.
 2. Onglets **États financiers** et **Ratios** : 6 derniers exercices. Les définitions sont dans l'encadré.
 3. Onglet **Valorisation & DCF** : saisir **vos** croissances, WACC et croissance terminale, puis cocher la case de confirmation.
@@ -80,17 +118,23 @@ La case *Convertir* exprime tout dans la devise de base, soit le rendement réel
 4. Onglet **Carnet d'analyse** : rédiger la thèse, les catalyseurs, les risques et la conclusion. **Ces champs sont vides par conception.**
 5. Onglet **Export** : un classeur Excel avec les chiffres, les ratios, le DCF, votre carnet et les métadonnées.
 
-### Section 4 — Options
+### OPT — Options
 - **Chaîne d'options** : sous-jacent américain (ex. `SPY`, `AAPL`), échéance et filtres de liquidité.
   La volatilité implicite est recalculée et comparée à celle de Yahoo.
 - **Calculatrice** : pour tout sous-jacent (or, devise, indice), en fournissant soi-même spot, volatilité et taux.
 
-### Section 5 — Taux & Obligations
+### YCRV — Courbes & obligations
 - Courbes US et canadienne aujourd'hui, il y a 1 an et il y a 2 ans : pente et inversion.
 - Écarts de crédit Investment Grade et High Yield.
 - Calculatrice : prix ↔ rendement, duration, convexité, DV01 et chocs de ±25 à ±200 pb (approximation vs réévaluation exacte).
 
 ---
+
+### SPRD — Spreads de taux
+- **Tableau de bord** : pentes US et Canada, Canada − US (2 et 10 ans), inflation anticipée (nominal − réel), High Yield − IG,
+  avec le niveau actuel en points de base, la moyenne, le **z-score** (en ambre au-delà de ±2) et la variation sur 1 an.
+- **Entre deux taux** : n'importe quel couple parmi les taux US, canadiens et les écarts de crédit FRED.
+- **G-spread** : rendement d'une obligation d'entreprise moins le taux d'État interpolé à la même maturité.
 
 ## 5. Choix méthodologiques
 
@@ -110,6 +154,9 @@ La case *Convertir* exprime tout dans la devise de base, soit le rendement réel
 | Devise du P/E | Prix converti dans la devise des états financiers | Ex. : Shopify cote en CAD mais publie en USD |
 | DCF | Aucune hypothèse par défaut cachée ; confirmation requise | La valorisation reste le jugement de l'analyste |
 | Options | Prix milieu (bid+ask)/2, contrôle d'arbitrage avant le calcul de la VI | Le dernier prix peut être périmé |
+| Niveau de risque | Grille ACVM : écart-type mensuel sur 120 mois, annualisé par √12 | Méthode officielle des Aperçus du fonds au Canada |
+| Spreads | Dates communes uniquement, z-score sur la période choisie, interpolation sans extrapolation | Ne jamais comparer deux dates ni inventer un taux |
+| Formules | Analyseur arithmétique (module `ast`), jamais `eval` | Aucune saisie ne peut exécuter de code |
 
 Chaque section du terminal contient un encadré **« Méthode et limites »**.
 
@@ -122,7 +169,8 @@ Chaque section du terminal contient un encadré **« Méthode et limites »**.
 - Aucune valeur de DCF tant que l'utilisateur n'a pas confirmé que les hypothèses sont les siennes.
 - Portefeuille : 2 à 20 actifs, 500 observations communes minimum, pas de vente à découvert.
 - Les taux et le VIX sont refusés comme actifs de portefeuille.
-- **Liste fermée de 4 sources.** Aucun *scraping* de site, aucune source payante contournée.
+- **Liste fermée de 4 sources de données** (+ le widget d'affichage TradingView). Aucun *scraping* de site, aucune source payante contournée.
+- Les formules de la fonction CMP sont lues par un analyseur qui n'accepte que l'arithmétique : aucun code n'est exécuté.
 - Aucune clé API dans le code (`st.secrets` uniquement).
 - Chaque export Excel inclut un onglet **Métadonnées** : date, sources, paramètres.
 
@@ -137,7 +185,8 @@ Le code est séparé en **couches qui ne se mélangent pas**. Chaque fichier est
 ```
 terminal-quant/
 ├── app.py                    Navigation et paramètres globaux (point d'entrée)
-├── config.py                 Balises, constantes, univers d'actifs, sources autorisées
+├── config.py                 Balises, constantes, séries de taux, grille ACVM, sources autorisées
+├── repertoire.py             Répertoire des tickers par famille (Yahoo + TradingView)
 ├── lancer_windows.bat        Lanceur Windows en double-clic
 ├── requirements.txt          Bibliothèques Python
 ├── sources/                  Couche DONNÉES : téléchargement et nettoyage, aucun calcul
@@ -151,10 +200,16 @@ terminal-quant/
 │   ├── optimisation.py         Markowitz, frontière efficiente, contributions au risque
 │   ├── fondamentaux.py         Ratios, DuPont, valorisation, DCF, sensibilité
 │   ├── obligations.py          Prix, YTM, duration, convexité, chocs
-│   └── options_math.py         Black-Scholes-Merton, grecques, volatilité implicite
-├── interface/                Couche AFFICHAGE : une page Streamlit par section
-│   ├── page_accueil.py  page_marches.py  page_risque.py
-│   ├── page_fondamental.py  page_options.py  page_taux.py
+│   ├── options_math.py         Black-Scholes-Merton, grecques, volatilité implicite
+│   ├── spreads.py              Spreads en pb, z-score, interpolation de courbe, G-spread
+│   ├── formule.py              Formules entre tickers (analyseur sûr, sans eval)
+│   └── profil_risque.py        Niveau de risque ACVM, bêta, profil d'un FNB ou portefeuille
+├── interface/                Couche AFFICHAGE : une page Streamlit par fonction
+│   ├── page_accueil.py  page_repertoire.py  page_marches.py  page_comparateur.py
+│   ├── page_risque.py  page_fondamental.py  page_options.py  page_taux.py  page_spreads.py
+│   ├── navigation.py           Codes de fonction, menu et barre de commande
+│   ├── aide.py                 Textes des boutons « ? » (vulgarisés, avec exemples)
+│   ├── theme.py  bandeau.py    Apparence sombre ambre, bandeau de cotations
 │   └── composants.py           Éléments réutilisables
 ├── export/excel.py           Export Excel avec métadonnées
 └── tests/test_calculs.py     Tests des calculs
@@ -172,12 +227,15 @@ pip install -r requirements.txt
 python -m pytest tests/ -v
 ```
 
-Les 29 tests comparent les calculs à des valeurs connues, par exemple :
+Les 51 tests comparent les calculs à des valeurs connues, par exemple :
 - Black-Scholes : exemple du manuel de Hull (S=42, K=40 → call 4,76) et parité call-put ;
 - Markowitz : formule fermée de la variance minimale à 2 actifs, contraintes respectées, cas impossible détecté ;
 - VaR : convergence vers la loi normale, CVaR ≥ VaR, Cornish-Fisher sur queues épaisses, Kupiec ;
 - Obligations : prix au pair, YTM inverse du prix, duration d'un zéro-coupon, dérivées numériques ;
-- Ratios : ROE sur moyenne, cohérence DuPont, N/A pour capitaux propres ou BPA négatifs, DCF = perpétuité de Gordon.
+- Ratios : ROE sur moyenne, cohérence DuPont, N/A pour capitaux propres ou BPA négatifs, DCF = perpétuité de Gordon ;
+- Spreads : conversion en pb, dates communes, z-score, G-spread interpolé ;
+- Formules : priorité des opérateurs, tickers à tiret (`BTC-USD`), refus de tout code non arithmétique ;
+- Niveau de risque : grille ACVM aux bornes exactes, écart-type mensuel annualisé, bêta connu.
 
 ---
 
@@ -215,7 +273,8 @@ Les *issues* et *pull requests* sont bienvenues.
 | « Python introuvable » | Réinstaller Python en cochant « Add python.exe to PATH ». |
 | Erreur à l'installation des bibliothèques avec une version très récente de Python | Utiliser Python 3.12. |
 | « Ticker sans données » | Vérifier le ticker sur finance.yahoo.com (ex. `RY.TO`, et non `RY` pour le TSX). |
-| Section 5 US désactivée | Ajouter `FRED_API_KEY` dans les secrets. |
+| YCRV (US) ou SPRD limités au Canada | Ajouter `FRED_API_KEY` dans les secrets. |
+| Le graphique TradingView n'affiche rien | Vérifier le symbole au format `BOURSE:SYMBOLE` (colonne TradingView du répertoire). |
 
 ---
 
