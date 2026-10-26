@@ -430,3 +430,15 @@ def test_grille_plein_ecran():
     base["display"]["layout"] = 4
     page, _ = tv.html_grille(base, plein_ecran=True)
     assert "100vh" in page and page.count('"autosize": true') == 4
+
+
+def test_export_excel_dates_avec_fuseau():
+    """Une colonne de dates avec fuseau (chaîne d'options Yahoo) ne fait plus planter l'export."""
+    from export.excel import exporter_excel
+    df = pd.DataFrame({"contractSymbol": ["MU270115C01000000"],
+                       "lastTradeDate": pd.to_datetime(["2026-10-26 15:59"]).tz_localize("UTC"),
+                       "strike": [1000.0]}).set_index("contractSymbol")
+    df["mixte"] = [pd.Timestamp("2026-10-26", tz="America/New_York")]
+    df["mixte"] = df["mixte"].astype(object)
+    octets = exporter_excel({"Calls": df}, {"Underlying": "MU"})
+    assert octets[:2] == b"PK"

@@ -28,6 +28,18 @@ def _nom_onglet(nom: str, existants: list[str]) -> str:
     return candidat
 
 
+def _sans_fuseau(df: pd.DataFrame) -> pd.DataFrame:
+    """Retire le fuseau horaire des COLONNES de dates (ex. lastTradeDate des chaînes
+    d'options Yahoo) : Excel refuse toute date avec fuseau horaire."""
+    for col in df.columns:
+        serie = df[col]
+        if isinstance(serie.dtype, pd.DatetimeTZDtype):
+            df[col] = serie.dt.tz_convert(None)
+        elif serie.dtype == object and serie.map(lambda v: isinstance(v, pd.Timestamp) and v.tzinfo is not None).any():
+            df[col] = serie.map(lambda v: v.tz_convert(None) if isinstance(v, pd.Timestamp) and v.tzinfo is not None else v)
+    return df
+
+
 def exporter_excel(onglets: dict[str, pd.DataFrame], metadonnees: dict[str, object]) -> bytes:
     """Crée un classeur Excel en mémoire et renvoie ses octets
     (directement utilisables par st.download_button).
@@ -48,6 +60,7 @@ def exporter_excel(onglets: dict[str, pd.DataFrame], metadonnees: dict[str, obje
             # Excel n'accepte pas les dates avec fuseau horaire ; on les retire.
             if isinstance(copie.index, pd.DatetimeIndex):
                 copie.index = copie.index.tz_localize(None).date
+            copie = _sans_fuseau(copie)
             copie.to_excel(classeur, sheet_name=_nom_onglet(nom, classeur.book.sheetnames))
 
         # Mise en forme minimale : largeur de colonne adaptée au contenu.
