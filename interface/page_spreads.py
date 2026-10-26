@@ -50,7 +50,7 @@ def _graphique_spread(spread: pd.Series, titre_graphique: str) -> go.Figure:
     fig.add_trace(go.Scatter(x=spread.index, y=[moyenne - 2 * ecart] * len(spread), line={"width": 0},
                              fill="tonexty", fillcolor="rgba(255,159,28,0.08)", name="Moyenne ± 2 écarts-types",
                              hoverinfo="skip"))
-    fig.add_trace(go.Scatter(x=spread.index, y=spread, name="Spread (pb)", line={"width": 2}))
+    fig.add_trace(go.Scatter(x=spread.index, y=spread, name="Spread (pb)", line={"width": 2, "color": "#FF9F1C"}))
     fig.add_hline(y=moyenne, line_dash="dot", line_color="#8B98A9", annotation_text="moyenne")
     fig.add_hline(y=0, line_color="#1F2A37")
     fig.update_layout(title=titre_graphique, yaxis_title="Points de base", height=420)
