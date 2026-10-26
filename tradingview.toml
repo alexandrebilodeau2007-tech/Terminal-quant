@@ -35,18 +35,21 @@ permettre_modifications = true
 # Un bloc [[graphiques]] par graphique, dans l'ordre (les 4 premiers sont utilisés).
 # symbole : format BOURSE:SYMBOLE (voir la colonne TradingView du répertoire, code TKR)
 # comparer : second symbole superposé, ou "" pour aucun
+# ATTENTION : le widget gratuit n'affiche PAS les contrats à terme (COMEX:GC1!, NYMEX:CL1!…)
+# ni certains indices. Utiliser l'équivalent au comptant (OANDA:XAUUSD, TVC:USOIL)
+# ou un FNB (AMEX:SPY, TSX:XIU).
 [[graphiques]]
-symbole = "COMEX:GC1!"
-comparer = "COMEX:SI1!"
+symbole = "OANDA:XAUUSD"
+comparer = "OANDA:XAGUSD"
 
 [[graphiques]]
-symbole = "SP:SPX"
+symbole = "AMEX:SPY"
 comparer = ""
 
 [[graphiques]]
-symbole = "TSX:TSX"
+symbole = "TSX:RY"
 comparer = ""
 
 [[graphiques]]
-symbole = "FX:USDCAD"
+symbole = "TVC:USOIL"
 comparer = ""

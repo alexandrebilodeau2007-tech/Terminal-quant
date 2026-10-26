@@ -261,5 +261,8 @@ def _tradingview() -> None:
         "- **TradingView n'offre pas d'API de données publique** : le terminal intègre leur widget gratuit, qui sert à "
         "l'affichage. Les calculs (formules, ratios, statistiques, export) se font dans les deux autres onglets.\n"
         "- Les dessins faits dans un widget ne sont pas sauvegardés (fonction réservée aux comptes TradingView).\n"
+        "- **Contrats à terme et certains indices non affichables** dans le widget gratuit (message « Symbole disponible "
+        "uniquement sur TradingView ») : utiliser `OANDA:XAUUSD` (or), `OANDA:XAGUSD` (argent), `TVC:USOIL` (pétrole) "
+        "ou un FNB (`AMEX:SPY`, `TSX:XIU`).\n"
         "- Certaines données en temps réel exigent un abonnement TradingView ; le widget affiche alors des données différées."
     )

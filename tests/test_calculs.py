@@ -351,7 +351,7 @@ def test_valider_rejette_les_valeurs_hors_liste():
     assert r["affichage"]["disposition"] == 1 and r["affichage"]["style"] == "1"
     assert r["affichage"]["intervalle"] == "D" and r["affichage"]["hauteur_simple"] == 1400
     assert r["affichage"]["indicateurs"] == ["RSI"] and r["affichage"]["legende"] is True
-    assert r["graphiques"][0]["symbole"] == "SP:SPX"          # symbole dangereux remplacé
+    assert r["graphiques"][0]["symbole"] == "AMEX:SPY"          # symbole dangereux remplacé
     assert r["graphiques"][0]["comparer"] == "COMEX:SI1!"
 
 

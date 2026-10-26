@@ -52,8 +52,8 @@ DEFAUTS = {
         "plages_de_dates": True, "legende": True, "panneau_details": False, "masquer_volume": False,
         "permettre_modifications": True,
     },
-    "graphiques": [{"symbole": "COMEX:GC1!", "comparer": ""}, {"symbole": "SP:SPX", "comparer": ""},
-                   {"symbole": "TSX:TSX", "comparer": ""}, {"symbole": "FX:USDCAD", "comparer": ""}],
+    "graphiques": [{"symbole": "OANDA:XAUUSD", "comparer": "OANDA:XAGUSD"}, {"symbole": "AMEX:SPY", "comparer": ""},
+                   {"symbole": "TSX:RY", "comparer": ""}, {"symbole": "TVC:USOIL", "comparer": ""}],
 }
 
 
@@ -90,7 +90,7 @@ def valider(reglages: dict) -> dict:
         for g in graphiques[:4]:
             symbole = str(g.get("symbole", "")).strip()
             comparer = str(g.get("comparer", "")).strip()
-            propres.append({"symbole": symbole if symbole_valide(symbole) else "SP:SPX",
+            propres.append({"symbole": symbole if symbole_valide(symbole) else "AMEX:SPY",
                             "comparer": comparer if symbole_valide(comparer) else ""})
         while len(propres) < 4:  # toujours 4 emplacements, pour passer à la grille sans erreur
             propres.append(DEFAUTS["graphiques"][len(propres)])

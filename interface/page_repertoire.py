@@ -60,7 +60,9 @@ def afficher(params: dict) -> None:
             "| Forex | Paire + `=X` | `USDCAD=X` |\n"
             "| Crypto | Symbole-devise | `BTC-USD`, `ETH-CAD` |\n\n"
             "Les symboles **TradingView** suivent le format `BOURSE:SYMBOLE` (ex. `TSX:RY`, `COMEX:GC1!`). "
-            "Ils servent seulement au graphique TradingView de la fonction CMP ; ils sont indicatifs."
+            "Ils servent seulement au graphique TradingView de la fonction CMP ; ils sont indicatifs. "
+            "**Le widget gratuit n'affiche pas les contrats à terme** (symboles finissant par `1!`) ni certains indices : "
+            "utilise l'équivalent au comptant (`OANDA:XAUUSD`, `TVC:USOIL`) ou un FNB (`AMEX:SPY`, `TSX:XIU`)."
         )
     st.download_button("Télécharger le répertoire (CSV)", tout.to_csv(index=False).encode("utf-8-sig"),
                        file_name="repertoire_tickers.csv", mime="text/csv", icon=":material/download:")

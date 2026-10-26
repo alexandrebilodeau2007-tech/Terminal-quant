@@ -5,6 +5,8 @@ Chaque entrée : (nom, ticker Yahoo, symbole TradingView, note).
     - Le ticker YAHOO est celui que le terminal utilise pour télécharger les données.
     - Le symbole TRADINGVIEW sert seulement au graphique TradingView (section Comparateur).
       Il est indicatif : en cas de doute, cherche le symbole dans la barre de recherche du graphique.
+      Le widget gratuit n'affiche pas les contrats à terme (symboles finissant par 1!) : ils
+      restent valides sur le site de TradingView, mais pas dans le terminal.
 
 Ce n'est pas une liste de TOUS les tickers du monde (il y en a des centaines de
 milliers) : ce sont les plus utilisés, par famille. N'importe quel autre ticker
@@ -97,13 +99,13 @@ REPERTOIRE: dict[str, list[tuple[str, str, str, str]]] = {
         ("Indice du dollar US (DXY)", "DX-Y.NYB", "TVC:DXY", "Dollar contre 6 devises"),
     ],
     "Commodités (contrats à terme)": [
-        ("Or", "GC=F", "COMEX:GC1!", "Métal précieux, $/once"),
-        ("Argent", "SI=F", "COMEX:SI1!", "Métal précieux, $/once"),
+        ("Or", "GC=F", "OANDA:XAUUSD", "Métal précieux, $/once (TradingView : prix au comptant)"),
+        ("Argent", "SI=F", "OANDA:XAGUSD", "Métal précieux, $/once (TradingView : prix au comptant)"),
         ("Platine", "PL=F", "NYMEX:PL1!", "Métal précieux"),
         ("Palladium", "PA=F", "NYMEX:PA1!", "Métal précieux"),
         ("Cuivre", "HG=F", "COMEX:HG1!", "Métal industriel, $/livre"),
-        ("Pétrole WTI", "CL=F", "NYMEX:CL1!", "Énergie, $/baril"),
-        ("Pétrole Brent", "BZ=F", "NYMEX:BB1!", "Énergie, $/baril"),
+        ("Pétrole WTI", "CL=F", "TVC:USOIL", "Énergie, $/baril (TradingView : prix au comptant)"),
+        ("Pétrole Brent", "BZ=F", "TVC:UKOIL", "Énergie, $/baril (TradingView : prix au comptant)"),
         ("Gaz naturel", "NG=F", "NYMEX:NG1!", "Énergie, $/MMBtu"),
         ("Essence RBOB", "RB=F", "NYMEX:RB1!", "Énergie, $/gallon"),
         ("Mazout", "HO=F", "NYMEX:HO1!", "Énergie, $/gallon"),
