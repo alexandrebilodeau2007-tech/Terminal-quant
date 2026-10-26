@@ -45,7 +45,9 @@ Marchés couverts : **actions** (US, TSX, international), **indices**, **commodi
 
 ### Option A — En ligne (aucune installation)
 
-Ouvrir le lien de l'application Streamlit indiqué dans la section *About* de ce dépôt.
+**👉 [terminal-quant-bilodeau.streamlit.app](https://terminal-quant-bilodeau.streamlit.app)**
+
+Fonctionne dans n'importe quel navigateur, sur ordinateur ou téléphone. Si l'app est en veille (après quelques jours sans visite), cliquer sur *« Yes, get this app back up! »* et attendre environ 30 secondes.
 
 > Pour héberger votre propre copie : voir [Déployer sur Streamlit Community Cloud](#déployer-sur-streamlit-community-cloud).
 
@@ -61,8 +63,8 @@ Ouvrir le lien de l'application Streamlit indiqué dans la section *About* de ce
 ### Option C — Sur macOS ou Linux (ou Windows en ligne de commande)
 
 ```bash
-git clone https://github.com/alexandrebilodeau2007-tech/terminal-quant.git
-cd terminal-quant
+git clone https://github.com/alexandrebilodeau2007-tech/Terminal-quant.git
+cd Terminal-quant
 python3 -m venv .venv
 source .venv/bin/activate            # Windows : .venv\Scripts\activate
 pip install -r requirements.txt
