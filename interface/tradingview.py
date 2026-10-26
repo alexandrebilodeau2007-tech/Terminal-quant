@@ -149,17 +149,22 @@ def html_grille(reglages: dict) -> tuple[str, int]:
     ecart = 8
     blocs = []
     for g in reglages["graphiques"][:n]:
+        # Cadre extérieur de hauteur FIXE : le script TradingView réécrit le style de son
+        # propre conteneur (height:100 %), il lui faut donc un parent dont la hauteur est connue.
         blocs.append(f"""
-  <div class="tradingview-widget-container" style="height:{hauteur}px;width:100%">
-    <div class="tradingview-widget-container__widget" style="height:calc(100% - 24px);width:100%"></div>
-    <div class="tradingview-widget-copyright" style="font:11px sans-serif;color:#8B98A9;height:24px;line-height:24px">
-      <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank" style="color:#FF9F1C">Graphiques par TradingView</a></div>
-    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-    {json.dumps(config_widget(g, aff))}
-    </script>
+  <div class="tq-cadre" style="height:{hauteur}px">
+    <div class="tradingview-widget-container" style="height:100%;width:100%">
+      <div class="tradingview-widget-container__widget" style="height:calc(100% - 24px);width:100%"></div>
+      <div class="tradingview-widget-copyright" style="font:11px sans-serif;color:#8B98A9;height:24px;line-height:24px">
+        <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank" style="color:#FF9F1C">Graphiques par TradingView</a></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+      {json.dumps(config_widget(g, aff))}
+      </script>
+    </div>
   </div>""")
-    page = (f"<div style='display:grid;grid-template-columns:repeat({colonnes},minmax(0,1fr));gap:{ecart}px;"
-            f"background:#0A0E14'>{''.join(blocs)}</div>")
+    page = ("<style>html,body{margin:0;padding:0;background:#0A0E14}</style>"
+            f"<div style='display:grid;grid-template-columns:repeat({colonnes},minmax(0,1fr));"
+            f"grid-auto-rows:{hauteur}px;gap:{ecart}px;background:#0A0E14'>{''.join(blocs)}</div>")
     return page, rangees * hauteur + (rangees - 1) * ecart + 10
 
 
