@@ -43,57 +43,57 @@ NB_ANNEES = 6  # on garde les 6 derniers exercices
 # les revenus). On essaie dans l'ordre et on combine.
 # ---------------------------------------------------------------------------
 POSTES = {
-    "Revenus": ("duree",
+    "Revenue": ("duree",
         ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax",
          "RevenueFromContractWithCustomerIncludingAssessedTax", "SalesRevenueNet"],
         ["Revenue", "RevenueFromContractsWithCustomers"]),
-    "Bénéfice brut": ("duree", ["GrossProfit"], ["GrossProfit"]),
-    "Résultat d'exploitation (EBIT)": ("duree", ["OperatingIncomeLoss"],
+    "Gross profit": ("duree", ["GrossProfit"], ["GrossProfit"]),
+    "Operating income (EBIT)": ("duree", ["OperatingIncomeLoss"],
         ["ProfitLossFromOperatingActivities"]),
-    "Bénéfice net": ("duree", ["NetIncomeLoss", "ProfitLoss"],
+    "Net income": ("duree", ["NetIncomeLoss", "ProfitLoss"],
         ["ProfitLossAttributableToOwnersOfParent", "ProfitLoss"]),
-    "Charges d'intérêts": ("duree", ["InterestExpense", "InterestExpenseNonoperating"],
+    "Interest expense": ("duree", ["InterestExpense", "InterestExpenseNonoperating"],
         ["FinanceCosts", "InterestExpense"]),
-    "BPA dilué": ("action", ["EarningsPerShareDiluted"], ["DilutedEarningsLossPerShare"]),
-    "Flux de trésorerie d'exploitation": ("duree",
+    "Diluted EPS": ("action", ["EarningsPerShareDiluted"], ["DilutedEarningsLossPerShare"]),
+    "Operating cash flow": ("duree",
         ["NetCashProvidedByUsedInOperatingActivities"], ["CashFlowsFromUsedInOperatingActivities"]),
-    "Dépenses en immobilisations (CAPEX)": ("duree",
+    "Capital expenditures (CAPEX)": ("duree",
         ["PaymentsToAcquirePropertyPlantAndEquipment"],
         ["PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"]),
-    "Actif total": ("instant", ["Assets"], ["Assets"]),
-    "Actif à court terme": ("instant", ["AssetsCurrent"], ["CurrentAssets"]),
-    "Passif à court terme": ("instant", ["LiabilitiesCurrent"], ["CurrentLiabilities"]),
-    "Passif total": ("instant", ["Liabilities"], ["Liabilities"]),
-    "Stocks": ("instant", ["InventoryNet"], ["Inventories"]),
-    "Trésorerie": ("instant",
+    "Total assets": ("instant", ["Assets"], ["Assets"]),
+    "Current assets": ("instant", ["AssetsCurrent"], ["CurrentAssets"]),
+    "Current liabilities": ("instant", ["LiabilitiesCurrent"], ["CurrentLiabilities"]),
+    "Total liabilities": ("instant", ["Liabilities"], ["Liabilities"]),
+    "Inventory": ("instant", ["InventoryNet"], ["Inventories"]),
+    "Cash": ("instant",
         ["CashAndCashEquivalentsAtCarryingValue",
          "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"],
         ["CashAndCashEquivalents"]),
-    "Dette à long terme": ("instant", ["LongTermDebtNoncurrent", "LongTermDebt"],
+    "Long-term debt": ("instant", ["LongTermDebtNoncurrent", "LongTermDebt"],
         ["NoncurrentPortionOfNoncurrentBorrowings", "LongtermBorrowings"]),
-    "Capitaux propres": ("instant",
+    "Shareholders' equity": ("instant",
         ["StockholdersEquity", "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"],
         ["EquityAttributableToOwnersOfParent", "Equity"]),
 }
 
 # Équivalences pour le repli Yahoo Finance (noms de lignes de yfinance).
 POSTES_YAHOO = {
-    "Revenus": ["Total Revenue", "Operating Revenue"],
-    "Bénéfice brut": ["Gross Profit"],
-    "Résultat d'exploitation (EBIT)": ["Operating Income", "EBIT"],
-    "Bénéfice net": ["Net Income Common Stockholders", "Net Income"],
-    "Charges d'intérêts": ["Interest Expense", "Interest Expense Non Operating"],
-    "BPA dilué": ["Diluted EPS"],
-    "Flux de trésorerie d'exploitation": ["Operating Cash Flow"],
-    "Dépenses en immobilisations (CAPEX)": ["Capital Expenditure"],
-    "Actif total": ["Total Assets"],
-    "Actif à court terme": ["Current Assets"],
-    "Passif à court terme": ["Current Liabilities"],
-    "Passif total": ["Total Liabilities Net Minority Interest"],
-    "Stocks": ["Inventory"],
-    "Trésorerie": ["Cash And Cash Equivalents", "Cash Cash Equivalents And Short Term Investments"],
-    "Dette à long terme": ["Long Term Debt"],
-    "Capitaux propres": ["Stockholders Equity", "Common Stock Equity"],
+    "Revenue": ["Total Revenue", "Operating Revenue"],
+    "Gross profit": ["Gross Profit"],
+    "Operating income (EBIT)": ["Operating Income", "EBIT"],
+    "Net income": ["Net Income Common Stockholders", "Net Income"],
+    "Interest expense": ["Interest Expense", "Interest Expense Non Operating"],
+    "Diluted EPS": ["Diluted EPS"],
+    "Operating cash flow": ["Operating Cash Flow"],
+    "Capital expenditures (CAPEX)": ["Capital Expenditure"],
+    "Total assets": ["Total Assets"],
+    "Current assets": ["Current Assets"],
+    "Current liabilities": ["Current Liabilities"],
+    "Total liabilities": ["Total Liabilities Net Minority Interest"],
+    "Inventory": ["Inventory"],
+    "Cash": ["Cash And Cash Equivalents", "Cash Cash Equivalents And Short Term Investments"],
+    "Long-term debt": ["Long Term Debt"],
+    "Shareholders' equity": ["Stockholders Equity", "Common Stock Equity"],
 }
 
 
@@ -188,7 +188,7 @@ def _etats_sec(ticker: str, user_agent: str) -> EtatsFinanciers:
     # La SEC écrit "BRK-B" ; Yahoo écrit "BRK-B" aussi, mais on normalise les points.
     cle = ticker.upper().replace(".", "-")
     if cle not in table:
-        raise ErreurFondamentaux(f"{ticker} n'est pas inscrit à la SEC.")
+        raise ErreurFondamentaux(f"{ticker} is not registered with the SEC.")
     cik, nom = table[cle]
     faits = _faits_sec(cik, user_agent)
 
@@ -212,12 +212,12 @@ def _etats_sec(ticker: str, user_agent: str) -> EtatsFinanciers:
         series[poste] = (type_poste, combinee)
 
     # Dates d'ancrage = fins d'exercice, déduites des flux (revenus, bénéfice net).
-    ancres = sorted(set(series["Bénéfice net"][1].index) | set(series["Revenus"][1].index))
+    ancres = sorted(set(series["Net income"][1].index) | set(series["Revenue"][1].index))
     if not ancres:
-        raise ErreurFondamentaux("Aucun exercice annuel trouvé dans EDGAR.")
+        raise ErreurFondamentaux("No annual fiscal year found in EDGAR.")
     ancres = ancres[-NB_ANNEES:]
 
-    tableau = pd.DataFrame(index=pd.DatetimeIndex(ancres, name="Fin d'exercice"))
+    tableau = pd.DataFrame(index=pd.DatetimeIndex(ancres, name="Fiscal year end"))
     for poste, (type_poste, serie) in series.items():
         valeurs = []
         for ancre in ancres:
@@ -233,7 +233,7 @@ def _etats_sec(ticker: str, user_agent: str) -> EtatsFinanciers:
 
     manquants = [p for p in POSTES if tableau[p].isna().all()]
     if manquants:
-        notes.append("Postes absents des dépôts XBRL : " + ", ".join(manquants))
+        notes.append("Items missing from XBRL filings: " + ", ".join(manquants))
     return EtatsFinanciers(tableau, f"SEC EDGAR ({taxonomie})", devise or "USD", nom, notes)
 
 
@@ -248,10 +248,10 @@ def _etats_yahoo(ticker: str) -> EtatsFinanciers:
     t = yf.Ticker(ticker)
     brut = pd.concat([t.financials, t.balance_sheet, t.cashflow])
     if brut is None or brut.empty:
-        raise ErreurFondamentaux(f"Aucun état financier disponible pour {ticker}.")
+        raise ErreurFondamentaux(f"No financial statements available for {ticker}.")
     brut = brut[~brut.index.duplicated()]  # un poste peut apparaître dans 2 tableaux
 
-    tableau = pd.DataFrame(index=pd.DatetimeIndex(sorted(pd.to_datetime(brut.columns)), name="Fin d'exercice"))
+    tableau = pd.DataFrame(index=pd.DatetimeIndex(sorted(pd.to_datetime(brut.columns)), name="Fiscal year end"))
     for poste, noms in POSTES_YAHOO.items():
         trouve = next((n for n in noms if n in brut.index), None)
         if trouve is None:
@@ -263,7 +263,7 @@ def _etats_yahoo(ticker: str) -> EtatsFinanciers:
 
     # yfinance présente le CAPEX en négatif (sortie de fonds) ; EDGAR en positif.
     # On harmonise en POSITIF pour que FCF = FTE - CAPEX soit identique partout.
-    tableau["Dépenses en immobilisations (CAPEX)"] = tableau["Dépenses en immobilisations (CAPEX)"].abs()
+    tableau["Capital expenditures (CAPEX)"] = tableau["Capital expenditures (CAPEX)"].abs()
 
     try:
         infos = t.info
@@ -271,8 +271,8 @@ def _etats_yahoo(ticker: str) -> EtatsFinanciers:
         nom = infos.get("longName") or ticker
     except Exception:
         devise, nom = "USD", ticker
-    notes = ["Source de repli non officielle (Yahoo). Vérifie les chiffres clés dans le rapport annuel ou sur SEDAR+."]
-    return EtatsFinanciers(tableau.tail(NB_ANNEES), "Yahoo Finance (repli)", devise, nom, notes)
+    notes = ["Unofficial fallback source (Yahoo). Check key figures in the annual report or on SEDAR+."]
+    return EtatsFinanciers(tableau.tail(NB_ANNEES), "Yahoo Finance (fallback)", devise, nom, notes)
 
 
 # ===========================================================================
@@ -283,16 +283,16 @@ def _etats_yahoo(ticker: str) -> EtatsFinanciers:
 def obtenir_etats_financiers(ticker: str, user_agent: str | None) -> EtatsFinanciers:
     """Essaie EDGAR, puis Yahoo. Le motif de l'échec d'EDGAR est conservé
     dans les notes pour que l'analyste sache pourquoi le repli a été utilisé."""
-    raison = "en-tête SEC_USER_AGENT absent des secrets"
+    raison = "SEC_USER_AGENT header missing from secrets"
     if user_agent:
         try:
             return _etats_sec(ticker, user_agent)
         except ErreurFondamentaux as e:
             raison = str(e)
         except requests.RequestException as e:
-            raison = f"EDGAR injoignable ({e.__class__.__name__})"
+            raison = f"EDGAR unreachable ({e.__class__.__name__})"
     etats = _etats_yahoo(ticker)
-    etats.notes.insert(0, f"EDGAR non utilisé : {raison}.")
+    etats.notes.insert(0, f"EDGAR not used: {raison}.")
     return etats
 
 

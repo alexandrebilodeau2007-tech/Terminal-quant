@@ -71,8 +71,8 @@ def _verifier_faisabilite(n: int, poids_max: float) -> None:
     si n x poids_max < 1 (ex. 2 actifs à 40 % max = 80 % au mieux)."""
     if n * poids_max < 1 - 1e-9:
         raise ErreurOptimisation(
-            f"Impossible : {n} actifs x {poids_max:.0%} max = {n * poids_max:.0%} < 100 %. "
-            "Ajoute des actifs ou augmente le plafond."
+            f"Impossible: {n} assets x {poids_max:.0%} max = {n * poids_max:.0%} < 100 %. "
+            "Add assets or raise the cap."
         )
 
 
@@ -87,14 +87,14 @@ def _resoudre(objectif, n: int, poids_max: float, contraintes_sup: list | None =
     res = minimize(objectif, depart, method="SLSQP", bounds=bornes, constraints=contraintes,
                    options={"maxiter": 1000, "ftol": 1e-12})
     if not res.success:
-        raise ErreurOptimisation(f"L'optimiseur n'a pas convergé : {res.message}")
+        raise ErreurOptimisation(f"The optimizer did not converge: {res.message}")
     poids = np.clip(res.x, 0, None)   # supprime les -1e-12 numériques
     return poids / poids.sum()        # renormalise exactement à 100 %
 
 
 def _emballer(poids, noms, mu, cov, rf) -> Resultat:
     r, v, s = performance(poids, mu, cov, rf)
-    return Resultat(pd.Series(poids, index=noms, name="Poids"), r, v, s)
+    return Resultat(pd.Series(poids, index=noms, name="Weight"), r, v, s)
 
 
 def variance_minimale(mu: pd.Series, cov: pd.DataFrame, poids_max: float, rf: float) -> Resultat:
@@ -148,7 +148,7 @@ def frontiere_efficiente(mu: pd.Series, cov: pd.DataFrame, poids_max: float, rf:
         except ErreurOptimisation:
             continue
         r, v, s = performance(w, m, S, rf)
-        points.append({"Rendement": r, "Volatilité": v, "Sharpe": s, **dict(zip(mu.index, w))})
+        points.append({"Return": r, "Volatility": v, "Sharpe": s, **dict(zip(mu.index, w))})
     return pd.DataFrame(points)
 
 
@@ -158,4 +158,4 @@ def contributions_au_risque(poids: pd.Series, cov: pd.DataFrame) -> pd.Series:
     Utile : un actif à 20 % du poids peut porter 50 % du risque."""
     w = poids.values
     variance = w @ cov.values @ w
-    return pd.Series(w * (cov.values @ w) / variance, index=poids.index, name="Contribution au risque")
+    return pd.Series(w * (cov.values @ w) / variance, index=poids.index, name="Risk contribution")

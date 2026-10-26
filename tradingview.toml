@@ -1,72 +1,73 @@
 # =====================================================================
-# Réglages de BASE des graphiques TradingView (fonction CMP, onglet TradingView)
+# BASE settings for the TradingView charts (CMP function, TradingView tab
+# and the charts-only window)
 # =====================================================================
-# Ce fichier est lu à chaque visite : TOUS les visiteurs voient ces réglages
-# au chargement de la page. Un visiteur peut modifier l'affichage sur son
-# écran, mais ses changements ne durent que le temps de sa visite.
+# This file is read on every visit: ALL visitors see these settings when
+# the page loads. A visitor can change the display on their screen, but
+# their changes only last for their visit.
 #
-# Pour changer la base de tout le monde : modifier ce fichier sur GitHub
-# (ou le remplacer par celui exporté depuis l'app), puis « Commit ».
-# L'app en ligne se met à jour toute seule en une à deux minutes.
+# To change the base for everyone: edit this file on GitHub (or replace it
+# with the one exported from the app), then "Commit". The live app updates
+# by itself within one to two minutes.
 # =====================================================================
 
-[affichage]
-# Nombre de graphiques : 1, 2 (côte à côte) ou 4 (grille 2 x 2)
-disposition = 1
-# Hauteur de CHAQUE graphique, en pixels (400 à 1400)
-hauteur_simple = 820
-hauteur_grille = 520
-# Intervalle des bougies : "1", "5", "15", "60", "240", "D", "W", "M"
-intervalle = "D"
-# Style : "1" chandeliers, "9" chandeliers creux, "8" Heikin Ashi, "0" barres, "2" ligne, "3" aire
+[display]
+# Number of charts: 1, 2 (side by side) or 4 (2 x 2 grid)
+layout = 1
+# Height of EACH chart, in pixels (400 to 1400)
+single_height = 820
+grid_height = 520
+# Candle interval: "1", "5", "15", "60", "240", "D", "W", "M"
+interval = "D"
+# Style: "1" candles, "9" hollow candles, "8" Heikin Ashi, "0" bars, "2" line, "3" area
 style = "1"
-fuseau = "America/Toronto"
-# Indicateurs ajoutés au chargement (noms de la liste de l'app, voir interface/tradingview.py)
-indicateurs = ["Moyenne mobile simple", "RSI"]
-barre_outils_laterale = true
-barre_outils_haut = true
-plages_de_dates = true
-legende = true
-panneau_details = false
-masquer_volume = false
-# false = le panneau de réglages est caché : tout le monde voit exactement la base
-permettre_modifications = true
+timezone = "America/Toronto"
+# Indicators added on load (names from the app's list, see interface/tradingview.py)
+indicators = ["Simple moving average", "RSI"]
+side_toolbar = true
+top_toolbar = true
+date_ranges = true
+legend = true
+details_panel = false
+hide_volume = false
+# false = the settings panel is hidden: everyone sees exactly the base
+allow_changes = true
 
-# Paramètres des indicateurs (utilisés quand l'indicateur est dans la liste ci-dessus).
-# length = nombre de périodes ; mult = nombre d'écarts-types des bandes de Bollinger.
-[parametres]
+# Indicator parameters (used when the indicator is in the list above).
+# length = number of periods; mult = number of standard deviations of the Bollinger Bands.
+[parameters]
 "RSI" = { length = 14 }
-"Moyenne mobile simple" = { length = 50 }
-"Moyenne mobile exponentielle" = { length = 20 }
-"Bandes de Bollinger" = { length = 20, mult = 2.0 }
+"Simple moving average" = { length = 50 }
+"Exponential moving average" = { length = 20 }
+"Bollinger Bands" = { length = 20, mult = 2.0 }
 
-# Couleurs (format #RRGGBB) : bougies, fond et grille.
-# Les couleurs des lignes d'indicateurs (RSI, moyennes) ne sont pas réglables dans les
-# widgets gratuits de TradingView : elles se changent seulement à l'écran (roue dentée de l'indicateur).
-[couleurs]
-hausse = "#2ECC71"
-baisse = "#FF5C5C"
-fond = "#0A0E14"
-grille = "#1F2A37"
+# Colors (#RRGGBB format): candles, background and grid.
+# Indicator line colors (RSI, moving averages) cannot be set in TradingView's
+# free widgets: they can only be changed on screen (the indicator's gear icon).
+[colors]
+up = "#2ECC71"
+down = "#FF5C5C"
+background = "#0A0E14"
+grid = "#1F2A37"
 
-# Un bloc [[graphiques]] par graphique, dans l'ordre (les 4 premiers sont utilisés).
-# symbole : format BOURSE:SYMBOLE (voir la colonne TradingView du répertoire, code TKR)
-# comparer : second symbole superposé, ou "" pour aucun
-# ATTENTION : le widget gratuit n'affiche PAS les contrats à terme (COMEX:GC1!, NYMEX:CL1!…)
-# ni certains indices. Utiliser l'équivalent au comptant (OANDA:XAUUSD, TVC:USOIL)
-# ou un FNB (AMEX:SPY, TSX:XIU).
-[[graphiques]]
-symbole = "OANDA:XAUUSD"
-comparer = "OANDA:XAGUSD"
+# One [[charts]] block per chart, in order (the first 4 are used).
+# symbol: EXCHANGE:SYMBOL format (see the TradingView column of the directory, code TKR)
+# compare: second symbol overlaid, or "" for none
+# WARNING: the free widget does NOT display futures (COMEX:GC1!, NYMEX:CL1!…)
+# or some indices. Use the spot equivalent (OANDA:XAUUSD, TVC:USOIL)
+# or an ETF (AMEX:SPY, TSX:XIU).
+[[charts]]
+symbol = "OANDA:XAUUSD"
+compare = "OANDA:XAGUSD"
 
-[[graphiques]]
-symbole = "AMEX:SPY"
-comparer = ""
+[[charts]]
+symbol = "AMEX:SPY"
+compare = ""
 
-[[graphiques]]
-symbole = "TSX:RY"
-comparer = ""
+[[charts]]
+symbol = "TSX:RY"
+compare = ""
 
-[[graphiques]]
-symbole = "TVC:USOIL"
-comparer = ""
+[[charts]]
+symbol = "TVC:USOIL"
+compare = ""

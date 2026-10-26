@@ -75,7 +75,7 @@ def telecharger_prix(tickers: tuple[str, ...], debut: str, fin: str) -> pd.DataF
         threads=True,
     )
     if brut is None or brut.empty:
-        raise ErreurDonnees("Aucune donnée reçue de Yahoo Finance. Vérifie les tickers.")
+        raise ErreurDonnees("No data received from Yahoo Finance. Check the tickers.")
 
     prix = _extraire_colonne(brut, "Close", liste)
     prix.index = pd.to_datetime(prix.index).tz_localize(None)  # enlève le fuseau horaire
@@ -83,7 +83,7 @@ def telecharger_prix(tickers: tuple[str, ...], debut: str, fin: str) -> pd.DataF
     # Tickers entièrement vides = ticker invalide ou délisté.
     vides = [t for t in prix.columns if prix[t].dropna().empty]
     if vides:
-        raise ErreurDonnees(f"Ticker(s) sans données : {', '.join(vides)}")
+        raise ErreurDonnees(f"Ticker(s) without data: {', '.join(vides)}")
     return prix.sort_index()
 
 
@@ -93,7 +93,7 @@ def telecharger_ohlc(ticker: str, debut: str, fin: str) -> pd.DataFrame:
     (pour le graphique en chandeliers)."""
     brut = yf.download(ticker, start=debut, end=fin, auto_adjust=True, progress=False)
     if brut is None or brut.empty:
-        raise ErreurDonnees(f"Aucune donnée pour {ticker}.")
+        raise ErreurDonnees(f"No data for {ticker}.")
     if isinstance(brut.columns, pd.MultiIndex):
         brut.columns = brut.columns.get_level_values(0)  # garde seulement le nom du champ
     brut.index = pd.to_datetime(brut.index).tz_localize(None)

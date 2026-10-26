@@ -19,7 +19,7 @@ from config import AVERTISSEMENT
 def _nom_onglet(nom: str, existants: list[str]) -> str:
     """Nom d'onglet valide pour Excel : 31 caractères au plus, sans [ ] : * ? / \\,
     et unique dans le classeur (sinon un numéro est ajouté)."""
-    propre = re.sub(r"[\[\]:*?/\\]", "-", nom).strip() or "Feuille"
+    propre = re.sub(r"[\[\]:*?/\\]", "-", nom).strip() or "Sheet"
     propre = propre[:31]
     candidat, i = propre, 2
     while candidat in existants:
@@ -36,11 +36,11 @@ def exporter_excel(onglets: dict[str, pd.DataFrame], metadonnees: dict[str, obje
     metadonnees : {"Paramètre": valeur} -> premier onglet
     """
     tampon = io.BytesIO()  # fichier "virtuel" en mémoire : rien n'est écrit sur le disque
-    meta = {"Date de l'export": datetime.now().strftime("%Y-%m-%d %H:%M"), **metadonnees,
-            "Avertissement": AVERTISSEMENT}
+    meta = {"Export date": datetime.now().strftime("%Y-%m-%d %H:%M"), **metadonnees,
+            "Disclaimer": AVERTISSEMENT}
     with pd.ExcelWriter(tampon, engine="openpyxl") as classeur:
-        pd.DataFrame(list(meta.items()), columns=["Élément", "Valeur"]).to_excel(
-            classeur, sheet_name="Métadonnées", index=False)
+        pd.DataFrame(list(meta.items()), columns=["Item", "Value"]).to_excel(
+            classeur, sheet_name="Metadata", index=False)
         for nom, df in onglets.items():
             if df is None or df.empty:
                 continue

@@ -22,27 +22,27 @@ import numpy as np
 import pandas as pd
 
 DEFINITIONS = {
-    "ROE": "Bénéfice net / capitaux propres MOYENS. N/A si capitaux propres <= 0.",
-    "ROA": "Bénéfice net / actif total MOYEN.",
-    "Marge brute": "Bénéfice brut / revenus.",
-    "Marge d'exploitation": "Résultat d'exploitation (EBIT) / revenus.",
-    "Marge nette": "Bénéfice net / revenus.",
-    "Rotation de l'actif": "Revenus / actif total moyen (DuPont).",
-    "Levier financier": "Actif total moyen / capitaux propres moyens (DuPont).",
-    "Ratio de liquidité générale": "Actif à court terme / passif à court terme.",
-    "Ratio de liquidité immédiate": "(Actif à court terme - stocks) / passif à court terme.",
-    "Ratio de trésorerie": "Trésorerie / passif à court terme.",
-    "Dette LT / capitaux propres": "Dette à long terme / capitaux propres.",
-    "Passif / actif": "Passif total / actif total.",
-    "Couverture des intérêts": "EBIT / charges d'intérêts.",
-    "Flux de trésorerie disponible (FCF)": "Flux d'exploitation - CAPEX.",
-    "Croissance des revenus": "Variation annuelle des revenus.",
-    "Croissance du bénéfice net": "Variation annuelle du bénéfice net. N/A si l'année précédente est <= 0.",
-    "P/E": "Prix / BPA dilué du DERNIER exercice (pas TTM). N/A si BPA <= 0.",
-    "P/B": "Capitalisation / capitaux propres du dernier exercice.",
-    "P/S": "Capitalisation / revenus du dernier exercice.",
-    "VE / EBIT": "(Capitalisation + dette LT - trésorerie) / EBIT. N/A si EBIT <= 0.",
-    "Rendement FCF": "FCF du dernier exercice / capitalisation.",
+    "ROE": "Net income / AVERAGE shareholders' equity. N/A if equity <= 0.",
+    "ROA": "Net income / AVERAGE total assets.",
+    "Gross margin": "Gross profit / revenue.",
+    "Operating margin": "Operating income (EBIT) / revenue.",
+    "Net margin": "Net income / revenue.",
+    "Asset turnover": "Revenue / average total assets (DuPont).",
+    "Financial leverage": "Average total assets / average equity (DuPont).",
+    "Current ratio": "Current assets / current liabilities.",
+    "Quick ratio": "(Current assets - inventory) / current liabilities.",
+    "Cash ratio": "Cash / current liabilities.",
+    "LT debt / equity": "Long-term debt / shareholders' equity.",
+    "Liabilities / assets": "Total liabilities / total assets.",
+    "Interest coverage": "EBIT / interest expense.",
+    "Free cash flow (FCF)": "Operating cash flow - CAPEX.",
+    "Revenue growth": "Year-over-year change in revenue.",
+    "Net income growth": "Year-over-year change in net income. N/A if the prior year is <= 0.",
+    "P/E": "Price / diluted EPS of the LATEST fiscal year (not TTM). N/A if EPS <= 0.",
+    "P/B": "Market cap / equity of the latest fiscal year.",
+    "P/S": "Market cap / revenue of the latest fiscal year.",
+    "EV / EBIT": "(Market cap + LT debt - cash) / EBIT. N/A if EBIT <= 0.",
+    "FCF yield": "Latest fiscal-year FCF / market cap.",
 }
 
 
@@ -64,41 +64,41 @@ def _moyenne(serie: pd.Series) -> pd.Series:
 def calculer_ratios(t: pd.DataFrame) -> pd.DataFrame:
     """Calcule les ratios annuels à partir du tableau standardisé
     (index = fins d'exercice, colonnes = postes)."""
-    cp, actif = t["Capitaux propres"], t["Actif total"]
+    cp, actif = t["Shareholders' equity"], t["Total assets"]
     cp_moy, actif_moy = _moyenne(cp), _moyenne(actif)
-    bn, rev = t["Bénéfice net"], t["Revenus"]
+    bn, rev = t["Net income"], t["Revenue"]
 
     r = pd.DataFrame(index=t.index)
     # --- Rentabilité ---
     r["ROE"] = _div(bn, cp_moy.where(cp_moy > 0))           # .where(...) -> NaN si <= 0
     r["ROA"] = _div(bn, actif_moy)
-    r["Marge brute"] = _div(t["Bénéfice brut"], rev)
-    r["Marge d'exploitation"] = _div(t["Résultat d'exploitation (EBIT)"], rev)
-    r["Marge nette"] = _div(bn, rev)
+    r["Gross margin"] = _div(t["Gross profit"], rev)
+    r["Operating margin"] = _div(t["Operating income (EBIT)"], rev)
+    r["Net margin"] = _div(bn, rev)
     # --- DuPont : ROE = marge nette x rotation de l'actif x levier ---
-    r["Rotation de l'actif"] = _div(rev, actif_moy)
-    r["Levier financier"] = _div(actif_moy, cp_moy.where(cp_moy > 0))
+    r["Asset turnover"] = _div(rev, actif_moy)
+    r["Financial leverage"] = _div(actif_moy, cp_moy.where(cp_moy > 0))
     # --- Liquidité ---
-    r["Ratio de liquidité générale"] = _div(t["Actif à court terme"], t["Passif à court terme"])
-    stocks = t["Stocks"].fillna(0)  # pas de stocks déclarés = 0 (ex. société de logiciels)
-    r["Ratio de liquidité immédiate"] = _div(t["Actif à court terme"] - stocks, t["Passif à court terme"])
-    r["Ratio de trésorerie"] = _div(t["Trésorerie"], t["Passif à court terme"])
+    r["Current ratio"] = _div(t["Current assets"], t["Current liabilities"])
+    stocks = t["Inventory"].fillna(0)  # pas de stocks déclarés = 0 (ex. société de logiciels)
+    r["Quick ratio"] = _div(t["Current assets"] - stocks, t["Current liabilities"])
+    r["Cash ratio"] = _div(t["Cash"], t["Current liabilities"])
     # --- Solvabilité ---
-    r["Dette LT / capitaux propres"] = _div(t["Dette à long terme"], cp.where(cp > 0))
-    r["Passif / actif"] = _div(t["Passif total"], actif)
-    r["Couverture des intérêts"] = _div(t["Résultat d'exploitation (EBIT)"], t["Charges d'intérêts"].abs())
+    r["LT debt / equity"] = _div(t["Long-term debt"], cp.where(cp > 0))
+    r["Liabilities / assets"] = _div(t["Total liabilities"], actif)
+    r["Interest coverage"] = _div(t["Operating income (EBIT)"], t["Interest expense"].abs())
     # --- Flux et croissance ---
-    r["Flux de trésorerie disponible (FCF)"] = t["Flux de trésorerie d'exploitation"] - t["Dépenses en immobilisations (CAPEX)"]
-    r["Croissance des revenus"] = rev.pct_change(fill_method=None)
+    r["Free cash flow (FCF)"] = t["Operating cash flow"] - t["Capital expenditures (CAPEX)"]
+    r["Revenue growth"] = rev.pct_change(fill_method=None)
     bn_prec = bn.shift(1)
-    r["Croissance du bénéfice net"] = _div(bn - bn_prec, bn_prec.where(bn_prec > 0))
+    r["Net income growth"] = _div(bn - bn_prec, bn_prec.where(bn_prec > 0))
     return r
 
 
 def verifier_dupont(ratios: pd.DataFrame) -> pd.Series:
     """Contrôle de cohérence : marge nette x rotation x levier doit égaler le ROE.
     Un écart signale un problème de données (bon réflexe d'analyste)."""
-    produit = ratios["Marge nette"] * ratios["Rotation de l'actif"] * ratios["Levier financier"]
+    produit = ratios["Net margin"] * ratios["Asset turnover"] * ratios["Financial leverage"]
     return (produit - ratios["ROE"]).abs()
 
 
@@ -107,23 +107,23 @@ def ratios_valorisation(t: pd.DataFrame, prix: float | None, actions: float | No
     Attention : prix et états financiers doivent être dans la même devise ;
     la vérification est faite dans l'interface avant l'appel."""
     if not prix or not actions:
-        return {k: np.nan for k in ["Capitalisation", "P/E", "P/B", "P/S", "VE / EBIT", "Rendement FCF"]}
+        return {k: np.nan for k in ["Market cap", "P/E", "P/B", "P/S", "EV / EBIT", "FCF yield"]}
     dernier = t.iloc[-1]
     cap = prix * actions
-    bpa = dernier["BPA dilué"]
-    ebit = dernier["Résultat d'exploitation (EBIT)"]
-    fcf = dernier["Flux de trésorerie d'exploitation"] - dernier["Dépenses en immobilisations (CAPEX)"]
-    dette = 0 if pd.isna(dernier["Dette à long terme"]) else dernier["Dette à long terme"]
-    tresorerie = 0 if pd.isna(dernier["Trésorerie"]) else dernier["Trésorerie"]
+    bpa = dernier["Diluted EPS"]
+    ebit = dernier["Operating income (EBIT)"]
+    fcf = dernier["Operating cash flow"] - dernier["Capital expenditures (CAPEX)"]
+    dette = 0 if pd.isna(dernier["Long-term debt"]) else dernier["Long-term debt"]
+    tresorerie = 0 if pd.isna(dernier["Cash"]) else dernier["Cash"]
     ve = cap + dette - tresorerie
     return {
-        "Capitalisation": cap,
-        "Valeur d'entreprise (VE)": ve,
+        "Market cap": cap,
+        "Enterprise value (EV)": ve,
         "P/E": prix / bpa if pd.notna(bpa) and bpa > 0 else np.nan,
-        "P/B": cap / dernier["Capitaux propres"] if dernier["Capitaux propres"] > 0 else np.nan,
-        "P/S": cap / dernier["Revenus"] if dernier["Revenus"] > 0 else np.nan,
-        "VE / EBIT": ve / ebit if pd.notna(ebit) and ebit > 0 else np.nan,
-        "Rendement FCF": fcf / cap if pd.notna(fcf) else np.nan,
+        "P/B": cap / dernier["Shareholders' equity"] if dernier["Shareholders' equity"] > 0 else np.nan,
+        "P/S": cap / dernier["Revenue"] if dernier["Revenue"] > 0 else np.nan,
+        "EV / EBIT": ve / ebit if pd.notna(ebit) and ebit > 0 else np.nan,
+        "FCF yield": fcf / cap if pd.notna(fcf) else np.nan,
     }
 
 
@@ -143,28 +143,28 @@ def dcf(fcf_depart: float, croissances: list[float], wacc: float, croissance_ter
     infinie ou négative (absurde) -> on refuse.
     """
     if croissance_terminale >= wacc:
-        raise ValueError("La croissance terminale doit être inférieure au WACC.")
+        raise ValueError("Terminal growth must be lower than the WACC.")
     flux, fcf = [], fcf_depart
     for annee, g in enumerate(croissances, start=1):
         fcf = fcf * (1 + g)
-        flux.append({"Année": annee, "Croissance": g, "FCF": fcf,
-                     "Facteur d'actualisation": 1 / (1 + wacc) ** annee})
+        flux.append({"Year": annee, "Growth": g, "FCF": fcf,
+                     "Discount factor": 1 / (1 + wacc) ** annee})
     tableau = pd.DataFrame(flux)
-    tableau["FCF actualisé"] = tableau["FCF"] * tableau["Facteur d'actualisation"]
+    tableau["Discounted FCF"] = tableau["FCF"] * tableau["Discount factor"]
 
     n = len(croissances)
     valeur_terminale = tableau["FCF"].iloc[-1] * (1 + croissance_terminale) / (wacc - croissance_terminale)
     vt_actualisee = valeur_terminale / (1 + wacc) ** n
-    valeur_entreprise = tableau["FCF actualisé"].sum() + vt_actualisee
+    valeur_entreprise = tableau["Discounted FCF"].sum() + vt_actualisee
     valeur_fonds_propres = valeur_entreprise - dette_nette
     return {
         "tableau": tableau,
-        "Valeur terminale actualisée": vt_actualisee,
-        "Valeur d'entreprise": valeur_entreprise,
-        "Valeur des fonds propres": valeur_fonds_propres,
-        "Valeur par action": valeur_fonds_propres / nb_actions,
+        "Discounted terminal value": vt_actualisee,
+        "Enterprise value": valeur_entreprise,
+        "Equity value": valeur_fonds_propres,
+        "Value per share": valeur_fonds_propres / nb_actions,
         # Si > 75 %, la valeur dépend surtout d'une hypothèse lointaine : à signaler.
-        "Poids de la valeur terminale": vt_actualisee / valeur_entreprise,
+        "Terminal value weight": vt_actualisee / valeur_entreprise,
     }
 
 
@@ -176,7 +176,7 @@ def sensibilite_dcf(fcf_depart, croissances, dette_nette, nb_actions,
     for w in waccs:
         for g in gs:
             try:
-                table.loc[f"{w:.1%}", f"{g:.1%}"] = dcf(fcf_depart, croissances, w, g, dette_nette, nb_actions)["Valeur par action"]
+                table.loc[f"{w:.1%}", f"{g:.1%}"] = dcf(fcf_depart, croissances, w, g, dette_nette, nb_actions)["Value per share"]
             except ValueError:
                 table.loc[f"{w:.1%}", f"{g:.1%}"] = np.nan
     table.index.name = "WACC \\ g"

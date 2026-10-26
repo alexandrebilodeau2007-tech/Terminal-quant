@@ -49,11 +49,11 @@ CACHE_OPTIONS = 15 * 60          # 15 min pour les chaînes d'options
 # ---------------------------------------------------------------------------
 # Le terminal n'utilise QUE ces 4 sources. Aucune autre n'est appelée.
 SOURCES_AUTORISEES = {
-    "Yahoo Finance (yfinance)": "Prix multi-actifs, chaînes d'options, états financiers hors É.-U. "
-                                "— non officiel, usage personnel, données différées.",
-    "FRED (Fed de St. Louis)": "Courbe des taux US, écarts de crédit, taux sans risque — officiel, clé gratuite.",
-    "SEC EDGAR": "États financiers officiels des sociétés américaines (XBRL) — officiel, sans clé.",
-    "Banque du Canada (Valet)": "Courbe des taux canadienne, taux directeur, USD/CAD officiel — officiel, sans clé.",
+    "Yahoo Finance (yfinance)": "Multi-asset prices, option chains, non-US financial statements "
+                                "— unofficial, personal use, delayed data.",
+    "FRED (St. Louis Fed)": "US yield curve, credit spreads, risk-free rate — official, free key.",
+    "SEC EDGAR": "Official financial statements of US-listed companies (XBRL) — official, no key.",
+    "Bank of Canada (Valet)": "Canadian yield curve, policy rate, official USD/CAD — official, no key.",
 }
 
 # ---------------------------------------------------------------------------
@@ -84,51 +84,51 @@ COURBE_FRED = {  # maturité (en années) -> code de série FRED
     3: "DGS3", 5: "DGS5", 7: "DGS7", 10: "DGS10", 20: "DGS20", 30: "DGS30",
 }
 ECARTS_FRED = {
-    "Pente 10 ans - 2 ans": "T10Y2Y",
-    "Pente 10 ans - 3 mois": "T10Y3M",
-    "Écart crédit IG (OAS)": "BAMLC0A0CM",
-    "Écart crédit High Yield (OAS)": "BAMLH0A0HYM2",
+    "10y - 2y slope": "T10Y2Y",
+    "10y - 3m slope": "T10Y3M",
+    "IG credit spread (OAS)": "BAMLC0A0CM",
+    "High Yield credit spread (OAS)": "BAMLH0A0HYM2",
 }
 
 # Séries de taux disponibles dans la section Spreads : nom affiché -> (source, code).
 # Toutes en % ; un spread entre deux d'entre elles est affiché en points de base.
 SERIES_TAUX = {
-    "US 3 mois": ("FRED", "DGS3MO"),
-    "US 2 ans": ("FRED", "DGS2"),
-    "US 5 ans": ("FRED", "DGS5"),
-    "US 10 ans": ("FRED", "DGS10"),
-    "US 30 ans": ("FRED", "DGS30"),
-    "US 10 ans réel (TIPS)": ("FRED", "DFII10"),
-    "Inflation anticipée 10 ans US (point mort)": ("FRED", "T10YIE"),
-    "Écart crédit IG US (OAS)": ("FRED", "BAMLC0A0CM"),
-    "Écart crédit BBB US (OAS)": ("FRED", "BAMLC0A4CBBB"),
-    "Écart crédit High Yield US (OAS)": ("FRED", "BAMLH0A0HYM2"),
-    "Canada 2 ans": ("BDC", "BD.CDN.2YR.DQ.YLD"),
-    "Canada 5 ans": ("BDC", "BD.CDN.5YR.DQ.YLD"),
-    "Canada 10 ans": ("BDC", "BD.CDN.10YR.DQ.YLD"),
-    "Canada long terme": ("BDC", "BD.CDN.LONG.DQ.YLD"),
+    "US 3-month": ("FRED", "DGS3MO"),
+    "US 2-year": ("FRED", "DGS2"),
+    "US 5-year": ("FRED", "DGS5"),
+    "US 10-year": ("FRED", "DGS10"),
+    "US 30-year": ("FRED", "DGS30"),
+    "US 10-year real (TIPS)": ("FRED", "DFII10"),
+    "US 10-year breakeven inflation": ("FRED", "T10YIE"),
+    "US IG credit spread (OAS)": ("FRED", "BAMLC0A0CM"),
+    "US BBB credit spread (OAS)": ("FRED", "BAMLC0A4CBBB"),
+    "US High Yield credit spread (OAS)": ("FRED", "BAMLH0A0HYM2"),
+    "Canada 2-year": ("BDC", "BD.CDN.2YR.DQ.YLD"),
+    "Canada 5-year": ("BDC", "BD.CDN.5YR.DQ.YLD"),
+    "Canada 10-year": ("BDC", "BD.CDN.10YR.DQ.YLD"),
+    "Canada long-term": ("BDC", "BD.CDN.LONG.DQ.YLD"),
 }
 
 # Spreads prêts à l'emploi : nom -> (série A, série B). Spread = A - B.
 SPREADS_PREDEFINIS = {
-    "Pente US 10 ans - 2 ans": ("US 10 ans", "US 2 ans"),
-    "Pente US 10 ans - 3 mois": ("US 10 ans", "US 3 mois"),
-    "Pente Canada 10 ans - 2 ans": ("Canada 10 ans", "Canada 2 ans"),
-    "Canada 10 ans - US 10 ans": ("Canada 10 ans", "US 10 ans"),
-    "Canada 2 ans - US 2 ans": ("Canada 2 ans", "US 2 ans"),
-    "Inflation : nominal 10 ans - réel 10 ans US": ("US 10 ans", "US 10 ans réel (TIPS)"),
-    "High Yield - IG (prime de risque des moins bien notées)": ("Écart crédit High Yield US (OAS)", "Écart crédit IG US (OAS)"),
+    "US 10y - 2y slope": ("US 10-year", "US 2-year"),
+    "US 10y - 3m slope": ("US 10-year", "US 3-month"),
+    "Canada 10y - 2y slope": ("Canada 10-year", "Canada 2-year"),
+    "Canada 10y - US 10y": ("Canada 10-year", "US 10-year"),
+    "Canada 2y - US 2y": ("Canada 2-year", "US 2-year"),
+    "Inflation: US 10y nominal - 10y real": ("US 10-year", "US 10-year real (TIPS)"),
+    "High Yield - IG (risk premium of lower-rated issuers)": ("US High Yield credit spread (OAS)", "US IG credit spread (OAS)"),
 }
 
 # Grille officielle de classement du risque des fonds au Canada (ACVM, Règlement
 # 81-102, annexe F) : écart-type annualisé des rendements MENSUELS sur 10 ans.
 # (borne supérieure exclue en %, niveau)
 GRILLE_RISQUE_ACVM = [
-    (6, "Faible"),
-    (11, "Faible à moyen"),
-    (16, "Moyen"),
-    (20, "Moyen à élevé"),
-    (float("inf"), "Élevé"),
+    (6, "Low"),
+    (11, "Low to medium"),
+    (16, "Medium"),
+    (20, "Medium to high"),
+    (float("inf"), "High"),
 ]
 COURBE_BDC = {  # maturité (en années) -> code de série Banque du Canada
     2: "BD.CDN.2YR.DQ.YLD", 3: "BD.CDN.3YR.DQ.YLD", 5: "BD.CDN.5YR.DQ.YLD",
@@ -139,7 +139,7 @@ COURBE_BDC = {  # maturité (en années) -> code de série Banque du Canada
 # 7. Avertissement affiché partout
 # ---------------------------------------------------------------------------
 AVERTISSEMENT = (
-    "Outil d'analyse personnel et éducatif. Ce n'est pas un conseil financier. "
-    "Le terminal calcule ; la thèse d'investissement et la décision restent celles de l'analyste. "
-    "La VaR n'est pas une perte maximale. Les données Yahoo sont différées et non officielles."
+    "Personal and educational analysis tool. This is not financial advice. "
+    "The terminal computes; the investment thesis and the decision remain the analyst's. "
+    "VaR is not a maximum loss. Yahoo data is delayed and unofficial."
 )

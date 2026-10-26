@@ -69,27 +69,27 @@ def beta(r_actif: pd.Series, r_reference: pd.Series) -> float:
 def profil(prix: pd.Series, prix_reference: pd.Series | None = None) -> dict:
     """Profil de risque complet d'une série de prix (FNB, titre ou portefeuille)."""
     sigma, nb_mois = ecart_type_acvm(prix)
-    rang, libelle = niveau_acvm(sigma) if np.isfinite(sigma) else (0, "Historique insuffisant")
+    rang, libelle = niveau_acvm(sigma) if np.isfinite(sigma) else (0, "Insufficient history")
     r_quot = prix.dropna().pct_change().dropna()
     r_mens = rendements_mensuels(prix).tail(MOIS_ACVM)
     resultat = {
-        "Niveau ACVM": libelle,
-        "Rang (1 à 5)": rang,
-        "Écart-type annualisé (mensuel, ACVM)": sigma,
-        "Mois utilisés": nb_mois,
-        "Historique complet (120 mois)": nb_mois >= MOIS_ACVM,
-        "Volatilité annualisée (quotidienne)": float(r_quot.std(ddof=1) * np.sqrt(JOURS_BOURSE_PAR_AN)),
-        "VaR historique 95 % (1 jour)": -float(np.quantile(r_quot, 0.05)),
-        "Drawdown maximal": float(drawdown(r_quot).min()),
-        "Pire mois": float(r_mens.min()) if len(r_mens) else np.nan,
-        "Meilleur mois": float(r_mens.max()) if len(r_mens) else np.nan,
-        "Mois positifs": float((r_mens > 0).mean()) if len(r_mens) else np.nan,
+        "CSA risk level": libelle,
+        "Rank (1 to 5)": rang,
+        "Annualized std. dev. (monthly, CSA)": sigma,
+        "Months used": nb_mois,
+        "Full history (120 months)": nb_mois >= MOIS_ACVM,
+        "Annualized volatility (daily)": float(r_quot.std(ddof=1) * np.sqrt(JOURS_BOURSE_PAR_AN)),
+        "Historical VaR 95% (1 day)": -float(np.quantile(r_quot, 0.05)),
+        "Maximum drawdown": float(drawdown(r_quot).min()),
+        "Worst month": float(r_mens.min()) if len(r_mens) else np.nan,
+        "Best month": float(r_mens.max()) if len(r_mens) else np.nan,
+        "Positive months": float((r_mens > 0).mean()) if len(r_mens) else np.nan,
     }
     if prix_reference is not None:
         r_ref = prix_reference.dropna().pct_change().dropna()
-        resultat["Bêta vs référence"] = beta(r_quot, r_ref)
+        resultat["Beta vs benchmark"] = beta(r_quot, r_ref)
         a, b = r_quot.align(r_ref, join="inner")
-        resultat["Corrélation vs référence"] = float(a.corr(b)) if len(a) > 30 else np.nan
+        resultat["Correlation vs benchmark"] = float(a.corr(b)) if len(a) > 30 else np.nan
     return resultat
 
 

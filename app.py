@@ -25,32 +25,41 @@ from interface.bandeau import afficher_bandeau
 from interface.navigation import FONCTIONS, PAR_CODE, executer_commande
 from interface.theme import appliquer_theme
 
+# Fenêtre « graphiques seulement » (?view=charts) : barre latérale repliée, pas de navigation.
+VUE_GRAPHIQUES = st.query_params.get("view") == "charts"
+
 # Doit être le PREMIER appel Streamlit du script.
-st.set_page_config(page_title="Terminal quant", page_icon=":material/monitoring:", layout="wide")
+st.set_page_config(page_title="TradingView charts · Quant Terminal" if VUE_GRAPHIQUES else "Quant Terminal",
+                   page_icon=":material/monitoring:", layout="wide",
+                   initial_sidebar_state="collapsed" if VUE_GRAPHIQUES else "auto")
 appliquer_theme()
+if VUE_GRAPHIQUES:
+    from interface import vue_graphiques
+    vue_graphiques.afficher()
+    st.stop()  # rien d'autre ne s'affiche dans cette fenêtre
 
 # ---------------------------------------------------------------- barre latérale
 with st.sidebar:
-    st.markdown("<div class='tq-titre' style='font-size:1.1rem'><span class='tq-code'>TQ</span>TERMINAL QUANT</div>",
+    st.markdown("<div class='tq-titre' style='font-size:1.1rem'><span class='tq-code'>QT</span>QUANT TERMINAL</div>",
                 unsafe_allow_html=True)
     gauche, droite = st.columns([6, 1], vertical_alignment="bottom")
-    gauche.text_input("Commande", key="commande", on_change=executer_commande,
-                      placeholder="ex. FA AAPL · OPT SPY · CMP GC=F SI=F")
+    gauche.text_input("Command", key="commande", on_change=executer_commande,
+                      placeholder="e.g. FA AAPL · OPT SPY · CMP GC=F SI=F")
     with droite:
         aide("commande")
     if "_cmd_erreur" in st.session_state:
         st.error(st.session_state.pop("_cmd_erreur"))
 
-    with st.expander("Paramètres globaux", expanded=False, icon=":material/tune:"):
+    with st.expander("Global settings", expanded=False, icon=":material/tune:"):
         aujourd_hui = date.today()
-        debut = st.date_input("Début", aujourd_hui - timedelta(days=5 * 365), max_value=aujourd_hui)
-        fin = st.date_input("Fin", aujourd_hui, max_value=aujourd_hui)
-        devise = st.selectbox("Devise de base", ["CAD", "USD"],
-                              help="Devise dans laquelle les rendements de portefeuille sont mesurés.")
+        debut = st.date_input("Start", aujourd_hui - timedelta(days=5 * 365), max_value=aujourd_hui)
+        fin = st.date_input("End", aujourd_hui, max_value=aujourd_hui)
+        devise = st.selectbox("Base currency", ["CAD", "USD"],
+                              help="Currency in which portfolio returns are measured.")
     if debut >= fin:
-        st.error("La date de début doit précéder la date de fin.")
+        st.error("The start date must be before the end date.")
         st.stop()  # aucune page ne s'affiche avec des dates invalides
-    st.caption(f"Période : {debut} → {fin} · Devise : {devise}")
+    st.caption(f"Period: {debut} → {fin} · Currency: {devise}")
 
 # yfinance traite la date de fin comme EXCLUE : on ajoute un jour pour inclure "fin".
 st.session_state["params"] = {"debut": str(debut), "fin": str(fin + timedelta(days=1)), "devise": devise}

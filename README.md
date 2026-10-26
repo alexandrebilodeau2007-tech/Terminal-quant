@@ -1,287 +1,297 @@
-# Terminal quant — terminal d'analyse financière multi-actifs
+# Quant Terminal — multi-asset financial analysis terminal
 
-Terminal web construit avec **Streamlit** et **Python** pour **accélérer les calculs** d'une analyse financière :
-risque de portefeuille, optimisation, ratios fondamentaux, options, taux et obligations.
+A web terminal built with **Streamlit** and **Python** to **speed up the calculations** of a financial analysis:
+portfolio risk, optimization, fundamental ratios, options, rates and bonds.
 
-> **Philosophie : le terminal calcule, l'analyste conclut.**
-> Il ne produit aucune recommandation, aucun signal d'achat ou de vente et n'exécute aucun ordre.
-> La thèse d'investissement, l'argumentaire et la décision restent ceux de l'utilisateur.
+> **Philosophy: the terminal computes, the analyst concludes.**
+> It produces no recommendation, no buy or sell signal, and executes no order.
+> The investment thesis, the reasoning and the decision remain the user's.
 
-Projet d'**Alexandre Bilodeau**.
-
----
-
-## Sommaire
-
-1. [Ce que fait le terminal](#1-ce-que-fait-le-terminal)
-2. [Ouvrir le terminal](#2-ouvrir-le-terminal)
-4. [Guide d'utilisation par section](#4-guide-dutilisation-par-section)
-5. [Choix méthodologiques](#5-choix-méthodologiques)
-6. [Balises : ce que le terminal refuse de faire](#6-balises--ce-que-le-terminal-refuse-de-faire)
-7. [Architecture du code](#7-architecture-du-code)
-8. [Tests](#8-tests)
-9. [Contribuer ou modifier le code](#9-contribuer-ou-modifier-le-code)
-10. [Limites connues et dépannage](#10-limites-connues-et-dépannage)
+A project by **Alexandre Bilodeau**.
 
 ---
 
-## 1. Ce que fait le terminal
+## Contents
 
-Le terminal est organisé comme un terminal professionnel : chaque fonction a un **code** (comme sur Bloomberg),
-accessible par le menu du haut ou par la **barre de commande** à gauche.
+1. [What the terminal does](#1-what-the-terminal-does)
+2. [Opening the terminal](#2-opening-the-terminal)
+3. [User guide by section](#3-user-guide-by-section)
+4. [Methodological choices](#4-methodological-choices)
+5. [Guardrails: what the terminal refuses to do](#5-guardrails-what-the-terminal-refuses-to-do)
+6. [Code architecture](#6-code-architecture)
+7. [Tests](#7-tests)
+8. [Contributing or modifying the code](#8-contributing-or-modifying-the-code)
+9. [Known limitations and troubleshooting](#9-known-limitations-and-troubleshooting)
 
-| Code | Fonction | Contenu |
+---
+
+## 1. What the terminal does
+
+The terminal is organized like a professional terminal: each function has a **code** (as on Bloomberg),
+reachable from the top menu or from the **command bar** on the left.
+
+| Code | Function | Content |
 |---|---|---|
-| `HOME` | **Accueil** | Marchés du jour, tuiles d'accès aux fonctions, état des sources |
-| `TKR` | **Répertoire des tickers** | ~180 symboles classés par famille (actions US et TSX, indices, commodités, forex, crypto, FNB, obligations, taux, sous-jacents d'options), avec le symbole Yahoo et TradingView, recherche et export CSV |
-| `MKT` | **Marchés multi-actifs** | Performance (1 mois, 3 mois, depuis le 1er janvier, 1 an), volatilité, matrice de corrélation, chandeliers avec moyennes mobiles |
-| `CMP` | **Comparateur & formules** | Deux symboles face à face (base 100, ratio, corrélation et bêta glissants) · formules entre tickers comme sur TradingView (`GC=F / SI=F`, `CL=F - BZ=F`…) · graphique TradingView intégré |
-| `PORT` | **Portefeuille & risque** | Onglet *Optimisation & VaR* : VaR et CVaR (4 méthodes), Kupiec, Markowitz · onglet *Niveau de risque* : classement officiel ACVM d'un FNB, d'un titre ou d'un portefeuille, bêta, drawdown, composition du fonds |
-| `FA` | **Analyse fondamentale** | États financiers (SEC EDGAR, repli Yahoo), ratios, DuPont, P/E, DCF avec **vos** hypothèses et sensibilité, carnet de thèse, export Excel |
-| `OPT` | **Options** | Chaîne d'options filtrée par liquidité, smile de volatilité implicite, grecques, calculatrice Black-Scholes |
-| `YCRV` | **Courbes & obligations** | Courbes des taux US (FRED) et Canada (Banque du Canada), calculatrice obligataire (YTM, duration, convexité, DV01, chocs) |
-| `SPRD` | **Spreads de taux** | Tableau de bord des spreads suivis (pentes, Canada − US, inflation anticipée, crédit) avec z-score historique · spread entre deux taux au choix · G-spread d'une obligation d'entreprise |
+| `HOME` | **Home** | Today's markets, tiles to every function, data source status |
+| `TKR` | **Ticker directory** | ~175 symbols by family (US and TSX stocks, indices, commodities, forex, crypto, ETFs, bonds, rates, option underlyings), with Yahoo and TradingView symbols, search and CSV export |
+| `MKT` | **Multi-asset markets** | Performance (1 month, 3 months, year to date, 1 year), volatility, correlation matrix, candlesticks with moving averages |
+| `CMP` | **Comparator & formulas** | Two symbols side by side (base 100, ratio, rolling correlation and beta) · ticker formulas as on TradingView (`GC=F / SI=F`, `CL=F - BZ=F`…) · embedded TradingView charts, also available in a **charts-only window** |
+| `PORT` | **Portfolio & risk** | *Optimization & VaR* tab: VaR and CVaR (4 methods), Kupiec, Markowitz · *Risk level* tab: official CSA risk rating of an ETF, a security or a portfolio, beta, drawdown, fund holdings |
+| `FA` | **Fundamental analysis** | Financial statements (SEC EDGAR, Yahoo fallback), ratios, DuPont, P/E, DCF with **your** assumptions and sensitivity, thesis notebook, Excel export |
+| `OPT` | **Options** | Option chain filtered by liquidity, implied volatility smile, Greeks, Black-Scholes calculator |
+| `YCRV` | **Curves & bonds** | US (FRED) and Canadian (Bank of Canada) yield curves, bond calculator (YTM, duration, convexity, DV01, shocks) |
+| `SPRD` | **Yield spreads** | Dashboard of tracked spreads (slopes, Canada − US, breakeven inflation, credit) with historical z-score · spread between any two rates · G-spread of a corporate bond |
 
-Chaque section et chaque onglet a un bouton **?** qui explique la fonction en langage simple, avec un exemple et
-son utilité.
+Every section and tab has a **?** button that explains the function in plain language, with an example and
+why it is useful.
 
-Marchés couverts : **actions** (US, TSX, international), **indices**, **commodités** (or, pétrole, cuivre, gaz, grains…),
-**forex**, **obligations** (FNB et courbes de taux), **options** (actions et FNB américains).
+Markets covered: **stocks** (US, TSX, international), **indices**, **commodities** (gold, oil, copper, gas, grains…),
+**forex**, **bonds** (ETFs and yield curves), **options** (US stocks and ETFs).
 
 ---
 
-## 2. Ouvrir le terminal
-
-### Option A — En ligne (aucune installation)
+## 2. Opening the terminal
 
 **👉 [terminal-quant-bilodeau.streamlit.app](https://terminal-quant-bilodeau.streamlit.app)**
 
-Fonctionne dans n'importe quel navigateur, sur ordinateur ou téléphone. Si l'app est en veille (après quelques jours sans visite), cliquer sur *« Yes, get this app back up! »* et attendre environ 30 secondes.
+Works in any browser, on a computer or a phone. If the app is asleep (after a few days without visits), click
+*"Yes, get this app back up!"* and wait about 30 seconds.
 
+**Charts-only window** (TradingView grid filling the whole window, no menu or sidebar — handy on a second screen):
 
+- From the app: **CMP → TradingView charts → *Open charts in a new window (charts only)***. The window keeps the settings you chose.
+- Or bookmark the address directly:
+  - [`/?view=charts`](https://terminal-quant-bilodeau.streamlit.app/?view=charts) — base settings from `tradingview.toml`
+  - [`/?view=charts&layout=4`](https://terminal-quant-bilodeau.streamlit.app/?view=charts&layout=4) — forces a 2 × 2 grid (`layout=1`, `2` or `4`)
 
-## 4. Guide d'utilisation par section
+---
 
-**Barre de commande** (à gauche) : tape un code suivi d'arguments, puis Entrée.
+## 3. User guide by section
 
-| Commande | Effet |
+**Command bar** (left): type a code followed by arguments, then Enter.
+
+| Command | Effect |
 |---|---|
-| `FA AAPL` | Analyse fondamentale d'Apple |
-| `OPT SPY` | Options de SPY |
-| `CMP GC=F SI=F` | Compare l'or et l'argent |
-| `MKT AAPL MSFT ^GSPC` | Marchés avec ces tickers |
-| `PORT XIU.TO XBB.TO` | Portefeuille avec ces actifs |
-| `TKR banque` | Répertoire filtré sur « banque » |
-| `SPRD`, `YCRV`, `HOME` | Ouvre la fonction |
+| `FA AAPL` | Fundamental analysis of Apple |
+| `OPT SPY` | SPY options |
+| `CMP GC=F SI=F` | Compare gold and silver |
+| `MKT AAPL MSFT ^GSPC` | Markets with these tickers |
+| `PORT XIU.TO XBB.TO` | Portfolio with these assets |
+| `TKR bank` | Directory filtered on "bank" |
+| `SPRD`, `YCRV`, `HOME` | Opens the function |
 
-**Paramètres globaux** (barre latérale, menu *Paramètres globaux*) : période d'analyse (5 ans par défaut) et **devise de base** (CAD ou USD).
+**Global settings** (sidebar, *Global settings* menu): analysis period (5 years by default) and **base currency** (CAD or USD).
 
-**Saisie des actifs** : liste prédéfinie, ou n'importe quel ticker Yahoo dans le champ libre.
-Exemples : `AAPL`, `RY.TO` (TSX), `GC=F` (or), `CL=F` (pétrole WTI), `USDCAD=X`, `^GSPC` (S&P 500), `TLT` (obligations du Trésor 20+ ans).
+**Entering assets**: predefined list, or any Yahoo ticker in the free field.
+Examples: `AAPL`, `RY.TO` (TSX), `GC=F` (gold), `CL=F` (WTI crude), `USDCAD=X`, `^GSPC` (S&P 500), `TLT` (20+ year Treasuries).
 
-### TKR — Répertoire des tickers
-Choisir une famille ou chercher un mot (« or », « banque », « BTC »). Copier le ticker Yahoo pour le terminal,
-ou le symbole TradingView pour le graphique de CMP. Une option n'a pas de ticker propre : entrer le sous-jacent dans OPT.
+### TKR — Ticker directory
+Pick a family or search a word ("gold", "bank", "BTC"). Copy the Yahoo ticker for the terminal,
+or the TradingView symbol for the CMP charts. An option has no ticker of its own: enter the underlying in OPT.
 
-### MKT — Marchés
-Choisir des actifs de catégories différentes pour comparer leur performance en base 100 et leurs corrélations.
-La case *Convertir* exprime tout dans la devise de base, soit le rendement réellement vécu par un investisseur canadien.
+### MKT — Markets
+Pick assets from different categories to compare their base-100 performance and correlations.
+The *Convert* box expresses everything in the base currency, i.e. the return actually earned by a Canadian investor.
 
-### CMP — Comparateur & formules
-- **Deux symboles** : base 100, ratio A/B (monte = A fait mieux que B), corrélation et bêta glissants sur 60 jours.
-- **Formule** : `GC=F / SI=F`, `CL=F - BZ=F`, `(AAPL + MSFT + NVDA) / 3`, `BTC-USD * USDCAD=X`. Opérateurs `+ - * / **` et parenthèses ;
-  mettre des espaces autour du `-` entre deux tickers (`BTC-USD` est un seul ticker).
-- **Graphiques TradingView** : 1, 2 ou 4 graphiques (grille 2 × 2), chacun avec un second symbole superposé ;
-  réglages de style, d'intervalle, d'indicateurs, de barres d'outils et de taille. Les **réglages de base sont communs à tous
-  les visiteurs** : ils viennent du fichier [`tradingview.toml`](tradingview.toml). Pour les changer pour tout le monde, régler
-  l'affichage dans l'app, cliquer sur *Exporter ces réglages comme base*, puis remplacer ce fichier sur GitHub.
+### CMP — Comparator & formulas
+- **Two symbols**: base 100, A/B ratio (rising = A beats B), 60-day rolling correlation and beta.
+- **Formula**: `GC=F / SI=F`, `CL=F - BZ=F`, `(AAPL + MSFT + NVDA) / 3`, `BTC-USD * USDCAD=X`. Operators `+ - * / **` and parentheses;
+  put spaces around a `-` between two tickers (`BTC-USD` is a single ticker).
+- **TradingView charts**: 1, 2 or 4 charts (2 × 2 grid), each with an optional overlaid second symbol;
+  settings for style, interval, indicators (and their parameters, e.g. RSI length), candle and background colors, toolbars and size.
+  The **base settings are shared by all visitors**: they come from [`tradingview.toml`](tradingview.toml). To change them for everyone,
+  adjust the display in the app, click *Export these settings as base*, then replace that file on GitHub.
+  The *Open charts in a new window* button opens the same grid alone, full window.
 
-### PORT — Portefeuille & risque (onglet Optimisation & VaR)
-1. Sélectionner de 2 à 20 actifs **investissables** (pas `^TNX` : c'est un taux, pas un prix).
-2. Choisir le niveau de confiance, l'horizon, le poids maximum par actif et le taux sans risque.
-3. **Rendements attendus (μ)** : la moyenne historique est pré-remplie. **Remplacez-la par vos hypothèses** ;
-   c'est le paramètre qui influence le plus l'optimisation.
-4. Comparer les portefeuilles de variance minimale, de Sharpe maximal et manuel.
-5. Lire la VaR et la CVaR des 4 méthodes. **L'écart entre méthodes est une information** : un grand écart signale des queues épaisses.
-6. Vérifier le backtest de Kupiec : une p-value < 0,05 signifie que la VaR est mal calibrée.
-7. Exporter vers Excel (poids, hypothèses, covariance, VaR, backtest, métadonnées).
+### PORT — Portfolio & risk (Optimization & VaR tab)
+1. Select 2 to 20 **investable** assets (not `^TNX`: it is a rate, not a price).
+2. Choose the confidence level, horizon, maximum weight per asset and risk-free rate.
+3. **Expected returns (μ)**: the historical mean is pre-filled. **Replace it with your assumptions**;
+   it is the parameter that drives the optimization the most.
+4. Compare the minimum-variance, maximum-Sharpe and manual portfolios.
+5. Read the VaR and CVaR from the 4 methods. **The gap between methods is information**: a wide gap signals fat tails.
+6. Check the Kupiec backtest: a p-value < 0.05 means the VaR is poorly calibrated.
+7. Export to Excel (weights, assumptions, covariance, VaR, backtest, metadata).
 
-### PORT — onglet Niveau de risque
-Entrer un FNB ou un titre (ex. `XEQT.TO`), ou composer un portefeuille avec ses poids. Le terminal applique la
-**méthode officielle de l'ACVM** (Règlement 81-102, annexe F) : écart-type annualisé des rendements mensuels sur 10 ans,
-classé Faible (< 6 %), Faible à moyen (6-11 %), Moyen (11-16 %), Moyen à élevé (16-20 %) ou Élevé (≥ 20 %).
-S'ajoutent le bêta contre un indice, le drawdown, les meilleurs et pires mois, l'évolution du risque sur 36 mois
-glissants et, quand Yahoo la fournit, la composition du fonds.
+### PORT — Risk level tab
+Enter an ETF or a security (e.g. `XEQT.TO`), or build a portfolio with its weights. The terminal applies the
+**official CSA method** (National Instrument 81-102, Appendix F): annualized standard deviation of monthly returns over 10 years,
+rated Low (< 6%), Low to medium (6-11%), Medium (11-16%), Medium to high (16-20%) or High (≥ 20%).
+Also shown: beta against an index, drawdown, best and worst months, 36-month rolling risk and,
+when Yahoo provides it, the fund's holdings.
 
-### FA — Analyse fondamentale
-1. Entrer un ticker. La source (EDGAR ou Yahoo) et la devise des états sont affichées.
-2. Onglets **États financiers** et **Ratios** : 6 derniers exercices. Les définitions sont dans l'encadré.
-3. Onglet **Valorisation & DCF** : saisir **vos** croissances, WACC et croissance terminale, puis cocher la case de confirmation.
-   Le tableau de sensibilité montre à quel point la valeur dépend de vos hypothèses.
-4. Onglet **Carnet d'analyse** : rédiger la thèse, les catalyseurs, les risques et la conclusion. **Ces champs sont vides par conception.**
-5. Onglet **Export** : un classeur Excel avec les chiffres, les ratios, le DCF, votre carnet et les métadonnées.
+### FA — Fundamental analysis
+1. Enter a ticker. The source (EDGAR or Yahoo) and the currency of the statements are shown.
+2. **Financial statements** and **Ratios** tabs: last 6 fiscal years. Definitions are in the info box.
+3. **Valuation & DCF** tab: enter **your** growth rates, WACC and terminal growth, then tick the confirmation box.
+   The sensitivity table shows how much the value depends on your assumptions.
+4. **Analysis notebook** tab: write the thesis, catalysts, risks and conclusion. **These fields are empty by design.**
+5. **Export** tab: an Excel workbook with the figures, ratios, DCF, your notebook and metadata.
 
 ### OPT — Options
-- **Chaîne d'options** : sous-jacent américain (ex. `SPY`, `AAPL`), échéance et filtres de liquidité.
-  La volatilité implicite est recalculée et comparée à celle de Yahoo.
-- **Calculatrice** : pour tout sous-jacent (or, devise, indice), en fournissant soi-même spot, volatilité et taux.
+- **Option chain**: US underlying (e.g. `SPY`, `AAPL`), expiry and liquidity filters.
+  Implied volatility is recomputed and compared with Yahoo's.
+- **Calculator**: for any underlying (gold, currency, index), supplying spot, volatility and rate yourself.
 
-### YCRV — Courbes & obligations
-- Courbes US et canadienne aujourd'hui, il y a 1 an et il y a 2 ans : pente et inversion.
-- Écarts de crédit Investment Grade et High Yield.
-- Calculatrice : prix ↔ rendement, duration, convexité, DV01 et chocs de ±25 à ±200 pb (approximation vs réévaluation exacte).
+### YCRV — Curves & bonds
+- US and Canadian curves today, 1 year ago and 2 years ago: slope and inversion.
+- Investment Grade and High Yield credit spreads.
+- Calculator: price ↔ yield, duration, convexity, DV01 and ±25 to ±200 bp shocks (approximation vs exact repricing).
+
+### SPRD — Yield spreads
+- **Dashboard**: US and Canadian slopes, Canada − US (2 and 10 years), breakeven inflation (nominal − real), High Yield − IG,
+  with the current level in basis points, the mean, the **z-score** (amber beyond ±2) and the 1-year change.
+- **Between two rates**: any pair among US and Canadian rates and FRED credit spreads.
+- **G-spread**: yield of a corporate bond minus the government rate interpolated at the same maturity.
 
 ---
 
-### SPRD — Spreads de taux
-- **Tableau de bord** : pentes US et Canada, Canada − US (2 et 10 ans), inflation anticipée (nominal − réel), High Yield − IG,
-  avec le niveau actuel en points de base, la moyenne, le **z-score** (en ambre au-delà de ±2) et la variation sur 1 an.
-- **Entre deux taux** : n'importe quel couple parmi les taux US, canadiens et les écarts de crédit FRED.
-- **G-spread** : rendement d'une obligation d'entreprise moins le taux d'État interpolé à la même maturité.
+## 4. Methodological choices
 
-## 5. Choix méthodologiques
-
-| Sujet | Choix | Pourquoi |
+| Topic | Choice | Why |
 |---|---|---|
-| Prix | Ajustés (dividendes et fractionnements) | Rendements totaux corrects |
-| Devises | Conversion dans une devise de base | Ne pas mélanger des rendements en CAD et en USD |
-| Calendriers | Dates communes uniquement, sans interpolation | La covariance exige des observations simultanées ; aucune donnée inventée |
-| Annualisation | 252 jours de bourse | Convention de marché |
-| Historique minimum | 500 observations (~2 ans) | Une VaR sur peu de données n'est pas crédible |
-| Covariance | Ledoit-Wolf par défaut | Réduit l'erreur d'estimation, portefeuilles plus stables |
-| Optimisation | SLSQP (SciPy), long-only, poids plafonné, convergence vérifiée | Évite les portefeuilles extrêmes et les résultats silencieusement faux |
-| VaR | 4 méthodes + CVaR + backtest | Aucune méthode n'est parfaite ; les comparer *est* l'analyse |
-| Monte Carlo | 10 000 scénarios, graine fixe | Résultats reproductibles |
-| ROE, ROA | Sur capitaux propres et actif **moyens** | Le bénéfice est gagné sur toute l'année |
-| Ratios absurdes | Affichés `N/A` | ROE avec capitaux propres négatifs, P/E avec bénéfice négatif, etc. |
-| Devise du P/E | Prix converti dans la devise des états financiers | Ex. : Shopify cote en CAD mais publie en USD |
-| DCF | Aucune hypothèse par défaut cachée ; confirmation requise | La valorisation reste le jugement de l'analyste |
-| Options | Prix milieu (bid+ask)/2, contrôle d'arbitrage avant le calcul de la VI | Le dernier prix peut être périmé |
-| Niveau de risque | Grille ACVM : écart-type mensuel sur 120 mois, annualisé par √12 | Méthode officielle des Aperçus du fonds au Canada |
-| Spreads | Dates communes uniquement, z-score sur la période choisie, interpolation sans extrapolation | Ne jamais comparer deux dates ni inventer un taux |
-| Formules | Analyseur arithmétique (module `ast`), jamais `eval` | Aucune saisie ne peut exécuter de code |
+| Prices | Adjusted (dividends and splits) | Correct total returns |
+| Currencies | Conversion to a base currency | Never mix CAD and USD returns |
+| Calendars | Common dates only, no interpolation | Covariance requires simultaneous observations; no invented data |
+| Annualization | 252 trading days | Market convention |
+| Minimum history | 500 observations (~2 years) | A VaR on little data is not credible |
+| Covariance | Ledoit-Wolf by default | Reduces estimation error, more stable portfolios |
+| Optimization | SLSQP (SciPy), long-only, capped weights, convergence checked | Avoids extreme portfolios and silently wrong results |
+| VaR | 4 methods + CVaR + backtest | No method is perfect; comparing them *is* the analysis |
+| Monte Carlo | 10,000 scenarios, fixed seed | Reproducible results |
+| ROE, ROA | On **average** equity and assets | Earnings are generated over the whole year |
+| Absurd ratios | Shown as `N/A` | ROE with negative equity, P/E with negative earnings, etc. |
+| P/E currency | Price converted to the statements' currency | E.g. Shopify trades in CAD but reports in USD |
+| DCF | No hidden default assumption; confirmation required | Valuation remains the analyst's judgment |
+| Options | Mid price (bid+ask)/2, arbitrage check before IV | The last trade may be stale |
+| Risk level | CSA grid: monthly standard deviation over 120 months, annualized by √12 | Official method of Canadian Fund Facts |
+| Spreads | Common dates only, z-score over the chosen period, interpolation without extrapolation | Never compare two different dates or invent a rate |
+| Formulas | Arithmetic parser (`ast` module), never `eval` | No input can execute code |
 
-Chaque section du terminal contient un encadré **« Méthode et limites »**.
-
----
-
-## 6. Balises : ce que le terminal refuse de faire
-
-- Aucune recommandation, aucun « signal », aucune prédiction de prix.
-- Aucune exécution d'ordre, aucune connexion à un courtier.
-- Aucune valeur de DCF tant que l'utilisateur n'a pas confirmé que les hypothèses sont les siennes.
-- Portefeuille : 2 à 20 actifs, 500 observations communes minimum, pas de vente à découvert.
-- Les taux et le VIX sont refusés comme actifs de portefeuille.
-- **Liste fermée de 4 sources de données** (+ le widget d'affichage TradingView). Aucun *scraping* de site, aucune source payante contournée.
-- Les formules de la fonction CMP sont lues par un analyseur qui n'accepte que l'arithmétique : aucun code n'est exécuté.
-- Aucune clé API dans le code (`st.secrets` uniquement).
-- Chaque export Excel inclut un onglet **Métadonnées** : date, sources, paramètres.
-
-Toutes les limites numériques sont centralisées dans **`config.py`**.
+Every section of the terminal has a **"Method and limitations"** box.
 
 ---
 
-## 7. Architecture du code
+## 5. Guardrails: what the terminal refuses to do
 
-Le code est séparé en **couches qui ne se mélangent pas**. Chaque fichier est commenté en français.
+- No recommendation, no "signal", no price prediction.
+- No order execution, no broker connection.
+- No DCF value until the user confirms the assumptions are their own.
+- Portfolio: 2 to 20 assets, at least 500 common observations, no short selling.
+- Rates and the VIX are refused as portfolio assets.
+- **Closed list of 4 data sources** (+ the TradingView display widget). No site scraping, no paid source bypassed.
+- CMP formulas are read by a parser that only accepts arithmetic: no code is executed.
+- No API key in the code (`st.secrets` only).
+- Every Excel export includes a **Metadata** sheet: date, sources, parameters.
+
+All numeric limits are centralized in **`config.py`**.
+
+---
+
+## 6. Code architecture
+
+The code is split into **layers that do not mix**. The interface is in English; code comments are in French.
 
 ```
 terminal-quant/
-├── app.py                    Navigation et paramètres globaux (point d'entrée)
-├── config.py                 Balises, constantes, séries de taux, grille ACVM, sources autorisées
-├── repertoire.py             Répertoire des tickers par famille (Yahoo + TradingView)
-├── tradingview.toml          Réglages de base des graphiques TradingView (communs à tous)
-├── lancer_windows.bat        Lanceur Windows en double-clic
-├── requirements.txt          Bibliothèques Python
-├── sources/                  Couche DONNÉES : téléchargement et nettoyage, aucun calcul
-│   ├── marche.py               Prix multi-actifs, conversion de devise, alignement des calendriers
-│   ├── taux.py                 FRED et Banque du Canada
-│   ├── etats_financiers.py     SEC EDGAR (XBRL US GAAP / IFRS) + repli Yahoo, format standardisé
-│   └── options.py              Chaînes d'options
-├── calculs/                  Couche CALCULS : mathématiques pures, sans Internet ni Streamlit
-│   ├── rendements.py           Rendements, statistiques, drawdown
+├── app.py                    Navigation and global settings (entry point)
+├── config.py                 Guardrails, constants, rate series, CSA grid, allowed sources
+├── repertoire.py             Ticker directory by family (Yahoo + TradingView)
+├── tradingview.toml          Base settings of the TradingView charts (shared by everyone)
+├── lancer_windows.bat        Windows double-click launcher
+├── requirements.txt          Python libraries
+├── sources/                  DATA layer: download and cleaning, no calculation
+│   ├── marche.py               Multi-asset prices, currency conversion, calendar alignment
+│   ├── taux.py                 FRED and Bank of Canada
+│   ├── etats_financiers.py     SEC EDGAR (XBRL US GAAP / IFRS) + Yahoo fallback, standardized format
+│   └── options.py              Option chains
+├── calculs/                  CALCULATION layer: pure math, no Internet, no Streamlit
+│   ├── rendements.py           Returns, statistics, drawdown
 │   ├── risque.py               VaR, CVaR, Monte Carlo, Kupiec
-│   ├── optimisation.py         Markowitz, frontière efficiente, contributions au risque
-│   ├── fondamentaux.py         Ratios, DuPont, valorisation, DCF, sensibilité
-│   ├── obligations.py          Prix, YTM, duration, convexité, chocs
-│   ├── options_math.py         Black-Scholes-Merton, grecques, volatilité implicite
-│   ├── spreads.py              Spreads en pb, z-score, interpolation de courbe, G-spread
-│   ├── formule.py              Formules entre tickers (analyseur sûr, sans eval)
-│   └── profil_risque.py        Niveau de risque ACVM, bêta, profil d'un FNB ou portefeuille
-├── interface/                Couche AFFICHAGE : une page Streamlit par fonction
+│   ├── optimisation.py         Markowitz, efficient frontier, risk contributions
+│   ├── fondamentaux.py         Ratios, DuPont, valuation, DCF, sensitivity
+│   ├── obligations.py          Price, YTM, duration, convexity, shocks
+│   ├── options_math.py         Black-Scholes-Merton, Greeks, implied volatility
+│   ├── spreads.py              Spreads in bp, z-score, curve interpolation, G-spread
+│   ├── formule.py              Ticker formulas (safe parser, no eval)
+│   └── profil_risque.py        CSA risk level, beta, ETF or portfolio profile
+├── interface/                DISPLAY layer: one Streamlit page per function
 │   ├── page_accueil.py  page_repertoire.py  page_marches.py  page_comparateur.py
 │   ├── page_risque.py  page_fondamental.py  page_options.py  page_taux.py  page_spreads.py
-│   ├── navigation.py           Codes de fonction, menu et barre de commande
-│   ├── aide.py                 Textes des boutons « ? » (vulgarisés, avec exemples)
-│   ├── theme.py  bandeau.py    Apparence sombre ambre, bandeau de cotations
-│   ├── tradingview.py          Widgets TradingView : réglages validés, grille 1/2/4, export TOML
-│   └── composants.py           Éléments réutilisables
-├── export/excel.py           Export Excel avec métadonnées
-└── tests/test_calculs.py     Tests des calculs
+│   ├── vue_graphiques.py       Charts-only window (?view=charts)
+│   ├── navigation.py           Function codes, menu and command bar
+│   ├── aide.py                 Texts of the "?" buttons (plain language, with examples)
+│   ├── theme.py  bandeau.py    Dark amber look, quote ticker tape
+│   ├── tradingview.py          TradingView widgets: validated settings, 1/2/4 grid, TOML export, settings in the URL
+│   └── composants.py           Reusable components
+├── export/excel.py           Excel export with metadata
+└── tests/test_calculs.py     Calculation tests
 ```
 
-**Pourquoi cette séparation ?** Les calculs n'ont aucune dépendance à Internet ni à l'interface,
-donc ils peuvent être testés avec des chiffres connus. Si une source change, seul `sources/` est modifié.
+**Why this split?** The calculations depend on neither the Internet nor the interface,
+so they can be tested against known numbers. If a source changes, only `sources/` is modified.
 
 ---
 
-## 8. Tests
+## 7. Tests
 
 ```bash
 pip install -r requirements.txt
 python -m pytest tests/ -v
 ```
 
-Les 56 tests comparent les calculs à des valeurs connues, par exemple :
-- Black-Scholes : exemple du manuel de Hull (S=42, K=40 → call 4,76) et parité call-put ;
-- Markowitz : formule fermée de la variance minimale à 2 actifs, contraintes respectées, cas impossible détecté ;
-- VaR : convergence vers la loi normale, CVaR ≥ VaR, Cornish-Fisher sur queues épaisses, Kupiec ;
-- Obligations : prix au pair, YTM inverse du prix, duration d'un zéro-coupon, dérivées numériques ;
-- Ratios : ROE sur moyenne, cohérence DuPont, N/A pour capitaux propres ou BPA négatifs, DCF = perpétuité de Gordon ;
-- Spreads : conversion en pb, dates communes, z-score, G-spread interpolé ;
-- Formules : priorité des opérateurs, tickers à tiret (`BTC-USD`), refus de tout code non arithmétique ;
-- Niveau de risque : grille ACVM aux bornes exactes, écart-type mensuel annualisé, bêta connu.
+The 60 tests compare the calculations with known values, for example:
+- Black-Scholes: Hull's textbook example (S=42, K=40 → call 4.76) and put-call parity;
+- Markowitz: closed-form 2-asset minimum variance, constraints respected, infeasible case detected;
+- VaR: convergence to the normal distribution, CVaR ≥ VaR, Cornish-Fisher on fat tails, Kupiec;
+- Bonds: price at par, YTM as the inverse of price, zero-coupon duration, numerical derivatives;
+- Ratios: ROE on average, DuPont consistency, N/A for negative equity or EPS, DCF = Gordon perpetuity;
+- Spreads: conversion to bp, common dates, z-score, interpolated G-spread;
+- Formulas: operator precedence, hyphenated tickers (`BTC-USD`), refusal of any non-arithmetic code;
+- Risk level: CSA grid at exact boundaries, annualized monthly standard deviation, known beta;
+- TradingView: settings validation, URL round trip, full-window grid.
 
 ---
 
-## 9. Contribuer ou modifier le code
+## 8. Contributing or modifying the code
 
-- **Changer une limite** (poids maximum, nombre d'actifs…) : modifier `config.py` uniquement.
-- **Ajouter un actif prédéfini** : dictionnaire `UNIVERS` dans `config.py`.
-- **Ajouter un ratio** : fonction `calculer_ratios` et dictionnaire `DEFINITIONS` dans `calculs/fondamentaux.py`, puis un test.
-- **Ajouter une source de données** : créer un module dans `sources/` et l'ajouter à `SOURCES_AUTORISEES`.
-  Seules des sources officielles ou dont les conditions d'utilisation le permettent sont acceptées.
-- Règle : **aucun calcul dans `interface/`** et **aucun appel Internet dans `calculs/`**.
-- Lancer `python -m pytest tests/` avant chaque *commit*.
+- **Change a limit** (maximum weight, number of assets…): edit `config.py` only.
+- **Add a predefined asset**: `UNIVERS` dictionary in `config.py`.
+- **Add a ratio**: `calculer_ratios` function and `DEFINITIONS` dictionary in `calculs/fondamentaux.py`, then a test.
+- **Add a data source**: create a module in `sources/` and add it to `SOURCES_AUTORISEES`.
+  Only official sources, or sources whose terms of use allow it, are accepted.
+- Rule: **no calculation in `interface/`** and **no Internet call in `calculs/`**.
+- Run `python -m pytest tests/` before every commit.
 
-Les *issues* et *pull requests* sont bienvenues.
+Issues and pull requests are welcome.
 
 ---
 
-## 10. Limites connues et dépannage
+## 9. Known limitations and troubleshooting
 
-**Limites**
-- `yfinance` n'est pas une API officielle : elle peut cesser de fonctionner sans préavis. Données différées.
-- Les serveurs infonuagiques (Streamlit Cloud) sont parfois limités par Yahoo (« Too Many Requests ») : attendre quelques minutes. Le cache d'une heure réduit le problème.
-- Commodités = contrats à terme continus (`=F`) : sauts de prix artificiels possibles lors des changements d'échéance.
-- Options : surtout américaines, sans historique ; Black-Scholes est une approximation pour les options américaines.
-- Obligations individuelles (CUSIP/ISIN) : pas de source gratuite fiable, utiliser des FNB.
-- Sociétés du TSX non inscrites à la SEC : repli Yahoo, vérifier les chiffres clés sur SEDAR+.
-- P/E calculé sur le BPA du dernier exercice annuel (pas sur 12 mois glissants).
-- Banques et assureurs : certains ratios (liquidité générale, marge brute) ne s'appliquent pas et s'affichent `N/A`.
+**Limitations**
+- `yfinance` is not an official API: it may stop working without notice. Data is delayed.
+- Cloud servers (Streamlit Cloud) are sometimes rate-limited by Yahoo ("Too Many Requests"): wait a few minutes. The one-hour cache reduces the problem.
+- Commodities = continuous futures (`=F`): artificial price jumps are possible at contract rolls.
+- Options: mostly US, no history; Black-Scholes is an approximation for American options.
+- Individual bonds (CUSIP/ISIN): no reliable free source, use ETFs.
+- TSX companies not registered with the SEC: Yahoo fallback, check key figures on SEDAR+.
+- P/E computed on the last annual EPS (not trailing 12 months).
+- Banks and insurers: some ratios (current ratio, gross margin) do not apply and show `N/A`.
+- The free TradingView widget does not display futures (`COMEX:GC1!`…): use the spot equivalent (`OANDA:XAUUSD`) or an ETF.
 
-**Dépannage**
+**Troubleshooting**
 
-| Problème | Solution |
+| Problem | Solution |
 |---|---|
-| `DLL load failed … Application Control policy has blocked this file` (Windows) | Smart App Control de Windows bloque des bibliothèques non signées. Utiliser la version en ligne (option A). |
-| « Python introuvable » | Réinstaller Python en cochant « Add python.exe to PATH ». |
-| Erreur à l'installation des bibliothèques avec une version très récente de Python | Utiliser Python 3.12. |
-| « Ticker sans données » | Vérifier le ticker sur finance.yahoo.com (ex. `RY.TO`, et non `RY` pour le TSX). |
-| YCRV (US) ou SPRD limités au Canada | Ajouter `FRED_API_KEY` dans les secrets. |
-| Le graphique TradingView n'affiche rien | Vérifier le symbole au format `BOURSE:SYMBOLE` (colonne TradingView du répertoire). |
+| `DLL load failed … Application Control policy has blocked this file` (Windows) | Windows Smart App Control blocks unsigned libraries. Use the online version. |
+| "Python was not found" | Reinstall Python and tick "Add python.exe to PATH". |
+| Library installation error with a very recent Python | Use Python 3.12. |
+| "Ticker without data" | Check the ticker on finance.yahoo.com (e.g. `RY.TO`, not `RY`, for the TSX). |
+| YCRV (US) or SPRD limited to Canada | Add `FRED_API_KEY` to the secrets. |
+| The TradingView chart shows nothing | Check the symbol uses the `EXCHANGE:SYMBOL` format (TradingView column of the directory). |
 
 ---
 
-*Outil personnel et éducatif. Ce n'est pas un conseil financier. La VaR n'est pas une perte maximale.
-Les performances passées ne garantissent pas les résultats futurs.*
+*Personal and educational tool. This is not financial advice. VaR is not a maximum loss.
+Past performance does not guarantee future results.*

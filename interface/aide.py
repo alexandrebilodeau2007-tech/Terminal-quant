@@ -1,8 +1,8 @@
 """
-interface/aide.py — Textes des boutons d'aide « ? ».
+interface/aide.py — Textes des boutons d'aide « ? » (affichés en anglais).
 
 Chaque texte suit le même plan, pour être compris sans connaissances en finance :
-    Ce que ça fait  ->  Exemple concret  ->  Pourquoi c'est utile.
+    What it does  ->  Concrete example  ->  Why it is useful.
 Les textes sont centralisés ici pour être faciles à relire et à corriger.
 """
 
@@ -13,246 +13,246 @@ import streamlit as st
 AIDE: dict[str, str] = {
     # ------------------------------------------------------------------ général
     "accueil": """
-**Ce que c'est** : le tableau de bord d'accueil. Il montre les grands marchés du jour et donne accès à chaque fonction.
+**What it is**: the home dashboard. It shows today's major markets and gives access to every function.
 
-**Exemple** : tu arrives le matin, tu vois que le S&P 500 est à −1,2 % et l'or à +0,8 % : les investisseurs se protègent.
+**Example**: you arrive in the morning and see the S&P 500 at −1.2% and gold at +0.8%: investors are seeking protection.
 
-**Pourquoi c'est utile** : en 10 secondes, tu sais dans quelle « humeur » est le marché avant de commencer une analyse.
+**Why it is useful**: in 10 seconds you know the market's "mood" before starting an analysis.
 """,
     "commande": """
-**Ce que c'est** : une barre de commande comme sur un terminal Bloomberg. Tu tapes un code, tu arrives directement à la bonne fonction.
+**What it is**: a command bar, like on a Bloomberg terminal. Type a code and you go straight to the right function.
 
-**Exemples** : `FA AAPL` ouvre l'analyse fondamentale d'Apple · `OPT SPY` ouvre les options de SPY · `CMP GC=F SI=F` compare l'or et l'argent · `TKR` ouvre le répertoire.
+**Examples**: `FA AAPL` opens Apple's fundamental analysis · `OPT SPY` opens SPY options · `CMP GC=F SI=F` compares gold and silver · `TKR` opens the directory.
 
-**Pourquoi c'est utile** : c'est beaucoup plus rapide que de cliquer dans les menus quand tu connais ce que tu cherches.
+**Why it is useful**: much faster than clicking through menus when you know what you are looking for.
 """,
     "repertoire": """
-**Ce que c'est** : la liste des principaux tickers, classés par famille (actions, indices, commodités, forex, crypto, obligations, options).
+**What it is**: the list of the main tickers, sorted by family (stocks, indices, commodities, forex, crypto, bonds, options).
 
-**Exemple** : tu veux analyser le pétrole mais tu ne connais pas son symbole : famille « Commodités », ligne « Pétrole WTI », ticker `CL=F`.
+**Example**: you want to analyze oil but do not know its symbol: family "Commodities", row "WTI crude oil", ticker `CL=F`.
 
-**Pourquoi c'est utile** : un ticker mal écrit ne donne aucune donnée. Ici, tu copies le bon symbole pour Yahoo (le terminal) et pour TradingView (le graphique).
+**Why it is useful**: a mistyped ticker returns no data. Here you copy the right symbol for Yahoo (the terminal) and for TradingView (the charts).
 """,
     # ------------------------------------------------------------------ marchés
     "marches": """
-**Ce que ça fait** : compare plusieurs marchés en même temps : combien ils ont monté ou baissé, à quel point ils sont agités, et s'ils bougent ensemble.
+**What it does**: compares several markets at once: how much they rose or fell, how volatile they are, and whether they move together.
 
-**Exemple** : tu mets le S&P 500, l'or et le pétrole. Tu vois que l'or a monté pendant que les actions baissaient.
+**Example**: add the S&P 500, gold and oil. You see that gold rose while stocks fell.
 
-**Pourquoi c'est utile** : c'est le point de départ d'une analyse macro : comprendre ce qui bouge avant de chercher pourquoi.
+**Why it is useful**: it is the starting point of any macro analysis: understand what is moving before looking for why.
 """,
     "marches_perf": """
-**Ce que ça fait** : affiche le rendement de chaque actif sur 1 mois, 3 mois, depuis le 1er janvier et sur 1 an. Le graphique « base 100 » part de 100 pour tous.
+**What it does**: shows each asset's return over 1 month, 3 months, year to date and 1 year. The "rebased to 100" chart starts every asset at 100.
 
-**Exemple** : l'or passe de 100 à 115 sur le graphique : il a gagné 15 % sur la période, peu importe son prix en dollars.
+**Example**: gold goes from 100 to 115 on the chart: it gained 15% over the period, whatever its price in dollars.
 
-**Pourquoi c'est utile** : on peut comparer un actif à 5 000 $ et un autre à 1,35 $ sur la même échelle.
+**Why it is useful**: you can compare an asset priced at $5,000 and another at $1.35 on the same scale.
 """,
     "marches_risque": """
-**Ce que ça fait** : la **volatilité** mesure l'ampleur des mouvements (plus elle est haute, plus ça bouge). La **corrélation** (de −1 à +1) dit si deux actifs bougent ensemble.
+**What it does**: **volatility** measures how large the moves are (the higher, the more it swings). **Correlation** (from −1 to +1) tells whether two assets move together.
 
-**Exemple** : volatilité de 15 % = environ 2 années sur 3, le rendement reste à ±15 % de la moyenne. Corrélation de −0,3 entre actions et or = ils ont tendance à aller en sens inverse.
+**Example**: 15% volatility = about 2 years out of 3, the return stays within ±15% of its average. A −0.3 correlation between stocks and gold = they tend to move in opposite directions.
 
-**Pourquoi c'est utile** : deux actifs peu corrélés se protègent mutuellement dans un portefeuille.
+**Why it is useful**: two weakly correlated assets protect each other in a portfolio.
 """,
     "marches_detail": """
-**Ce que ça fait** : graphique en chandeliers d'un actif, avec ses moyennes mobiles de 50 et 200 jours (le prix moyen des 50 ou 200 derniers jours).
+**What it does**: candlestick chart of one asset, with its 50-day and 200-day moving averages (the average price of the last 50 or 200 days).
 
-**Exemple** : un prix au-dessus de sa moyenne de 200 jours décrit une tendance haussière de long terme.
+**Example**: a price above its 200-day average describes a long-term uptrend.
 
-**Pourquoi c'est utile** : situer le prix actuel dans sa tendance. C'est du contexte, pas un signal d'achat.
+**Why it is useful**: it places today's price within its trend. It is context, not a buy signal.
 """,
     # ------------------------------------------------------------------ comparateur
     "cmp": """
-**Ce que ça fait** : met deux actifs face à face, calcule des formules entre symboles (comme sur TradingView) et affiche le graphique TradingView.
+**What it does**: puts two assets side by side, computes formulas between symbols (like on TradingView) and shows TradingView charts.
 
-**Exemple** : le ratio or/argent (`GC=F / SI=F`) indique combien d'onces d'argent il faut pour acheter une once d'or.
+**Example**: the gold/silver ratio (`GC=F / SI=F`) tells how many ounces of silver buy one ounce of gold.
 
-**Pourquoi c'est utile** : beaucoup d'idées d'analyse viennent d'une **relation** entre deux prix, pas d'un prix seul.
+**Why it is useful**: many analysis ideas come from a **relationship** between two prices, not from a single price.
 """,
     "cmp_deux": """
-**Ce que ça fait** : superpose deux actifs (base 100), calcule leur **ratio**, leur **corrélation glissante** (sur 60 jours) et leur **bêta** (de combien A bouge quand B bouge de 1 %).
+**What it does**: overlays two assets (rebased to 100), computes their **ratio**, their **rolling correlation** (over 60 days) and their **beta** (how much A moves when B moves 1%).
 
-**Exemple** : MU contre SOXX : un ratio qui monte veut dire que Micron fait mieux que l'ensemble des semi-conducteurs.
+**Example**: MU vs SOXX: a rising ratio means Micron is beating the semiconductor sector as a whole.
 
-**Pourquoi c'est utile** : savoir si une action surperforme son secteur, ou si deux actifs ont cessé de bouger ensemble.
+**Why it is useful**: see whether a stock outperforms its sector, or whether two assets stopped moving together.
 """,
     "cmp_formule": """
-**Ce que ça fait** : calcule n'importe quelle formule entre tickers, jour par jour : `+ - * /`, puissances et parenthèses.
+**What it does**: computes any formula between tickers, day by day: `+ - * /`, powers and parentheses.
 
-**Exemples** : `GC=F / SI=F` (ratio or/argent) · `CL=F - BZ=F` (écart WTI-Brent) · `(AAPL + MSFT + NVDA) / 3` · `BTC-USD * USDCAD=X` (bitcoin en CAD).
+**Examples**: `GC=F / SI=F` (gold/silver ratio) · `CL=F - BZ=F` (WTI-Brent spread) · `(AAPL + MSFT + NVDA) / 3` · `BTC-USD * USDCAD=X` (bitcoin in CAD).
 
-**Attention** : mets des espaces autour du signe moins entre deux tickers (`AAPL - MSFT`), car `BTC-USD` est un seul ticker.
+**Careful**: put spaces around the minus sign between two tickers (`AAPL - MSFT`), because `BTC-USD` is a single ticker.
 
-**Pourquoi c'est utile** : tester une idée (un écart qui s'élargit, un ratio extrême) en quelques secondes.
+**Why it is useful**: test an idea (a widening spread, an extreme ratio) in seconds.
 """,
     "cmp_tv": """
-**Ce que ça fait** : affiche les graphiques interactifs officiels de TradingView : **1, 2 ou 4 graphiques** à la fois, chacun avec un second symbole superposé si tu veux.
+**What it does**: shows the official interactive TradingView charts: **1, 2 or 4 charts** at once, each with an optional second symbol overlaid.
 
-**Réglages** : dans *Réglages de l'affichage*, choisis le style (chandeliers, Heikin Ashi, ligne…), l'intervalle, les indicateurs (RSI, MACD, Bollinger…) et leur **période** (ex. RSI 9 au lieu de 14), les **couleurs des bougies**, du fond et de la grille, les barres d'outils et la taille des graphiques. La couleur des lignes d'indicateurs, elle, ne peut pas être enregistrée (limite de TradingView).
+**Settings**: in *Display settings*, choose the style (candles, Heikin Ashi, line…), the interval, the indicators (RSI, MACD, Bollinger…) and their **period** (e.g. RSI 9 instead of 14), the **candle colors**, background and grid, the toolbars and the chart size. Indicator line colors cannot be saved (a TradingView limitation).
 
-**Exemple** : 4 graphiques pour suivre en même temps l'or, le S&P 500, le TSX et USD/CAD.
+**Charts-only window**: the *Open charts in a new window* button opens a page with only the charts, full width, using your current settings.
 
-**Pourquoi c'est utile** : la meilleure interface de graphique gratuite. Les réglages de base sont les mêmes pour tous les visiteurs ; ce que tu changes ne vaut que pour ta visite. Les symboles TradingView ne s'écrivent pas comme ceux de Yahoo (voir le Répertoire).
+**Why it is useful**: the best free charting interface. The base settings are the same for every visitor; what you change only lasts for your visit. TradingView symbols are not written like Yahoo symbols (see the Directory).
 """,
     # ------------------------------------------------------------------ portefeuille
     "port": """
-**Ce que ça fait** : mesure le risque d'un portefeuille et cherche la meilleure répartition entre ses actifs. Un second onglet donne le **niveau de risque officiel** d'un FNB ou d'un portefeuille.
+**What it does**: measures a portfolio's risk and looks for the best allocation between its assets. A second tab gives the **official risk level** of an ETF or a portfolio.
 
-**Exemple** : 5 actifs, 10 000 $ : le terminal te dit combien tu pourrais perdre un mauvais jour et quels poids réduisent ce risque.
+**Example**: 5 assets, $10,000: the terminal tells you how much you could lose on a bad day and which weights reduce that risk.
 
-**Pourquoi c'est utile** : c'est le cœur du métier de gestionnaire de portefeuille : ne pas seulement choisir des actifs, mais les combiner.
+**Why it is useful**: it is the core of a portfolio manager's job: not only picking assets, but combining them.
 """,
     "port_mu": """
-**Ce que ça fait** : les rendements attendus (μ) sont ce que tu crois que chaque actif rapportera par année. La moyenne passée est pré-remplie.
+**What it does**: expected returns (μ) are what you believe each asset will return per year. The past average is pre-filled.
 
-**Exemple** : Nvidia a fait +60 % par an dans le passé. Le croire pour l'avenir mettrait presque tout ton argent dessus. Une hypothèse de 12 % est plus prudente.
+**Example**: Nvidia returned +60% a year in the past. Believing that for the future would put almost all your money in it. A 12% assumption is more prudent.
 
-**Pourquoi c'est utile** : c'est TON hypothèse qui guide l'optimisation. C'est là que ton analyse entre dans les calculs.
+**Why it is useful**: YOUR assumption drives the optimization. This is where your analysis enters the calculations.
 """,
     "port_opt": """
-**Ce que ça fait** : propose des répartitions. **Variance minimale** = le moins risqué possible. **Sharpe maximal** = le meilleur rendement pour chaque unité de risque. **Manuel** = tes propres poids.
+**What it does**: proposes allocations. **Minimum variance** = the least risky possible. **Maximum Sharpe** = the best return per unit of risk. **Manual** = your own weights.
 
-**Exemple** : 50 % actions et 50 % obligations peut être moins risqué que 100 % obligations si les deux bougent en sens inverse.
+**Example**: 50% stocks and 50% bonds can be less risky than 100% bonds if the two move in opposite directions.
 
-**Pourquoi c'est utile** : voir si ta répartition intuitive est loin de la meilleure possible (la « frontière efficiente »).
+**Why it is useful**: see whether your intuitive allocation is far from the best possible one (the "efficient frontier").
 """,
     "port_var": """
-**Ce que ça fait** : la **VaR** dit combien tu peux perdre dans 95 % (ou 99 %) des cas. La **CVaR** dit combien tu perds en moyenne dans les pires cas restants.
+**What it does**: **VaR** tells how much you can lose in 95% (or 99%) of cases. **CVaR** tells how much you lose on average in the remaining worst cases.
 
-**Exemple** : VaR 95 % de 2 % sur 10 000 $ = 95 jours sur 100, tu ne perds pas plus de 200 $. Les 5 autres jours, la CVaR dit que tu perds en moyenne 280 $.
+**Example**: a 95% VaR of 2% on $10,000 = 95 days out of 100, you do not lose more than $200. On the other 5 days, CVaR says you lose $280 on average.
 
-**Pourquoi c'est utile** : c'est la mesure de risque utilisée par les banques et les gestionnaires. Quatre méthodes sont comparées : un grand écart veut dire que les grosses pertes sont plus fréquentes que prévu.
+**Why it is useful**: it is the risk measure used by banks and asset managers. Four methods are compared: a large gap means big losses are more frequent than expected.
 """,
     "port_kupiec": """
-**Ce que ça fait** : vérifie si la VaR a fonctionné dans le passé. On compte les jours où la perte a dépassé la VaR.
+**What it does**: checks whether the VaR worked in the past. It counts the days when the loss exceeded the VaR.
 
-**Exemple** : sur 1 000 jours avec une VaR 95 %, on attend environ 50 dépassements. S'il y en a 70, le test « rejette » la VaR : elle sous-estime le risque.
+**Example**: over 1,000 days with a 95% VaR, about 50 breaches are expected. If there are 70, the test "rejects" the VaR: it underestimates risk.
 
-**Pourquoi c'est utile** : une mesure de risque non vérifiée peut donner un faux sentiment de sécurité.
+**Why it is useful**: an unverified risk measure can give a false sense of safety.
 """,
     "port_niveau": """
-**Ce que ça fait** : calcule le niveau de risque d'un FNB, d'un titre ou de ton portefeuille avec la **méthode officielle canadienne** (ACVM) : l'écart-type des rendements mensuels sur 10 ans.
+**What it does**: computes the risk level of an ETF, a security or your portfolio with the **official Canadian method** (CSA): the standard deviation of monthly returns over 10 years.
 
-**Grille** : moins de 6 % = Faible · 6-11 % = Faible à moyen · 11-16 % = Moyen · 16-20 % = Moyen à élevé · 20 % et plus = Élevé.
+**Grid**: below 6% = Low · 6-11% = Low to medium · 11-16% = Medium · 16-20% = Medium to high · 20% and above = High.
 
-**Exemple** : un FNB d'obligations canadiennes comme XBB.TO se classe généralement dans le bas de la grille, un FNB 100 % actions comme XEQT.TO vers le milieu, et une action technologique seule souvent en « Élevé ». Le résultat exact dépend des 10 dernières années.
+**Example**: a Canadian bond ETF such as XBB.TO usually sits at the bottom of the grid, a 100% equity ETF such as XEQT.TO around the middle, and a single tech stock often at "High". The exact result depends on the last 10 years.
 
-**Pourquoi c'est utile** : c'est le niveau imprimé dans l'Aperçu du fonds que les conseillers remettent aux clients. Tu peux vérifier un FNB ou classer ton propre portefeuille de la même façon.
+**Why it is useful**: it is the level printed in the Fund Facts that advisors give to clients. You can check an ETF or rate your own portfolio the same way.
 """,
     # ------------------------------------------------------------------ fondamental
     "fa": """
-**Ce que ça fait** : récupère les états financiers d'une entreprise, calcule ses ratios et t'aide à estimer sa valeur. La conclusion, c'est toi qui l'écris.
+**What it does**: retrieves a company's financial statements, computes its ratios and helps you estimate its value. You write the conclusion.
 
-**Exemple** : Apple : marge nette, rendement des capitaux propres, P/E, puis un DCF avec tes propres hypothèses de croissance.
+**Example**: Apple: net margin, return on equity, P/E, then a DCF with your own growth assumptions.
 
-**Pourquoi c'est utile** : passer de « j'aime cette entreprise » à « voici les chiffres qui justifient mon opinion ».
+**Why it is useful**: move from "I like this company" to "here are the numbers that justify my view".
 """,
     "fa_etats": """
-**Ce que ça fait** : montre les chiffres bruts des 6 derniers exercices : revenus, bénéfices, actifs, dettes, flux de trésorerie.
+**What it does**: shows the raw figures of the last 6 fiscal years: revenue, earnings, assets, debt, cash flows.
 
-**Exemple** : des revenus qui passent de 100 à 150 milliards en 5 ans = croissance d'environ 8,4 % par an.
+**Example**: revenue going from 100 to 150 billion in 5 years = growth of about 8.4% per year.
 
-**Pourquoi c'est utile** : tous les ratios viennent de ces chiffres. Si un ratio semble bizarre, la réponse est ici.
+**Why it is useful**: every ratio comes from these figures. If a ratio looks odd, the answer is here.
 """,
     "fa_ratios": """
-**Ce que ça fait** : transforme les chiffres en ratios comparables : rentabilité (ROE, marges), liquidité (peut-elle payer ses dettes à court terme ?), endettement.
+**What it does**: turns the figures into comparable ratios: profitability (ROE, margins), liquidity (can it pay its short-term debts?), leverage.
 
-**Exemple** : ROE de 20 % = l'entreprise gagne 20 cents par année pour chaque dollar des actionnaires. DuPont explique si ça vient des marges, des ventes ou de la dette.
+**Example**: a 20% ROE = the company earns 20 cents a year for each dollar of shareholders' equity. DuPont explains whether it comes from margins, sales or debt.
 
-**Pourquoi c'est utile** : comparer deux entreprises de tailles très différentes.
+**Why it is useful**: compare two companies of very different sizes.
 """,
     "fa_dcf": """
-**Ce que ça fait** : les multiples (P/E…) disent combien le marché paie. Le **DCF** estime ce que l'entreprise vaut selon l'argent qu'elle générera dans le futur, ramené à aujourd'hui.
+**What it does**: multiples (P/E…) tell how much the market pays. The **DCF** estimates what the company is worth based on the cash it will generate in the future, brought back to today.
 
-**Exemple** : prix 150 $, BPA 6 $ → P/E de 25 : tu paies 25 ans de bénéfices actuels. Le DCF te dit si la croissance attendue justifie ce prix.
+**Example**: price $150, EPS $6 → P/E of 25: you pay 25 years of current earnings. The DCF tells you whether expected growth justifies that price.
 
-**Pourquoi c'est utile** : le tableau de sensibilité montre que la valeur change beaucoup selon tes hypothèses. Un DCF donne une **fourchette**, pas un prix exact.
+**Why it is useful**: the sensitivity table shows that the value changes a lot with your assumptions. A DCF gives a **range**, not an exact price.
 """,
     "fa_carnet": """
-**Ce que ça fait** : un espace pour écrire ta thèse, tes catalyseurs, tes risques et ta conclusion. Les champs sont vides exprès.
+**What it does**: a space to write your thesis, catalysts, risks and conclusion. The fields are empty on purpose.
 
-**Exemple** : « J'achèterais à moins de 140 $ parce que… ; ma thèse est invalidée si les marges baissent deux trimestres de suite. »
+**Example**: "I would buy below $140 because…; my thesis is invalidated if margins fall two quarters in a row."
 
-**Pourquoi c'est utile** : un analyste est payé pour son raisonnement, pas pour les calculs. Ton texte est inclus dans l'export Excel.
+**Why it is useful**: an analyst is paid for reasoning, not for calculations. Your text is included in the Excel export.
 """,
     "fa_export": """
-**Ce que ça fait** : crée un fichier Excel avec les états, les ratios, le DCF, ton carnet et un onglet de métadonnées (date, sources).
+**What it does**: creates an Excel file with the statements, the ratios, the DCF, your notebook and a metadata sheet (date, sources).
 
-**Pourquoi c'est utile** : garder une trace de ton analyse et la partager. Les métadonnées permettent à quelqu'un d'autre de vérifier tes chiffres.
+**Why it is useful**: keep a record of your analysis and share it. The metadata lets someone else check your numbers.
 """,
     # ------------------------------------------------------------------ options
     "opt": """
-**Ce que ça fait** : analyse les options (droit d'acheter ou de vendre un actif à un prix fixé). Le prix des options révèle les mouvements que le marché **anticipe**.
+**What it does**: analyzes options (the right to buy or sell an asset at a set price). Option prices reveal the moves the market **expects**.
 
-**Exemple** : un call Apple au prix d'exercice de 200 $ prend de la valeur si Apple monte au-dessus de 200 $.
+**Example**: an Apple call with a $200 strike gains value if Apple rises above $200.
 
-**Pourquoi c'est utile** : la volatilité implicite est la seule mesure du risque **futur** attendu par le marché.
+**Why it is useful**: implied volatility is the only measure of the **future** risk expected by the market.
 """,
     "opt_chaine": """
-**Ce que ça fait** : affiche toutes les options d'un sous-jacent pour une échéance, avec leur volatilité implicite et leurs « grecques » (sensibilités).
+**What it does**: shows every option of an underlying for one expiration, with implied volatility and "Greeks" (sensitivities).
 
-**Exemple** : delta 0,6 = l'option gagne environ 0,60 $ quand l'action monte de 1 $. Theta −0,05 = elle perd 5 cents par jour qui passe.
+**Example**: delta 0.6 = the option gains about $0.60 when the stock rises $1. Theta −0.05 = it loses 5 cents per day.
 
-**Pourquoi c'est utile** : le « smile » montre que les puts de protection coûtent plus cher : les investisseurs craignent davantage une baisse qu'une hausse.
+**Why it is useful**: the "smile" shows that protective puts cost more: investors fear a drop more than a rise.
 """,
     "opt_calc": """
-**Ce que ça fait** : calcule le prix théorique d'une option avec le modèle de Black-Scholes, pour n'importe quel actif.
+**What it does**: computes an option's theoretical price with the Black-Scholes model, for any asset.
 
-**Exemple** : action à 42 $, prix d'exercice 40 $, 6 mois, taux 10 %, volatilité 20 % → call à 4,76 $ (exemple classique du manuel de Hull).
+**Example**: stock at $42, strike $40, 6 months, 10% rate, 20% volatility → call at $4.76 (classic example from Hull's textbook).
 
-**Pourquoi c'est utile** : comprendre comment chaque paramètre change la valeur d'une option, en le modifiant toi-même.
+**Why it is useful**: understand how each input changes an option's value by changing it yourself.
 """,
     # ------------------------------------------------------------------ taux
     "taux": """
-**Ce que ça fait** : montre les taux d'intérêt des gouvernements américain et canadien selon leur durée (la « courbe des taux »), et calcule le risque d'une obligation.
+**What it does**: shows US and Canadian government interest rates by maturity (the "yield curve"), and computes a bond's risk.
 
-**Exemple** : si le 2 ans paie plus que le 10 ans (courbe inversée), le marché anticipe des baisses de taux, souvent liées à un ralentissement.
+**Example**: if the 2-year pays more than the 10-year (inverted curve), the market expects rate cuts, often tied to a slowdown.
 
-**Pourquoi c'est utile** : les taux influencent la valeur de tous les autres actifs, y compris le WACC de ton DCF.
+**Why it is useful**: rates drive the value of every other asset, including the WACC in your DCF.
 """,
     "taux_courbe": """
-**Ce que ça fait** : compare la courbe des taux d'aujourd'hui avec celle d'il y a 1 et 2 ans.
+**What it does**: compares today's yield curve with the one from 1 and 2 years ago.
 
-**Exemple** : une courbe qui monte de gauche à droite est « normale » : on exige plus pour prêter longtemps.
+**Example**: a curve rising from left to right is "normal": lenders demand more to lend for longer.
 
-**Pourquoi c'est utile** : voir si le marché anticipe une hausse ou une baisse des taux directeurs.
+**Why it is useful**: see whether the market expects policy rates to go up or down.
 """,
     "taux_calc": """
-**Ce que ça fait** : calcule le prix d'une obligation à partir de son rendement (ou l'inverse), puis sa **duration** : de combien son prix baisse si les taux montent de 1 %.
+**What it does**: computes a bond's price from its yield (or the reverse), then its **duration**: how much its price falls if rates rise 1%.
 
-**Exemple** : obligation 10 ans, coupon 4 %, rendement 4,5 % : duration modifiée 8,1 → si les taux montent de 1 %, le prix baisse d'environ 8 %.
+**Example**: 10-year bond, 4% coupon, 4.5% yield: modified duration 8.1 → if rates rise 1%, the price falls about 8%.
 
-**Pourquoi c'est utile** : comprendre pourquoi les obligations longues ont autant chuté en 2022.
+**Why it is useful**: understand why long bonds fell so much in 2022.
 """,
     # ------------------------------------------------------------------ spreads
     "spr": """
-**Ce que ça fait** : calcule l'écart (« spread ») entre deux taux, en points de base (1 pb = 0,01 %), et le situe dans son historique.
+**What it does**: computes the gap ("spread") between two yields, in basis points (1 bp = 0.01%), and places it within its history.
 
-**Exemple** : Canada 10 ans à 3,20 % et US 10 ans à 4,10 % → spread de −90 pb : le Canada emprunte 0,90 % moins cher que les États-Unis.
+**Example**: Canada 10-year at 3.20% and US 10-year at 4.10% → spread of −90 bp: Canada borrows 0.90% cheaper than the United States.
 
-**Pourquoi c'est utile** : les spreads résument en un chiffre les anticipations du marché : récession (pente), écart de politique monétaire (pays), peur des faillites (crédit).
+**Why it is useful**: spreads sum up market expectations in one number: recession (slope), monetary policy gap (countries), default fears (credit).
 """,
     "spr_deux": """
-**Ce que ça fait** : choisis deux taux, le terminal trace leur écart dans le temps et calcule son **z-score** : à combien d'écarts-types il est de sa moyenne.
+**What it does**: pick two yields; the terminal plots their spread over time and computes its **z-score**: how many standard deviations it is from its mean.
 
-**Exemple** : un z-score de +2,1 veut dire que l'écart est inhabituellement large, ce qui arrive environ 2 % du temps si les écarts étaient distribués normalement.
+**Example**: a z-score of +2.1 means the spread is unusually wide, which would happen about 2% of the time if spreads were normally distributed.
 
-**Pourquoi c'est utile** : repérer quand une relation entre deux taux est extrême, et se demander pourquoi.
+**Why it is useful**: spot when a relationship between two yields is extreme, and ask why.
 """,
     "spr_pred": """
-**Ce que ça fait** : les spreads les plus suivis par les professionnels, prêts à l'emploi.
+**What it does**: the spreads professionals watch most, ready to use.
 
-**Exemples** : **pente 10 ans − 2 ans** (négative = courbe inversée, souvent avant une récession) · **Canada − US** (écart de politique monétaire, influence le dollar canadien) · **nominal − réel** (inflation anticipée) · **High Yield − IG** (peur des faillites).
+**Examples**: **10y − 2y slope** (negative = inverted curve, often before a recession) · **Canada − US** (monetary policy gap, drives the Canadian dollar) · **nominal − real** (expected inflation) · **High Yield − IG** (default fears).
 
-**Pourquoi c'est utile** : un tableau de bord macro en un clic.
+**Why it is useful**: a one-click macro dashboard.
 """,
     "spr_gspread": """
-**Ce que ça fait** : calcule le **G-spread** d'une obligation d'entreprise : son rendement moins celui d'une obligation d'État de même durée (interpolée sur la courbe du jour).
+**What it does**: computes a corporate bond's **G-spread**: its yield minus the yield of a government bond of the same maturity (interpolated on today's curve).
 
-**Exemple** : obligation de 7 ans à 5,30 %, État 7 ans à 4,12 % → G-spread de 118 pb. C'est la prime exigée pour le risque de défaut de l'entreprise.
+**Example**: 7-year bond at 5.30%, government 7-year at 4.12% → G-spread of 118 bp. It is the premium demanded for the company's default risk.
 
-**Pourquoi c'est utile** : comparer le risque de crédit de deux émetteurs, peu importe leurs échéances.
+**Why it is useful**: compare the credit risk of two issuers, whatever their maturities.
 """,
 }
 
@@ -262,7 +262,7 @@ def aide(cle: str, libelle: str = "?") -> None:
     Si la clé n'existe pas, rien ne s'affiche (aucune erreur pour l'utilisateur)."""
     texte = AIDE.get(cle)
     if texte:
-        with st.popover(libelle, help="Qu'est-ce que c'est ? Clique pour une explication simple avec un exemple."):
+        with st.popover(libelle, help="What is this? Click for a simple explanation with an example."):
             st.markdown(texte)
 
 

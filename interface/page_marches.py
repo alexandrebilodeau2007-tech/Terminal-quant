@@ -21,20 +21,20 @@ from sources.marche import (ErreurDonnees, convertir_en_devise_base, telecharger
 
 
 def afficher(params: dict) -> None:
-    titre("Marchés multi-actifs", "marches", "MKT",
-          "Actions, indices, commodités, forex, crypto, obligations et taux — source : Yahoo Finance.")
+    titre("Multi-asset markets", "marches", "MKT",
+          "Stocks, indices, commodities, forex, crypto, bonds and rates — source: Yahoo Finance.")
 
     tickers = selecteur_tickers("marches", ["^GSPC", "^GSPTSE", "GC=F", "CL=F", "USDCAD=X", "TLT", "^TNX"],
                                 cle_commande="cmd_marches_libre")
-    convertir = st.checkbox(f"Convertir les prix en {params['devise']}", value=False,
-                            help="Décoché : chaque actif dans sa devise d'origine (lecture du marché). "
-                                 "Coché : rendement vécu par un investisseur dans ta devise.")
+    convertir = st.checkbox(f"Convert prices to {params['devise']}", value=False,
+                            help="Unchecked: each asset in its original currency (market view). "
+                                 "Checked: the return experienced by an investor in your currency.")
     if not tickers:
-        st.info("Choisis au moins un actif.")
+        st.info("Pick at least one asset.")
         return
 
     try:
-        with st.spinner("Téléchargement des prix…"):
+        with st.spinner("Downloading prices…"):
             prix = telecharger_prix(tuple(tickers), params["debut"], params["fin"])
             if convertir:
                 prix, _ = convertir_en_devise_base(prix, params["devise"], TICKERS_TAUX)
@@ -55,31 +55,31 @@ def afficher(params: dict) -> None:
         # Permet de comparer des actifs aux prix très différents (ex. or vs USD/CAD).
         base100 = prix[col_prix].ffill()
         base100 = base100 / base100.bfill().iloc[0] * 100
-        fig = px.line(base100, labels={"value": "Base 100", "index": "", "variable": "Actif"})
+        fig = px.line(base100, labels={"value": "Rebased to 100", "index": "", "variable": "Active"})
         st.plotly_chart(fig, width="stretch")
 
-        sous_titre("Risque et corrélations", "marches_risque")
+        sous_titre("Risk and correlations", "marches_risque")
         r = rendements_simples(prix[col_prix])
-        vol = (r.std() * np.sqrt(JOURS_BOURSE_PAR_AN)).to_frame("Volatilité annualisée")
+        vol = (r.std() * np.sqrt(JOURS_BOURSE_PAR_AN)).to_frame("Annualized volatility")
         # Volatilité sur les 3 derniers mois : montre si le risque actuel
         # est plus élevé ou plus faible que la moyenne de la période.
-        vol["Volatilité 63 derniers jours"] = r.tail(63).std() * np.sqrt(JOURS_BOURSE_PAR_AN)
+        vol["Volatility, latest 63 days"] = r.tail(63).std() * np.sqrt(JOURS_BOURSE_PAR_AN)
         tableau_pourcent(vol)
 
         if len(col_prix) > 1:
             # pairwise : chaque paire utilise ses dates communes (calendriers différents).
             correl = r.corr(min_periods=60)
             fig = px.imshow(correl, text_auto=".2f", zmin=-1, zmax=1, color_continuous_scale="RdBu",
-                            aspect="auto", title="Corrélation des rendements quotidiens")
+                            aspect="auto", title="Correlation of daily returns")
             st.plotly_chart(fig, width="stretch")
 
     if col_taux:
-        sous_titre("Taux et indicateurs de niveau (%)", "marches_risque")
+        sous_titre("Rates and level indicators (%)", "marches_risque")
         st.plotly_chart(px.line(prix[col_taux], labels={"value": "%", "index": "", "variable": ""}),
                         width="stretch")
 
-    sous_titre("Détail d'un actif", "marches_detail")
-    choix = st.selectbox("Actif", tickers, key="marches_detail")
+    sous_titre("Asset detail", "marches_detail")
+    choix = st.selectbox("Active", tickers, key="marches_detail")
     try:
         ohlc = telecharger_ohlc(choix, params["debut"], params["fin"])
     except ErreurDonnees as e:
@@ -94,10 +94,10 @@ def afficher(params: dict) -> None:
     st.plotly_chart(fig, width="stretch")
 
     note_methodo(
-        "- Prix **ajustés** pour dividendes et fractionnements.\n"
-        "- Commodités : contrats à terme **continus** (`=F`). Au changement d'échéance, un saut "
-        "de prix artificiel peut apparaître : les rendements autour des dates de roll sont à interpréter avec prudence.\n"
-        "- Forex : `USDCAD=X` = nombre de CAD pour 1 USD.\n"
-        "- Les taux (`^TNX`, etc.) sont des **niveaux**, pas des prix : ils sont exclus des rendements et corrélations.\n"
-        "- Corrélations calculées par paires de dates communes, minimum 60 observations."
+        "- Prices **adjusted** for dividends and splits.\n"
+        "- Commodities: **continuous** futures (`=F`). When the contract rolls, an artificial "
+        "price jump can appear: interpret returns around roll dates with caution.\n"
+        "- Forex: `USDCAD=X` = number of CAD per 1 USD.\n"
+        "- Rates (`^TNX`, etc.) are **levels**, not prices: they are excluded from returns and correlations.\n"
+        "- Correlations computed on pairwise common dates, minimum 60 observations."
     )

@@ -25,7 +25,7 @@ def _flux(nominal: float, taux_coupon: float, annees: float, frequence: int) -> 
     flux = coupon, coupon, coupon, coupon + nominal."""
     n = int(round(annees * frequence))
     if n < 1:
-        raise ValueError("L'échéance doit être d'au moins une période de coupon.")
+        raise ValueError("Maturity must be at least one coupon period.")
     periodes = np.arange(1, n + 1)
     flux = np.full(n, nominal * taux_coupon / frequence)
     flux[-1] += nominal
@@ -64,21 +64,21 @@ def mesures_de_risque(nominal: float, taux_coupon: float, rendement: float, anne
     modifiee = macaulay / (1 + y)
     convexite = float(np.sum(actualises * t * (t + 1)) / (p * (1 + y) ** 2 * frequence**2))
     return {
-        "Prix": p,
-        "Duration de Macaulay (ans)": macaulay,
-        "Duration modifiée": modifiee,
-        "Convexité": convexite,
-        "DV01 ($ pour 1 pb)": modifiee * p * 0.0001,
+        "Price": p,
+        "Macaulay duration (years)": macaulay,
+        "Modified duration": modifiee,
+        "Convexity": convexite,
+        "DV01 ($ per 1 bp)": modifiee * p * 0.0001,
     }
 
 
 def choc_de_taux(mesures: dict, choc: float) -> dict[str, float]:
     """Variation de prix estimée pour un choc de taux (ex. +0.01 = +100 pb).
     ΔP/P ≈ -Dmod x Δy + ½ x Convexité x Δy²"""
-    effet_duration = -mesures["Duration modifiée"] * choc
-    effet_convexite = 0.5 * mesures["Convexité"] * choc**2
+    effet_duration = -mesures["Modified duration"] * choc
+    effet_convexite = 0.5 * mesures["Convexity"] * choc**2
     return {
-        "Effet duration": effet_duration,
-        "Effet convexité": effet_convexite,
-        "Variation estimée (%)": effet_duration + effet_convexite,
+        "Duration effect": effet_duration,
+        "Convexity effect": effet_convexite,
+        "Estimated change (%)": effet_duration + effet_convexite,
     }

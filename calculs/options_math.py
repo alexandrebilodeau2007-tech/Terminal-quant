@@ -52,7 +52,7 @@ def grecques(S, K, T, r, q, sigma, type_option: str) -> dict[str, float]:
         delta = -np.exp(-q * T) * norm.cdf(-d1)
         theta = terme_commun + r * K * np.exp(-r * T) * norm.cdf(-d2) - q * S * np.exp(-q * T) * norm.cdf(-d1)
         rho = -K * T * np.exp(-r * T) * norm.cdf(-d2) / 100
-    return {"Delta": delta, "Gamma": gamma, "Vega": vega, "Theta (par jour)": theta / 365, "Rho": rho}
+    return {"Delta": delta, "Gamma": gamma, "Vega": vega, "Theta (per day)": theta / 365, "Rho": rho}
 
 
 def volatilite_implicite(prix_marche, S, K, T, r, q, type_option: str) -> float:

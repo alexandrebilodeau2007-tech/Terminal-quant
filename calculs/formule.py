@@ -49,11 +49,11 @@ def analyser(formule: str) -> tuple[str, dict[str, str]]:
     position, morceaux, variables = 0, [], {}
     texte = formule.strip()
     if not texte:
-        raise ErreurFormule("La formule est vide.")
+        raise ErreurFormule("The formula is empty.")
     while position < len(texte):
         m = MOTIF_JETON.match(texte, position)
         if not m or m.end() == position:
-            raise ErreurFormule(f"Caractère inattendu à la position {position + 1} : « {texte[position:position + 10]} »")
+            raise ErreurFormule(f"Unexpected character at position {position + 1}: \"{texte[position:position + 10]}\"")
         if m.group("nombre"):
             morceaux.append(m.group("nombre").replace(",", "."))
         elif m.group("ticker"):
@@ -67,7 +67,7 @@ def analyser(formule: str) -> tuple[str, dict[str, str]]:
             morceaux.append(m.group("op"))
         position = m.end()
     if not variables:
-        raise ErreurFormule("La formule doit contenir au moins un ticker.")
+        raise ErreurFormule("The formula must contain at least one ticker.")
     return " ".join(morceaux), variables
 
 
@@ -84,7 +84,7 @@ def _evaluer(noeud, valeurs: dict[str, pd.Series]):
         return noeud.value
     if isinstance(noeud, ast.Name) and noeud.id in valeurs:
         return valeurs[noeud.id]
-    raise ErreurFormule("Construction non autorisée dans la formule (seuls + - * / ** et les parenthèses le sont).")
+    raise ErreurFormule("Construct not allowed in the formula (only + - * / ** and parentheses are).")
 
 
 def calculer(formule: str, prix: pd.DataFrame) -> pd.Series:
@@ -96,16 +96,16 @@ def calculer(formule: str, prix: pd.DataFrame) -> pd.Series:
     expression, variables = analyser(formule)
     manquants = [t for t in variables.values() if t not in prix.columns]
     if manquants:
-        raise ErreurFormule(f"Prix manquants pour : {', '.join(manquants)}")
+        raise ErreurFormule(f"Missing prices for: {', '.join(manquants)}")
     commun = prix[list(variables.values())].dropna()
     valeurs = {nom: commun[ticker] for nom, ticker in variables.items()}
     try:
         arbre = ast.parse(expression, mode="eval")
     except SyntaxError as e:
-        raise ErreurFormule("Formule mal construite (parenthèse ou opérateur en trop ?).") from e
+        raise ErreurFormule("Malformed formula (extra parenthesis or operator?).") from e
     resultat = _evaluer(arbre, valeurs)
     if not isinstance(resultat, pd.Series):
-        raise ErreurFormule("La formule ne dépend d'aucun prix.")
+        raise ErreurFormule("The formula does not depend on any price.")
     resultat = resultat.replace([float("inf"), float("-inf")], float("nan")).dropna()
     return resultat.rename(formule.strip())
 

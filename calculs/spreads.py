@@ -26,7 +26,7 @@ def spread_pb(taux_a: pd.Series, taux_b: pd.Series) -> pd.Series:
     remplir les trous, pour ne jamais comparer deux dates différentes.
     """
     a, b = taux_a.dropna().align(taux_b.dropna(), join="inner")
-    return ((a - b) * 100).rename("Spread (pb)")
+    return ((a - b) * 100).rename("Spread (bp)")
 
 
 def statistiques_spread(spread: pd.Series) -> dict[str, float]:
@@ -41,14 +41,14 @@ def statistiques_spread(spread: pd.Series) -> dict[str, float]:
         return {}
     actuel, moyenne, ecart = float(s.iloc[-1]), float(s.mean()), float(s.std(ddof=1))
     return {
-        "Actuel (pb)": actuel,
-        "Moyenne (pb)": moyenne,
-        "Écart-type (pb)": ecart,
+        "Current (bp)": actuel,
+        "Mean (bp)": moyenne,
+        "Std. dev. (bp)": ecart,
         "z-score": (actuel - moyenne) / ecart if ecart > 0 else np.nan,
-        "Percentile historique": float((s < actuel).mean()),
-        "Minimum (pb)": float(s.min()),
-        "Maximum (pb)": float(s.max()),
-        "Variation sur 1 an (pb)": _variation(s, pd.DateOffset(years=1)),
+        "Historical percentile": float((s < actuel).mean()),
+        "Minimum (bp)": float(s.min()),
+        "Maximum (bp)": float(s.max()),
+        "1-year change (bp)": _variation(s, pd.DateOffset(years=1)),
     }
 
 
@@ -81,6 +81,6 @@ def g_spread(rendement_obligation: float, courbe_etat: pd.Series, maturite: floa
     """
     etat = interpoler_courbe(courbe_etat, maturite)
     return {
-        "Taux d'État interpolé (%)": etat,
-        "G-spread (pb)": (rendement_obligation - etat) * 100,
+        "Interpolated government yield (%)": etat,
+        "G-spread (bp)": (rendement_obligation - etat) * 100,
     }

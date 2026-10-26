@@ -16,7 +16,7 @@ from sources.marche import ErreurDonnees, telecharger_prix
 # (libellé court, ticker Yahoo, nombre de décimales)
 COTES = [
     ("S&P 500", "^GSPC", 0), ("NASDAQ", "^IXIC", 0), ("TSX", "^GSPTSE", 0), ("VIX", "^VIX", 2),
-    ("US 10A", "^TNX", 2), ("USD/CAD", "USDCAD=X", 4), ("OR", "GC=F", 0), ("WTI", "CL=F", 2),
+    ("US 10Y", "^TNX", 2), ("USD/CAD", "USDCAD=X", 4), ("GOLD", "GC=F", 0), ("WTI", "CL=F", 2),
     ("BTC", "BTC-USD", 0), ("EUR/USD", "EURUSD=X", 4),
 ]
 
@@ -31,8 +31,8 @@ def instantane() -> pd.DataFrame:
         serie = prix[ticker].dropna() if ticker in prix else pd.Series(dtype=float)
         if len(serie) < 2:
             continue
-        lignes.append({"Marché": libelle, "Ticker": ticker, "Dernier": serie.iloc[-1],
-                       "Variation": serie.iloc[-1] / serie.iloc[-2] - 1, "Décimales": dec,
+        lignes.append({"Market": libelle, "Ticker": ticker, "Last": serie.iloc[-1],
+                       "Change": serie.iloc[-1] / serie.iloc[-2] - 1, "Decimals": dec,
                        "Date": serie.index[-1]})
     return pd.DataFrame(lignes)
 
@@ -47,9 +47,9 @@ def afficher_bandeau() -> pd.DataFrame | None:
         return None
     cellules = []
     for _, l in donnees.iterrows():
-        classe = "tq-hausse" if l["Variation"] > 0 else "tq-baisse" if l["Variation"] < 0 else "tq-neutre"
-        fleche = "▲" if l["Variation"] > 0 else "▼" if l["Variation"] < 0 else "■"
-        cellules.append(f"<span class='tq-cote'><b>{l['Marché']}</b>{l['Dernier']:,.{int(l['Décimales'])}f} "
-                        f"<span class='{classe}'>{fleche} {l['Variation']:+.2%}</span></span>")
+        classe = "tq-hausse" if l["Change"] > 0 else "tq-baisse" if l["Change"] < 0 else "tq-neutre"
+        fleche = "▲" if l["Change"] > 0 else "▼" if l["Change"] < 0 else "■"
+        cellules.append(f"<span class='tq-cote'><b>{l['Market']}</b>{l['Last']:,.{int(l['Decimals'])}f} "
+                        f"<span class='{classe}'>{fleche} {l['Change']:+.2%}</span></span>")
     st.markdown(f"<div class='tq-bandeau'>{''.join(cellules)}</div>", unsafe_allow_html=True)
     return donnees

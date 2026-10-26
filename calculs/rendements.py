@@ -32,7 +32,7 @@ def rendements_log(prix: pd.DataFrame) -> pd.DataFrame:
 def rendement_portefeuille(rendements: pd.DataFrame, poids: np.ndarray) -> pd.Series:
     """Rendement quotidien du portefeuille = produit matriciel rendements x poids.
     Hypothèse implicite : rééquilibrage QUOTIDIEN vers les poids cibles."""
-    return pd.Series(rendements.values @ poids, index=rendements.index, name="Portefeuille")
+    return pd.Series(rendements.values @ poids, index=rendements.index, name="Portfolio")
 
 
 def drawdown(rendements: pd.Series) -> pd.Series:
@@ -59,14 +59,14 @@ def statistiques(rendements: pd.Series, taux_sans_risque: float = 0.0) -> dict[s
     annees = len(rendements) / n
     cagr = (1 + rendements).prod() ** (1 / annees) - 1 if annees > 0 else np.nan
     return {
-        "Rendement annualisé (arithm.)": rend_annuel,
-        "Rendement composé annuel (CAGR)": cagr,
-        "Volatilité annualisée": vol_annuelle,
-        "Ratio de Sharpe": (rend_annuel - taux_sans_risque) / vol_annuelle if vol_annuelle > 0 else np.nan,
-        "Ratio de Sortino": (rend_annuel - taux_sans_risque) / vol_baisse if vol_baisse and vol_baisse > 0 else np.nan,
-        "Drawdown maximal": drawdown(rendements).min(),
-        "Asymétrie (skewness)": rendements.skew(),
-        "Aplatissement excédentaire (kurtosis)": rendements.kurt(),
+        "Annualized return (arithm.)": rend_annuel,
+        "Compound annual return (CAGR)": cagr,
+        "Annualized volatility": vol_annuelle,
+        "Sharpe Ratio": (rend_annuel - taux_sans_risque) / vol_annuelle if vol_annuelle > 0 else np.nan,
+        "Sortino Ratio": (rend_annuel - taux_sans_risque) / vol_baisse if vol_baisse and vol_baisse > 0 else np.nan,
+        "Maximum drawdown": drawdown(rendements).min(),
+        "Skewness": rendements.skew(),
+        "Excess kurtosis": rendements.kurt(),
     }
 
 
@@ -75,10 +75,10 @@ def performance_periodes(prix: pd.DataFrame) -> pd.DataFrame:
     On prend le dernier prix disponible à la date de départ ou avant."""
     fin = prix.index.max()
     periodes = {
-        "1 mois": fin - pd.DateOffset(months=1),
-        "3 mois": fin - pd.DateOffset(months=3),
-        "Depuis 1er janv.": pd.Timestamp(year=fin.year, month=1, day=1) - pd.Timedelta(days=1),
-        "1 an": fin - pd.DateOffset(years=1),
+        "1 month": fin - pd.DateOffset(months=1),
+        "3 months": fin - pd.DateOffset(months=3),
+        "Year to date": pd.Timestamp(year=fin.year, month=1, day=1) - pd.Timedelta(days=1),
+        "1 year": fin - pd.DateOffset(years=1),
     }
     resultats = {}
     for nom, debut in periodes.items():

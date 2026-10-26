@@ -122,12 +122,12 @@ def tableau_var(rendements_port: pd.Series, rendements_actifs: pd.DataFrame, poi
     sims = simuler_portefeuille(rendements_actifs, poids, horizon)
     var_mc, cvar_mc = var_cvar_monte_carlo(sims, confiance)
     lignes = {
-        "Historique": (var_historique(rendements_port, confiance, horizon),
+        "Historical": (var_historique(rendements_port, confiance, horizon),
                        cvar_historique(rendements_port, confiance, horizon)),
-        "Paramétrique (normale)": (var_parametrique(rendements_port, confiance, horizon),
+        "Parametric (normal)": (var_parametrique(rendements_port, confiance, horizon),
                                    cvar_parametrique(rendements_port, confiance, horizon)),
         "Cornish-Fisher": (var_cornish_fisher(rendements_port, confiance, horizon), np.nan),
-        "Monte Carlo (normale multivariée)": (var_mc, cvar_mc),
+        "Monte Carlo (multivariate normal)": (var_mc, cvar_mc),
     }
     return pd.DataFrame(lignes, index=["VaR", "CVaR"]).T
 
@@ -166,11 +166,11 @@ def backtest_kupiec(rendements: pd.Series, confiance: float, fenetre: int) -> di
     return {
         "observations": T,
         "exceptions": x,
-        "exceptions attendues": T * p,
-        "taux observé": x / T,
-        "taux attendu": p,
-        "statistique LR": lr,
+        "expected exceptions": T * p,
+        "observed rate": x / T,
+        "expected rate": p,
+        "LR statistic": lr,
         "p-value": p_value,
-        "modèle rejeté (5 %)": bool(p_value < 0.05),
+        "model rejected (5%)": bool(p_value < 0.05),
         "serie": donnees.assign(exception=exceptions),
     }

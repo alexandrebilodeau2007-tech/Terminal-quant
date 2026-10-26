@@ -72,7 +72,7 @@ def test_kupiec_modele_correct():
     r = pd.Series(np.random.default_rng(5).normal(0, 0.01, 3000))
     res = risque.backtest_kupiec(r, 0.95, 250)
     assert res["observations"] == 3000 - 250
-    assert not res["modèle rejeté (5 %)"]
+    assert not res["model rejected (5%)"]
 
 
 def test_monte_carlo_reproductible(rend_actifs):
@@ -134,7 +134,7 @@ def test_ytm_inverse_du_prix():
 def test_duration_zero_coupon():
     """Zéro-coupon : la duration de Macaulay = l'échéance."""
     m = obligations.mesures_de_risque(100, 0.0, 0.05, 5, 2)
-    assert m["Duration de Macaulay (ans)"] == pytest.approx(5.0)
+    assert m["Macaulay duration (years)"] == pytest.approx(5.0)
 
 
 def test_duration_convexite_numeriques():
@@ -143,8 +143,8 @@ def test_duration_convexite_numeriques():
     p0 = obligations.prix(100, 0.06, y, 12, 2)
     p_haut, p_bas = obligations.prix(100, 0.06, y + h, 12, 2), obligations.prix(100, 0.06, y - h, 12, 2)
     m = obligations.mesures_de_risque(100, 0.06, y, 12, 2)
-    assert m["Duration modifiée"] == pytest.approx(-(p_haut - p_bas) / (2 * h * p0), rel=1e-5)
-    assert m["Convexité"] == pytest.approx((p_haut + p_bas - 2 * p0) / (h**2 * p0), rel=1e-3)
+    assert m["Modified duration"] == pytest.approx(-(p_haut - p_bas) / (2 * h * p0), rel=1e-5)
+    assert m["Convexity"] == pytest.approx((p_haut + p_bas - 2 * p0) / (h**2 * p0), rel=1e-3)
 
 
 # ---------------------------------------------------------------- options
@@ -184,15 +184,15 @@ def test_delta_numerique():
 def etats():
     idx = pd.to_datetime(["2023-12-31", "2024-12-31", "2025-12-31"])
     return pd.DataFrame({
-        "Revenus": [1000, 1100, 1210], "Bénéfice brut": [400, 450, 500],
-        "Résultat d'exploitation (EBIT)": [200, 220, 250], "Bénéfice net": [100, 120, 150],
-        "Charges d'intérêts": [20, 20, 25], "BPA dilué": [1.0, 1.2, 1.5],
-        "Flux de trésorerie d'exploitation": [180, 200, 230],
-        "Dépenses en immobilisations (CAPEX)": [50, 60, 70],
-        "Actif total": [2000, 2200, 2400], "Actif à court terme": [600, 650, 700],
-        "Passif à court terme": [300, 320, 350], "Passif total": [1200, 1300, 1400],
-        "Stocks": [100, 110, 120], "Trésorerie": [150, 160, 200],
-        "Dette à long terme": [500, 500, 450], "Capitaux propres": [800, 900, 1000],
+        "Revenue": [1000, 1100, 1210], "Gross profit": [400, 450, 500],
+        "Operating income (EBIT)": [200, 220, 250], "Net income": [100, 120, 150],
+        "Interest expense": [20, 20, 25], "Diluted EPS": [1.0, 1.2, 1.5],
+        "Operating cash flow": [180, 200, 230],
+        "Capital expenditures (CAPEX)": [50, 60, 70],
+        "Total assets": [2000, 2200, 2400], "Current assets": [600, 650, 700],
+        "Current liabilities": [300, 320, 350], "Total liabilities": [1200, 1300, 1400],
+        "Inventory": [100, 110, 120], "Cash": [150, 160, 200],
+        "Long-term debt": [500, 500, 450], "Shareholders' equity": [800, 900, 1000],
     }, index=idx)
 
 
@@ -209,19 +209,19 @@ def test_dupont_coherent(etats):
 
 def test_liquidite(etats):
     r = fondamentaux.calculer_ratios(etats)
-    assert r["Ratio de liquidité générale"].iloc[-1] == pytest.approx(2.0)
-    assert r["Ratio de liquidité immédiate"].iloc[-1] == pytest.approx((700 - 120) / 350)
+    assert r["Current ratio"].iloc[-1] == pytest.approx(2.0)
+    assert r["Quick ratio"].iloc[-1] == pytest.approx((700 - 120) / 350)
 
 
 def test_roe_capitaux_negatifs(etats):
-    etats.loc[:, "Capitaux propres"] = [-100, -50, -10]
+    etats.loc[:, "Shareholders' equity"] = [-100, -50, -10]
     assert fondamentaux.calculer_ratios(etats)["ROE"].isna().all()
 
 
 def test_pe_et_pe_negatif(etats):
     v = fondamentaux.ratios_valorisation(etats, prix=30.0, actions=100)
     assert v["P/E"] == pytest.approx(20.0)
-    etats.loc[etats.index[-1], "BPA dilué"] = -0.5
+    etats.loc[etats.index[-1], "Diluted EPS"] = -0.5
     assert np.isnan(fondamentaux.ratios_valorisation(etats, 30.0, 100)["P/E"])
 
 
@@ -229,7 +229,7 @@ def test_dcf_gordon_simple():
     """Sans phase explicite de croissance différente : 1 an à g puis Gordon à g
     -> VE = FCF0 (1+g) / (WACC - g)  (perpétuité croissante)."""
     res = fondamentaux.dcf(100, [0.03], wacc=0.08, croissance_terminale=0.03, dette_nette=0, nb_actions=1)
-    assert res["Valeur d'entreprise"] == pytest.approx(100 * 1.03 / 0.05)
+    assert res["Enterprise value"] == pytest.approx(100 * 1.03 / 0.05)
 
 
 def test_dcf_refuse_g_superieur_wacc():
@@ -253,17 +253,17 @@ def test_spread_en_points_de_base():
 def test_statistiques_spread_zscore():
     s = pd.Series([10.0, 20.0, 30.0, 40.0, 50.0], index=pd.bdate_range("2026-01-01", periods=5))
     st_ = spreads.statistiques_spread(s)
-    assert st_["Actuel (pb)"] == 50.0
+    assert st_["Current (bp)"] == 50.0
     assert st_["z-score"] == pytest.approx((50 - 30) / s.std(ddof=1))
-    assert st_["Percentile historique"] == pytest.approx(0.8)
+    assert st_["Historical percentile"] == pytest.approx(0.8)
 
 
 def test_g_spread_interpolation():
     """Exemple du docstring : État 5 ans 4,00 %, 10 ans 4,30 % -> 7 ans 4,12 % -> 118 pb."""
     courbe = pd.Series({2: 3.80, 5: 4.00, 10: 4.30})
     g = spreads.g_spread(5.30, courbe, 7)
-    assert g["Taux d'État interpolé (%)"] == pytest.approx(4.12)
-    assert g["G-spread (pb)"] == pytest.approx(118.0)
+    assert g["Interpolated government yield (%)"] == pytest.approx(4.12)
+    assert g["G-spread (bp)"] == pytest.approx(118.0)
 
 
 def test_interpolation_sans_extrapolation():
@@ -306,8 +306,8 @@ def test_formule_division_par_zero(prix_formule):
 
 
 # ---------------------------------------------------------------- niveau de risque ACVM
-@pytest.mark.parametrize("sigma,attendu", [(0.05, "Faible"), (0.06, "Faible à moyen"), (0.159, "Moyen"),
-                                           (0.16, "Moyen à élevé"), (0.20, "Élevé"), (0.45, "Élevé")])
+@pytest.mark.parametrize("sigma,attendu", [(0.05, "Low"), (0.06, "Low to medium"), (0.159, "Medium"),
+                                           (0.16, "Medium to high"), (0.20, "High"), (0.45, "High")])
 def test_grille_acvm(sigma, attendu):
     assert profil_risque.niveau_acvm(sigma)[1] == attendu
 
@@ -339,41 +339,41 @@ from interface import tradingview as tv  # noqa: E402
 def test_base_tradingview_valide():
     """Le fichier du dépôt se charge et respecte les listes blanches."""
     base = tv.charger_base()
-    assert base["affichage"]["disposition"] in tv.DISPOSITIONS
-    assert all(i in tv.INDICATEURS for i in base["affichage"]["indicateurs"])
-    assert len(base["graphiques"]) == 4
+    assert base["display"]["layout"] in tv.DISPOSITIONS
+    assert all(i in tv.INDICATEURS for i in base["display"]["indicators"])
+    assert len(base["charts"]) == 4
 
 
 def test_valider_rejette_les_valeurs_hors_liste():
-    r = tv.valider({"affichage": {"disposition": 3, "style": "99", "intervalle": "2D", "hauteur_simple": 99999,
-                                  "indicateurs": ["RSI", "<script>"], "legende": "oui"},
-                    "graphiques": [{"symbole": "</script><script>alert(1)</script>", "comparer": "COMEX:SI1!"}]})
-    assert r["affichage"]["disposition"] == 1 and r["affichage"]["style"] == "1"
-    assert r["affichage"]["intervalle"] == "D" and r["affichage"]["hauteur_simple"] == 1400
-    assert r["affichage"]["indicateurs"] == ["RSI"] and r["affichage"]["legende"] is True
-    assert r["graphiques"][0]["symbole"] == "AMEX:SPY"          # symbole dangereux remplacé
-    assert r["graphiques"][0]["comparer"] == "COMEX:SI1!"
+    r = tv.valider({"display": {"layout": 3, "style": "99", "interval": "2D", "single_height": 99999,
+                                  "indicators": ["RSI", "<script>"], "legend": "oui"},
+                    "charts": [{"symbol": "</script><script>alert(1)</script>", "compare": "COMEX:SI1!"}]})
+    assert r["display"]["layout"] == 1 and r["display"]["style"] == "1"
+    assert r["display"]["interval"] == "D" and r["display"]["single_height"] == 1400
+    assert r["display"]["indicators"] == ["RSI"] and r["display"]["legend"] is True
+    assert r["charts"][0]["symbol"] == "AMEX:SPY"          # symbole dangereux remplacé
+    assert r["charts"][0]["compare"] == "COMEX:SI1!"
 
 
 def test_grille_quatre_graphiques():
     base = tv.charger_base()
-    base["affichage"]["disposition"] = 4
+    base["display"]["layout"] = 4
     page, hauteur = tv.html_grille(base)
     assert page.count("new TradingView.widget(") == 4 and page.count("tv.js") == 1
-    assert hauteur == 2 * base["affichage"]["hauteur_grille"] + 8 + 10
+    assert hauteur == 2 * base["display"]["grid_height"] + 8 + 10
     assert page.count("<script") == 2          # tv.js + un seul bloc d'appels, rien d'injecté
 
 
 def test_aucune_injection_possible():
-    r = tv.valider({"graphiques": [{"symbole": "AMEX:SPY", "comparer": "</script><script>alert(1)</script>"}]})
+    r = tv.valider({"charts": [{"symbol": "AMEX:SPY", "compare": "</script><script>alert(1)</script>"}]})
     page, _ = tv.html_grille(r)
     assert "alert(1)" not in page
 
 
 def test_config_widget_indicateurs_et_comparaison():
     base = tv.charger_base()
-    base["affichage"]["indicateurs"] = ["RSI", "MACD"]
-    cfg = tv.config_widget({"symbole": "NASDAQ:AAPL", "comparer": "NASDAQ:MSFT"}, base["affichage"])
+    base["display"]["indicators"] = ["RSI", "MACD"]
+    cfg = tv.config_widget({"symbol": "NASDAQ:AAPL", "compare": "NASDAQ:MSFT"}, base["display"])
     # RSI a des paramètres -> objet {id, inputs} ; MACD n'en a pas -> identifiant seul
     assert cfg["studies"] == [{"id": "RSI@tv-basicstudies", "inputs": {"length": 14}}, "MACD@tv-basicstudies"]
     assert cfg["overrides"]["mainSeriesProperties.candleStyle.upColor"] == "#2ECC71"
@@ -382,21 +382,38 @@ def test_config_widget_indicateurs_et_comparaison():
 
 
 def test_parametres_et_couleurs_valides():
-    r = tv.valider({"parametres": {"RSI": {"length": 9}, "Bandes de Bollinger": {"mult": 99}, "Inconnu": {"x": 1}},
-                    "couleurs": {"hausse": "#00ff00", "baisse": "red;}</style>", "rsi": "#123456"}})
-    assert r["parametres"]["RSI"]["length"] == 9
-    assert r["parametres"]["Bandes de Bollinger"]["mult"] == 5.0      # borné au maximum
-    assert "Inconnu" not in r["parametres"]
-    assert r["couleurs"]["hausse"] == "#00FF00"
-    assert r["couleurs"]["baisse"] == "#FF5C5C"                       # valeur dangereuse refusée
-    assert "rsi" not in r["couleurs"]                                 # couleur non prise en charge
+    r = tv.valider({"parameters": {"RSI": {"length": 9}, "Bollinger Bands": {"mult": 99}, "Unknown": {"x": 1}},
+                    "colors": {"up": "#00ff00", "down": "red;}</style>", "rsi": "#123456"}})
+    assert r["parameters"]["RSI"]["length"] == 9
+    assert r["parameters"]["Bollinger Bands"]["mult"] == 5.0      # borné au maximum
+    assert "Unknown" not in r["parameters"]
+    assert r["colors"]["up"] == "#00FF00"
+    assert r["colors"]["down"] == "#FF5C5C"                       # valeur dangereuse refusée
+    assert "rsi" not in r["colors"]                                 # couleur non prise en charge
 
 
 def test_export_toml_relu_a_l_identique():
     base = tv.charger_base()
-    base["affichage"]["disposition"] = 2
-    base["affichage"]["indicateurs"] = ["Bandes de Bollinger"]
-    base["parametres"]["RSI"]["length"] = 9
-    base["couleurs"]["hausse"] = "#00FF00"
+    base["display"]["layout"] = 2
+    base["display"]["indicators"] = ["Bollinger Bands"]
+    base["parameters"]["RSI"]["length"] = 9
+    base["colors"]["up"] = "#00FF00"
     relu = tv.valider(tomllib.loads(tv.en_toml(base)))
     assert relu == base
+
+
+def test_adresse_reglages_aller_retour():
+    """Les réglages transmis à la fenêtre « graphiques seulement » reviennent identiques ;
+    une adresse trafiquée est refusée."""
+    base = tv.charger_base()
+    base["display"]["layout"] = 4
+    base["parameters"]["RSI"]["length"] = 9
+    assert tv.valider(tv.decoder(tv.encoder(base))) == base
+    assert tv.decoder("pas-du-base64!") is None
+
+
+def test_grille_plein_ecran():
+    base = tv.charger_base()
+    base["display"]["layout"] = 4
+    page, _ = tv.html_grille(base, plein_ecran=True)
+    assert "100vh" in page and page.count('"autosize": true') == 4

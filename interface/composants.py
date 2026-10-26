@@ -29,9 +29,9 @@ def selecteur_tickers(cle: str, defaut: list[str], aide: str = "", cle_commande:
         st.session_state[f"{cle}_libre"] = commande
     valeur_initiale(f"{cle}_liste", [e for e, t in OPTIONS_UNIVERS.items() if t in defaut])
     valeur_initiale(f"{cle}_libre", "")
-    choisis = st.multiselect("Actifs du répertoire (tape pour chercher)", list(OPTIONS_UNIVERS),
+    choisis = st.multiselect("Assets from the directory (type to search)", list(OPTIONS_UNIVERS),
                              key=f"{cle}_liste", help=aide)
-    libres = st.text_input("Autres tickers Yahoo (séparés par des virgules)", key=f"{cle}_libre",
+    libres = st.text_input("Other Yahoo tickers (comma-separated)", key=f"{cle}_libre",
                            placeholder="ex. BRK-B, ^FTSE, SU.TO")
     tickers = [OPTIONS_UNIVERS[c] for c in choisis]
     tickers += [t.strip().upper() for t in libres.split(",") if t.strip()]
@@ -69,5 +69,5 @@ def metriques(valeurs: dict[str, float], format_: str = "{:.2%}", par_ligne: int
 def note_methodo(texte: str) -> None:
     """Encadré repliable qui explique la méthode et ses limites.
     Chaque page en a un : un terminal rigoureux montre ses hypothèses."""
-    with st.expander("Méthode et limites", icon=":material/science:"):
+    with st.expander("Method and limitations", icon=":material/science:"):
         st.markdown(texte)

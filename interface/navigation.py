@@ -28,24 +28,24 @@ class Fonction:
 
 
 FONCTIONS: list[Fonction] = [
-    Fonction("HOME", "Accueil", "Terminal", ":material/dashboard:", "page_accueil",
-             "Vue d'ensemble des marchés et accès à toutes les fonctions"),
-    Fonction("TKR", "Répertoire des tickers", "Terminal", ":material/list_alt:", "page_repertoire",
-             "Tous les symboles par famille : actions, indices, commodités, forex, crypto…"),
-    Fonction("MKT", "Marchés multi-actifs", "Marchés", ":material/public:", "page_marches",
-             "Performance, volatilité et corrélations de plusieurs marchés"),
-    Fonction("CMP", "Comparateur & formules", "Marchés", ":material/compare_arrows:", "page_comparateur",
-             "Deux symboles face à face, formules entre tickers, graphique TradingView"),
-    Fonction("PORT", "Portefeuille & risque", "Portefeuille", ":material/pie_chart:", "page_risque",
-             "VaR, optimisation de Markowitz et niveau de risque d'un FNB"),
-    Fonction("FA", "Analyse fondamentale", "Entreprises", ":material/account_balance:", "page_fondamental",
-             "États financiers, ratios, DCF et carnet de thèse"),
-    Fonction("OPT", "Options", "Dérivés", ":material/functions:", "page_options",
-             "Chaîne d'options, volatilité implicite, grecques, Black-Scholes"),
-    Fonction("YCRV", "Courbes & obligations", "Taux & crédit", ":material/show_chart:", "page_taux",
-             "Courbes des taux US et Canada, calculatrice obligataire"),
-    Fonction("SPRD", "Spreads de taux", "Taux & crédit", ":material/swap_vert:", "page_spreads",
-             "Écarts entre taux, z-score historique, G-spread d'une obligation"),
+    Fonction("HOME", "Home", "Terminal", ":material/dashboard:", "page_accueil",
+             "Market overview and access to every function"),
+    Fonction("TKR", "Ticker directory", "Terminal", ":material/list_alt:", "page_repertoire",
+             "All symbols by family: stocks, indices, commodities, forex, crypto…"),
+    Fonction("MKT", "Multi-asset markets", "Markets", ":material/public:", "page_marches",
+             "Performance, volatility and correlations across markets"),
+    Fonction("CMP", "Comparator & formulas", "Markets", ":material/compare_arrows:", "page_comparateur",
+             "Two symbols side by side, ticker formulas, TradingView charts"),
+    Fonction("PORT", "Portfolio & risk", "Portfolio", ":material/pie_chart:", "page_risque",
+             "VaR, Markowitz optimization and ETF risk level"),
+    Fonction("FA", "Fundamental analysis", "Companies", ":material/account_balance:", "page_fondamental",
+             "Financial statements, ratios, DCF and thesis notebook"),
+    Fonction("OPT", "Options", "Derivatives", ":material/functions:", "page_options",
+             "Option chain, implied volatility, Greeks, Black-Scholes"),
+    Fonction("YCRV", "Curves & bonds", "Rates & credit", ":material/show_chart:", "page_taux",
+             "US and Canadian yield curves, bond calculator"),
+    Fonction("SPRD", "Yield spreads", "Rates & credit", ":material/swap_vert:", "page_spreads",
+             "Spreads between yields, historical z-score, bond G-spread"),
 ]
 PAR_CODE = {f.code: f for f in FONCTIONS}
 
@@ -71,7 +71,7 @@ def executer_commande() -> None:
     morceaux = texte.split()
     code, args = morceaux[0].upper(), morceaux[1:]
     if code not in PAR_CODE:
-        st.session_state["_cmd_erreur"] = f"Code inconnu : {code}. Codes : {', '.join(PAR_CODE)}"
+        st.session_state["_cmd_erreur"] = f"Unknown code: {code}. Codes: {', '.join(PAR_CODE)}"
         return
     cles = ARGUMENTS.get(code, [])
     if code in ("MKT", "PORT") and args:
