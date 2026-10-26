@@ -11,9 +11,6 @@ TradingView n'extrait aucune donnée (il ne fait qu'afficher le graphique).
 
 from __future__ import annotations
 
-import json
-import re
-
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -27,6 +24,7 @@ from config import JOURS_BOURSE_PAR_AN, TICKERS_TAUX
 from export.excel import exporter_excel
 from interface.aide import sous_titre, titre
 from interface.composants import metriques, note_methodo
+from interface import tradingview as tv
 from interface.navigation import valeur_initiale
 from sources.marche import ErreurDonnees, convertir_en_devise_base, telecharger_prix
 
@@ -172,55 +170,96 @@ def _formule(params: dict) -> None:
 
 
 # ---------------------------------------------------------------- onglet 3
-SYMBOLE_TV_SUR = re.compile(r"^[A-Za-z0-9:._!^/*+\-() ]{1,60}$")
+CLE_REGLAGES = "tv_reglages"
 
 
-def _widget_tradingview(symbole: str, comparaison: str | None, intervalle: str) -> str:
-    """Code HTML du widget officiel « Advanced Chart » de TradingView.
-    La configuration est sérialisée en JSON (jamais concaténée) et les symboles
-    sont filtrés : aucun texte saisi ne peut injecter de code dans la page."""
-    config = {
-        "autosize": True, "symbol": symbole, "interval": intervalle, "timezone": "America/Toronto",
-        "theme": "dark", "style": "1", "locale": "fr", "allow_symbol_change": True, "calendar": False,
-        "backgroundColor": "rgba(10, 14, 20, 1)", "gridColor": "rgba(31, 42, 55, 1)",
-        "support_host": "https://www.tradingview.com",
-    }
-    if comparaison:
-        config["compareSymbols"] = [{"symbol": comparaison, "position": "SameScale"}]
-    return f"""
-<div class="tradingview-widget-container" style="height:100%;width:100%">
-  <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-  <div class="tradingview-widget-copyright" style="font:12px sans-serif;color:#8B98A9">
-    <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank" style="color:#FF9F1C">
-    Graphiques par TradingView</a></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-  {json.dumps(config)}
-  </script>
-</div>"""
+def _reglages_session() -> dict:
+    """Réglages de la visite en cours. Au premier passage : copie de la base
+    commune (tradingview.toml), donc identique pour tous les visiteurs."""
+    if CLE_REGLAGES not in st.session_state:
+        st.session_state[CLE_REGLAGES] = tv.charger_base()
+    return st.session_state[CLE_REGLAGES]
+
+
+def _reinitialiser() -> None:
+    """Rappel du bouton : revient aux réglages de base et vide les champs du panneau."""
+    st.session_state[CLE_REGLAGES] = tv.charger_base()
+    for cle in [k for k in st.session_state if str(k).startswith("tvr_")]:
+        del st.session_state[cle]
+
+
+def _panneau_reglages(base: dict) -> dict:
+    """Panneau de réglages. Renvoie les réglages choisis (valeurs validées)."""
+    aff, graphiques = base["affichage"], base["graphiques"]
+    with st.expander("Réglages de l'affichage", icon=":material/tune:", expanded=False):
+        c1, c2, c3 = st.columns(3)
+        disposition = c1.radio("Nombre de graphiques", list(tv.DISPOSITIONS), format_func=tv.DISPOSITIONS.get,
+                               index=list(tv.DISPOSITIONS).index(aff["disposition"]), key="tvr_disposition")
+        cle_h = "hauteur_simple" if disposition == 1 else "hauteur_grille"
+        hauteur = c2.slider("Hauteur de chaque graphique (pixels)", 400, 1400, aff[cle_h], 20, key=f"tvr_{cle_h}")
+        intervalle = c3.selectbox("Intervalle", list(tv.INTERVALLES), format_func=tv.INTERVALLES.get,
+                                  index=list(tv.INTERVALLES).index(aff["intervalle"]), key="tvr_intervalle")
+        c4, c5 = st.columns([1, 2])
+        style = c4.selectbox("Style", list(tv.STYLES), format_func=tv.STYLES.get,
+                             index=list(tv.STYLES).index(aff["style"]), key="tvr_style")
+        indicateurs = c5.multiselect("Indicateurs au chargement", list(tv.INDICATEURS), default=aff["indicateurs"],
+                                     key="tvr_indicateurs")
+        o = st.columns(6)
+        options = {
+            "barre_outils_laterale": o[0].toggle("Outils de dessin", aff["barre_outils_laterale"], key="tvr_lat"),
+            "barre_outils_haut": o[1].toggle("Barre du haut", aff["barre_outils_haut"], key="tvr_haut"),
+            "plages_de_dates": o[2].toggle("Plages de dates", aff["plages_de_dates"], key="tvr_dates"),
+            "legende": o[3].toggle("Légende", aff["legende"], key="tvr_legende"),
+            "panneau_details": o[4].toggle("Panneau détails", aff["panneau_details"], key="tvr_details"),
+            "masquer_volume": o[5].toggle("Masquer le volume", aff["masquer_volume"], key="tvr_volume"),
+        }
+        st.markdown("**Symboles** (format TradingView `BOURSE:SYMBOLE`, voir la colonne TradingView du répertoire)")
+        nouveaux = []
+        colonnes = st.columns(2)
+        for i in range(disposition):
+            with colonnes[i % 2]:
+                a, b = st.columns(2)
+                symbole = a.text_input(f"Graphique {i + 1}", graphiques[i]["symbole"], key=f"tvr_sym_{i}").strip()
+                comparer = b.text_input(f"Comparer avec ({i + 1})", graphiques[i]["comparer"], key=f"tvr_cmp_{i}").strip()
+                nouveaux.append({"symbole": symbole, "comparer": comparer})
+        invalides = [v for g in nouveaux for v in g.values() if v and not tv.symbole_valide(v)]
+        if invalides:
+            st.error(f"Symbole non valide : {', '.join(invalides)}. Lettres, chiffres et : . ! ^ seulement.")
+    reglages = {"affichage": {**aff, "disposition": disposition, cle_h: hauteur, "intervalle": intervalle,
+                              "style": style, "indicateurs": indicateurs, **options},
+                "graphiques": nouveaux + graphiques[disposition:]}
+    return tv.valider(reglages)
 
 
 def _tradingview() -> None:
-    sous_titre("Graphique TradingView", "cmp_tv")
-    c1, c2, c3 = st.columns([2, 2, 1])
-    symbole = c1.text_input("Symbole TradingView", "COMEX:GC1!", key="tv_symbole",
-                            help="Format BOURSE:SYMBOLE. Voir la colonne « Symbole TradingView » du Répertoire.").strip()
-    comparaison = c2.text_input("Comparer avec (optionnel)", "COMEX:SI1!", key="tv_comparaison").strip()
-    intervalle = c3.selectbox("Intervalle", ["D", "W", "M", "60", "15"], key="tv_intervalle",
-                              format_func=lambda i: {"D": "Jour", "W": "Semaine", "M": "Mois",
-                                                     "60": "1 heure", "15": "15 min"}[i])
-    for valeur in (symbole, comparaison):
-        if valeur and not SYMBOLE_TV_SUR.match(valeur):
-            st.error(f"Symbole non valide : « {valeur} ». Utilise lettres, chiffres et : . ! ^ seulement.")
-            return
-    if not symbole:
-        return
-    components.html(_widget_tradingview(symbole, comparaison or None, intervalle), height=620)
-    st.caption("Tu peux changer de symbole, ajouter des indicateurs et dessiner directement dans le graphique. "
-               "Ce graphique est fourni par TradingView ; le terminal n'en extrait aucune donnée.")
+    sous_titre("Graphiques TradingView", "cmp_tv")
+    base = _reglages_session()
+    if base["affichage"]["permettre_modifications"]:
+        reglages = _panneau_reglages(base)
+        st.session_state[CLE_REGLAGES] = reglages
+        c1, c2 = st.columns(2)
+        c1.button("Revenir aux réglages de base", on_click=_reinitialiser, icon=":material/restart_alt:",
+                  width="stretch", key="tv_reset")
+        c2.download_button("Exporter ces réglages comme base (tradingview.toml)", tv.en_toml(reglages),
+                           file_name="tradingview.toml", mime="text/plain", icon=":material/download:",
+                           width="stretch", key="tv_export",
+                           help="Remplace le fichier tradingview.toml du dépôt GitHub par celui-ci : "
+                                "tous les visiteurs verront ces réglages.")
+    else:
+        reglages = base
+    page, hauteur = tv.html_grille(reglages)
+    components.html(page, height=hauteur)
+    st.caption("Dans chaque graphique : change de symbole, ajoute des indicateurs, dessine, ou ouvre-le en grande "
+               "fenêtre (bouton en haut à droite). Ces changements ne sont pas enregistrés : au prochain chargement, "
+               "les réglages de base reviennent.")
     note_methodo(
-        "- **TradingView n'offre pas d'API de données publique** : le terminal intègre leur widget gratuit, "
-        "qui sert à l'affichage. Les calculs (formules, ratios, statistiques, export) se font dans les deux autres "
-        "onglets, à partir de Yahoo Finance.\n"
-        "- Les symboles TradingView diffèrent de ceux de Yahoo : `COMEX:GC1!` (or) contre `GC=F`, `TSX:RY` contre `RY.TO`.\n"
+        "- **Réglages communs** : la base vient du fichier `tradingview.toml` du dépôt GitHub. Tous les visiteurs "
+        "la voient au chargement ; ce qu'un visiteur change ne vaut que pour sa visite.\n"
+        "- **Changer la base pour tout le monde** : règle l'affichage ici, clique sur *Exporter ces réglages comme base*, "
+        "puis remplace `tradingview.toml` sur GitHub. L'app se met à jour en une à deux minutes. "
+        "Avec `permettre_modifications = false`, le panneau de réglages est masqué.\n"
+        "- **TradingView n'offre pas d'API de données publique** : le terminal intègre leur widget gratuit, qui sert à "
+        "l'affichage. Les calculs (formules, ratios, statistiques, export) se font dans les deux autres onglets.\n"
+        "- Les dessins faits dans un widget ne sont pas sauvegardés (fonction réservée aux comptes TradingView).\n"
         "- Certaines données en temps réel exigent un abonnement TradingView ; le widget affiche alors des données différées."
     )

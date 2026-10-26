@@ -87,11 +87,13 @@ AIDE: dict[str, str] = {
 **Pourquoi c'est utile** : tester une idée (un écart qui s'élargit, un ratio extrême) en quelques secondes.
 """,
     "cmp_tv": """
-**Ce que ça fait** : affiche le graphique interactif officiel de TradingView, avec un second symbole superposé.
+**Ce que ça fait** : affiche les graphiques interactifs officiels de TradingView : **1, 2 ou 4 graphiques** à la fois, chacun avec un second symbole superposé si tu veux.
 
-**Exemple** : `NASDAQ:AAPL` comparé à `NASDAQ:MSFT`. Tu peux ajouter des indicateurs et des dessins directement dans le graphique.
+**Réglages** : dans *Réglages de l'affichage*, choisis le style (chandeliers, Heikin Ashi, ligne…), l'intervalle, les indicateurs (RSI, MACD, Bollinger…), les barres d'outils et la taille des graphiques.
 
-**Pourquoi c'est utile** : la meilleure interface de graphique gratuite. Attention : les symboles TradingView ne s'écrivent pas comme ceux de Yahoo (voir le Répertoire).
+**Exemple** : 4 graphiques pour suivre en même temps l'or, le S&P 500, le TSX et USD/CAD.
+
+**Pourquoi c'est utile** : la meilleure interface de graphique gratuite. Les réglages de base sont les mêmes pour tous les visiteurs ; ce que tu changes ne vaut que pour ta visite. Les symboles TradingView ne s'écrivent pas comme ceux de Yahoo (voir le Répertoire).
 """,
     # ------------------------------------------------------------------ portefeuille
     "port": """

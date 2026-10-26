@@ -327,3 +327,55 @@ def test_beta_connu():
     ref = pd.Series(rng.normal(0, 0.01, 2000), index=pd.bdate_range("2018-01-01", periods=2000))
     actif = 1.5 * ref + pd.Series(rng.normal(0, 0.002, 2000), index=ref.index)
     assert profil_risque.beta(actif, ref) == pytest.approx(1.5, abs=0.02)
+
+
+# ---------------------------------------------------------------- TradingView (réglages partagés)
+import json as _json  # noqa: E402
+import tomllib  # noqa: E402
+
+from interface import tradingview as tv  # noqa: E402
+
+
+def test_base_tradingview_valide():
+    """Le fichier du dépôt se charge et respecte les listes blanches."""
+    base = tv.charger_base()
+    assert base["affichage"]["disposition"] in tv.DISPOSITIONS
+    assert all(i in tv.INDICATEURS for i in base["affichage"]["indicateurs"])
+    assert len(base["graphiques"]) == 4
+
+
+def test_valider_rejette_les_valeurs_hors_liste():
+    r = tv.valider({"affichage": {"disposition": 3, "style": "99", "intervalle": "2D", "hauteur_simple": 99999,
+                                  "indicateurs": ["RSI", "<script>"], "legende": "oui"},
+                    "graphiques": [{"symbole": "</script><script>alert(1)</script>", "comparer": "COMEX:SI1!"}]})
+    assert r["affichage"]["disposition"] == 1 and r["affichage"]["style"] == "1"
+    assert r["affichage"]["intervalle"] == "D" and r["affichage"]["hauteur_simple"] == 1400
+    assert r["affichage"]["indicateurs"] == ["RSI"] and r["affichage"]["legende"] is True
+    assert r["graphiques"][0]["symbole"] == "SP:SPX"          # symbole dangereux remplacé
+    assert r["graphiques"][0]["comparer"] == "COMEX:SI1!"
+
+
+def test_grille_quatre_graphiques():
+    base = tv.charger_base()
+    base["affichage"]["disposition"] = 4
+    page, hauteur = tv.html_grille(base)
+    assert page.count("embed-widget-advanced-chart.js") == 4
+    assert hauteur == 2 * base["affichage"]["hauteur_grille"] + 8 + 10
+    assert "</script><script>" not in page
+
+
+def test_config_widget_indicateurs_et_comparaison():
+    base = tv.charger_base()
+    base["affichage"]["indicateurs"] = ["RSI", "MACD"]
+    cfg = tv.config_widget({"symbole": "NASDAQ:AAPL", "comparer": "NASDAQ:MSFT"}, base["affichage"])
+    assert cfg["studies"] == ["RSI@tv-basicstudies", "MACD@tv-basicstudies"]
+    assert cfg["compareSymbols"] == [{"symbol": "NASDAQ:MSFT", "position": "SameScale"}]
+    _json.dumps(cfg)  # sérialisable
+
+
+def test_export_toml_relu_a_l_identique():
+    base = tv.charger_base()
+    base["affichage"]["disposition"] = 2
+    base["affichage"]["indicateurs"] = ["Bandes de Bollinger"]
+    relu = tv.valider(tomllib.loads(tv.en_toml(base)))
+    assert relu == base

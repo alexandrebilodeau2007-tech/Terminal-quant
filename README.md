@@ -91,7 +91,10 @@ La case *Convertir* exprime tout dans la devise de base, soit le rendement réel
 - **Deux symboles** : base 100, ratio A/B (monte = A fait mieux que B), corrélation et bêta glissants sur 60 jours.
 - **Formule** : `GC=F / SI=F`, `CL=F - BZ=F`, `(AAPL + MSFT + NVDA) / 3`, `BTC-USD * USDCAD=X`. Opérateurs `+ - * / **` et parenthèses ;
   mettre des espaces autour du `-` entre deux tickers (`BTC-USD` est un seul ticker).
-- **Graphique TradingView** : symbole au format `BOURSE:SYMBOLE` (ex. `COMEX:GC1!`), second symbole superposé, indicateurs et dessins dans le graphique.
+- **Graphiques TradingView** : 1, 2 ou 4 graphiques (grille 2 × 2), chacun avec un second symbole superposé ;
+  réglages de style, d'intervalle, d'indicateurs, de barres d'outils et de taille. Les **réglages de base sont communs à tous
+  les visiteurs** : ils viennent du fichier [`tradingview.toml`](tradingview.toml). Pour les changer pour tout le monde, régler
+  l'affichage dans l'app, cliquer sur *Exporter ces réglages comme base*, puis remplacer ce fichier sur GitHub.
 
 ### PORT — Portefeuille & risque (onglet Optimisation & VaR)
 1. Sélectionner de 2 à 20 actifs **investissables** (pas `^TNX` : c'est un taux, pas un prix).
@@ -187,6 +190,7 @@ terminal-quant/
 ├── app.py                    Navigation et paramètres globaux (point d'entrée)
 ├── config.py                 Balises, constantes, séries de taux, grille ACVM, sources autorisées
 ├── repertoire.py             Répertoire des tickers par famille (Yahoo + TradingView)
+├── tradingview.toml          Réglages de base des graphiques TradingView (communs à tous)
 ├── lancer_windows.bat        Lanceur Windows en double-clic
 ├── requirements.txt          Bibliothèques Python
 ├── sources/                  Couche DONNÉES : téléchargement et nettoyage, aucun calcul
@@ -210,6 +214,7 @@ terminal-quant/
 │   ├── navigation.py           Codes de fonction, menu et barre de commande
 │   ├── aide.py                 Textes des boutons « ? » (vulgarisés, avec exemples)
 │   ├── theme.py  bandeau.py    Apparence sombre ambre, bandeau de cotations
+│   ├── tradingview.py          Widgets TradingView : réglages validés, grille 1/2/4, export TOML
 │   └── composants.py           Éléments réutilisables
 ├── export/excel.py           Export Excel avec métadonnées
 └── tests/test_calculs.py     Tests des calculs
@@ -227,7 +232,7 @@ pip install -r requirements.txt
 python -m pytest tests/ -v
 ```
 
-Les 51 tests comparent les calculs à des valeurs connues, par exemple :
+Les 56 tests comparent les calculs à des valeurs connues, par exemple :
 - Black-Scholes : exemple du manuel de Hull (S=42, K=40 → call 4,76) et parité call-put ;
 - Markowitz : formule fermée de la variance minimale à 2 actifs, contraintes respectées, cas impossible détecté ;
 - VaR : convergence vers la loi normale, CVaR ≥ VaR, Cornish-Fisher sur queues épaisses, Kupiec ;

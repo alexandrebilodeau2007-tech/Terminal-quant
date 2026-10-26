@@ -1,0 +1,52 @@
+# =====================================================================
+# Réglages de BASE des graphiques TradingView (fonction CMP, onglet TradingView)
+# =====================================================================
+# Ce fichier est lu à chaque visite : TOUS les visiteurs voient ces réglages
+# au chargement de la page. Un visiteur peut modifier l'affichage sur son
+# écran, mais ses changements ne durent que le temps de sa visite.
+#
+# Pour changer la base de tout le monde : modifier ce fichier sur GitHub
+# (ou le remplacer par celui exporté depuis l'app), puis « Commit ».
+# L'app en ligne se met à jour toute seule en une à deux minutes.
+# =====================================================================
+
+[affichage]
+# Nombre de graphiques : 1, 2 (côte à côte) ou 4 (grille 2 x 2)
+disposition = 1
+# Hauteur de CHAQUE graphique, en pixels (400 à 1400)
+hauteur_simple = 820
+hauteur_grille = 520
+# Intervalle des bougies : "1", "5", "15", "60", "240", "D", "W", "M"
+intervalle = "D"
+# Style : "1" chandeliers, "9" chandeliers creux, "8" Heikin Ashi, "0" barres, "2" ligne, "3" aire
+style = "1"
+fuseau = "America/Toronto"
+# Indicateurs ajoutés au chargement (noms de la liste de l'app, voir interface/tradingview.py)
+indicateurs = ["Moyenne mobile simple", "RSI"]
+barre_outils_laterale = true
+barre_outils_haut = true
+plages_de_dates = true
+legende = true
+panneau_details = false
+masquer_volume = false
+# false = le panneau de réglages est caché : tout le monde voit exactement la base
+permettre_modifications = true
+
+# Un bloc [[graphiques]] par graphique, dans l'ordre (les 4 premiers sont utilisés).
+# symbole : format BOURSE:SYMBOLE (voir la colonne TradingView du répertoire, code TKR)
+# comparer : second symbole superposé, ou "" pour aucun
+[[graphiques]]
+symbole = "COMEX:GC1!"
+comparer = "COMEX:SI1!"
+
+[[graphiques]]
+symbole = "SP:SPX"
+comparer = ""
+
+[[graphiques]]
+symbole = "TSX:TSX"
+comparer = ""
+
+[[graphiques]]
+symbole = "FX:USDCAD"
+comparer = ""
