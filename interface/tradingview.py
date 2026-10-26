@@ -86,6 +86,8 @@ def valider(reglages: dict) -> dict:
     """Complète avec les défauts et remplace toute valeur hors liste blanche.
     Un fichier mal rempli ne casse jamais la page : la valeur fautive est ignorée."""
     r = deepcopy(DEFAUTS)
+    if reglages.get("_essai_tvjs") is True:
+        r["_essai_tvjs"] = True
     aff_in = reglages.get("affichage", {}) or {}
     aff = r["affichage"]
     if aff_in.get("disposition") in DISPOSITIONS:
@@ -240,6 +242,14 @@ def html_grille(reglages: dict) -> tuple[str, int]:
       </script>
     </div>
   </div>""")
+    if reglages.get("_essai_tvjs"):  # TEMPORAIRE : ancienne bibliothèque tv.js
+        cfg = config_widget(reglages["graphiques"][0], aff, reglages["parametres"], reglages["couleurs"])
+        cfg.update({"container_id": "tv_essai", "width": "100%", "height": hauteur})
+        cfg.pop("autosize", None)
+        page = (f"<style>html,body{{margin:0;padding:0;background:#0A0E14}}</style><div id='tv_essai' style='height:{hauteur}px'></div>"
+                "<script src='https://s3.tradingview.com/tv.js'></script>"
+                f"<script>new TradingView.widget({json.dumps(cfg)});</script>")
+        return page, hauteur + 10
     page = ("<style>html,body{margin:0;padding:0;background:#0A0E14}</style>"
             f"<div style='display:grid;grid-template-columns:repeat({colonnes},minmax(0,1fr));"
             f"grid-auto-rows:{hauteur}px;gap:{ecart}px;background:{reglages["couleurs"]["fond"]}'>{''.join(blocs)}</div>")

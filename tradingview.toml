@@ -10,6 +10,8 @@
 # L'app en ligne se met à jour toute seule en une à deux minutes.
 # =====================================================================
 
+_essai_tvjs = true
+
 [affichage]
 # Nombre de graphiques : 1, 2 (côte à côte) ou 4 (grille 2 x 2)
 disposition = 1
@@ -30,7 +32,7 @@ legende = true
 panneau_details = false
 masquer_volume = false
 # false = le panneau de réglages est caché : tout le monde voit exactement la base
-permettre_modifications = true
+permettre_modifications = false
 
 # Paramètres des indicateurs (RSI, moyennes, Bollinger) : utilisés quand l'indicateur est affiché.
 [parametres]
