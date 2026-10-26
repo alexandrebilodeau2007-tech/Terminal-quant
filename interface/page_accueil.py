@@ -15,11 +15,6 @@ from interface.navigation import FONCTIONS
 from sources.taux import cle_fred
 
 
-def _aller(code: str) -> None:
-    """Rappel d'un bouton : demande à app.py d'ouvrir la fonction."""
-    st.session_state["_aller_a"] = code
-
-
 def afficher(params: dict) -> None:
     titre("Terminal d'analyse quantitative", "accueil", "HOME",
           "Le terminal calcule. Toi, tu analyses et tu conclus.")
@@ -33,24 +28,24 @@ def afficher(params: dict) -> None:
     if cotes.empty:
         st.info("Cotations momentanément indisponibles (Yahoo Finance). Le reste du terminal fonctionne.")
     else:
-        colonnes = st.columns(5)
-        for i, (_, l) in enumerate(cotes.iterrows()):
-            colonnes[i % 5].metric(l["Marché"], f"{l['Dernier']:,.{int(l['Décimales'])}f}",
-                                   f"{l['Variation']:+.2%}", border=True)
+        # Grille HTML qui s'adapte à la largeur de l'écran (ordinateur, tablette, téléphone).
+        cases = []
+        for _, l in cotes.iterrows():
+            classe = "tq-hausse" if l["Variation"] > 0 else "tq-baisse" if l["Variation"] < 0 else "tq-neutre"
+            cases.append(f"<div class='tq-carte'><div class='tq-carte-nom'>{l['Marché']}</div>"
+                         f"<div class='tq-carte-val'>{l['Dernier']:,.{int(l['Décimales'])}f}</div>"
+                         f"<div class='{classe}'>{l['Variation']:+.2%}</div></div>")
+        st.markdown(f"<div class='tq-grille'>{''.join(cases)}</div>", unsafe_allow_html=True)
         st.caption(f"Dernière séance disponible : {cotes['Date'].max().date()} · données différées (Yahoo Finance).")
 
     # ------------------------------------------------ fonctions
     sous_titre("Fonctions", "commande")
     st.caption("Clique sur une tuile, ou tape son code dans la barre de commande à gauche (ex. `FA AAPL`).")
-    autres = [f for f in FONCTIONS if f.code != "HOME"]
-    for debut in range(0, len(autres), 4):
-        colonnes = st.columns(4)
-        for col, f in zip(colonnes, autres[debut:debut + 4]):
-            with col:
-                st.markdown(f"<div class='tq-tuile'><span class='tq-code'>{f.code}</span><b>{f.titre}</b>"
-                            f"<p>{f.description}</p></div>", unsafe_allow_html=True)
-                st.button("Ouvrir", key=f"tuile_{f.code}", on_click=_aller, args=(f.code,),
-                          icon=f.icone, width="stretch")
+    tuiles = "".join(
+        f"<a class='tq-tuile' href='./{f.code.lower()}' target='_self'><span class='tq-code'>{f.code}</span>"
+        f"<b>{f.titre}</b><p>{f.description}</p></a>"
+        for f in FONCTIONS if f.code != "HOME")
+    st.markdown(f"<div class='tq-grille tq-grille-large'>{tuiles}</div>", unsafe_allow_html=True)
 
     # ------------------------------------------------ par où commencer
     with st.expander("Par où commencer ?", icon=":material/school:", expanded=False):

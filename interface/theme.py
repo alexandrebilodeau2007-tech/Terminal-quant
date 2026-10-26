@@ -41,7 +41,16 @@ html, body, [class*="css"], .stMarkdown, .stText, p, li, label {{ font-family: '
 .tq-cote {{ display: inline-block; padding: 6px 14px; border-right: 1px solid {GRILLE}; font-size: .82rem; }}
 .tq-cote b {{ color: #E8E6E3; font-weight: 600; margin-right: 6px; }}
 .tq-hausse {{ color: {VERT}; }} .tq-baisse {{ color: {ROUGE}; }} .tq-neutre {{ color: {TEXTE_DOUX}; }}
-/* Tuiles de l'accueil */
+/* Grilles de l'accueil : autant de colonnes que la largeur le permet */
+.tq-grille {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: .4rem 0 .6rem 0; }}
+.tq-grille-large {{ grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }}
+.tq-carte {{ border: 1px solid {GRILLE}; border-radius: 4px; padding: 10px 12px; background: #0F151E;
+             font-family: 'IBM Plex Mono', monospace; }}
+.tq-carte-nom {{ color: {TEXTE_DOUX}; font-size: .78rem; text-transform: uppercase; }}
+.tq-carte-val {{ color: {AMBRE}; font-size: 1.35rem; font-weight: 600; margin: 2px 0; }}
+/* Tuiles de l'accueil (liens vers chaque fonction) */
+a.tq-tuile {{ display: block; text-decoration: none !important; color: #E8E6E3 !important; }}
+a.tq-tuile:hover {{ border-color: {AMBRE}; background: #131A24; }}
 .tq-tuile {{ border: 1px solid {GRILLE}; border-left: 3px solid {AMBRE}; padding: 10px 14px; border-radius: 4px;
              background: #0F151E; height: 100%; }}
 .tq-tuile .tq-code {{ font-family: 'IBM Plex Mono', monospace; font-size: .8rem; }}
