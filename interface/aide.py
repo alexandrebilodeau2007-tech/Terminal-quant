@@ -89,7 +89,7 @@ AIDE: dict[str, str] = {
     "cmp_tv": """
 **Ce que ça fait** : affiche les graphiques interactifs officiels de TradingView : **1, 2 ou 4 graphiques** à la fois, chacun avec un second symbole superposé si tu veux.
 
-**Réglages** : dans *Réglages de l'affichage*, choisis le style (chandeliers, Heikin Ashi, ligne…), l'intervalle, les indicateurs (RSI, MACD, Bollinger…), les barres d'outils et la taille des graphiques.
+**Réglages** : dans *Réglages de l'affichage*, choisis le style (chandeliers, Heikin Ashi, ligne…), l'intervalle, les indicateurs (RSI, MACD, Bollinger…) et leur **période** (ex. RSI 9 au lieu de 14), les **couleurs des bougies**, du fond et de la grille, les barres d'outils et la taille des graphiques. La couleur des lignes d'indicateurs, elle, ne peut pas être enregistrée (limite de TradingView).
 
 **Exemple** : 4 graphiques pour suivre en même temps l'or, le S&P 500, le TSX et USD/CAD.
 

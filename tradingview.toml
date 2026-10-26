@@ -10,8 +10,6 @@
 # L'app en ligne se met à jour toute seule en une à deux minutes.
 # =====================================================================
 
-_essai_tvjs = true
-
 [affichage]
 # Nombre de graphiques : 1, 2 (côte à côte) ou 4 (grille 2 x 2)
 disposition = 1
@@ -32,21 +30,22 @@ legende = true
 panneau_details = false
 masquer_volume = false
 # false = le panneau de réglages est caché : tout le monde voit exactement la base
-permettre_modifications = false
+permettre_modifications = true
 
-# Paramètres des indicateurs (RSI, moyennes, Bollinger) : utilisés quand l'indicateur est affiché.
+# Paramètres des indicateurs (utilisés quand l'indicateur est dans la liste ci-dessus).
+# length = nombre de périodes ; mult = nombre d'écarts-types des bandes de Bollinger.
 [parametres]
-"RSI" = { length = 9 }
-"Moyenne mobile simple" = { length = 20 }
+"RSI" = { length = 14 }
+"Moyenne mobile simple" = { length = 50 }
 "Moyenne mobile exponentielle" = { length = 20 }
 "Bandes de Bollinger" = { length = 20, mult = 2.0 }
 
-# Couleurs (format #RRGGBB)
+# Couleurs (format #RRGGBB) : bougies, fond et grille.
+# Les couleurs des lignes d'indicateurs (RSI, moyennes) ne sont pas réglables dans les
+# widgets gratuits de TradingView : elles se changent seulement à l'écran (roue dentée de l'indicateur).
 [couleurs]
 hausse = "#2ECC71"
 baisse = "#FF5C5C"
-rsi = "#F7D154"
-moyenne = "#4EA8DE"
 fond = "#0A0E14"
 grille = "#1F2A37"
 

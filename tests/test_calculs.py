@@ -359,23 +359,44 @@ def test_grille_quatre_graphiques():
     base = tv.charger_base()
     base["affichage"]["disposition"] = 4
     page, hauteur = tv.html_grille(base)
-    assert page.count("embed-widget-advanced-chart.js") == 4
+    assert page.count("new TradingView.widget(") == 4 and page.count("tv.js") == 1
     assert hauteur == 2 * base["affichage"]["hauteur_grille"] + 8 + 10
-    assert "</script><script>" not in page
+    assert page.count("<script") == 2          # tv.js + un seul bloc d'appels, rien d'injecté
+
+
+def test_aucune_injection_possible():
+    r = tv.valider({"graphiques": [{"symbole": "AMEX:SPY", "comparer": "</script><script>alert(1)</script>"}]})
+    page, _ = tv.html_grille(r)
+    assert "alert(1)" not in page
 
 
 def test_config_widget_indicateurs_et_comparaison():
     base = tv.charger_base()
     base["affichage"]["indicateurs"] = ["RSI", "MACD"]
     cfg = tv.config_widget({"symbole": "NASDAQ:AAPL", "comparer": "NASDAQ:MSFT"}, base["affichage"])
-    assert cfg["studies"] == ["RSI@tv-basicstudies", "MACD@tv-basicstudies"]
+    # RSI a des paramètres -> objet {id, inputs} ; MACD n'en a pas -> identifiant seul
+    assert cfg["studies"] == [{"id": "RSI@tv-basicstudies", "inputs": {"length": 14}}, "MACD@tv-basicstudies"]
+    assert cfg["overrides"]["mainSeriesProperties.candleStyle.upColor"] == "#2ECC71"
     assert cfg["compareSymbols"] == [{"symbol": "NASDAQ:MSFT", "position": "SameScale"}]
     _json.dumps(cfg)  # sérialisable
+
+
+def test_parametres_et_couleurs_valides():
+    r = tv.valider({"parametres": {"RSI": {"length": 9}, "Bandes de Bollinger": {"mult": 99}, "Inconnu": {"x": 1}},
+                    "couleurs": {"hausse": "#00ff00", "baisse": "red;}</style>", "rsi": "#123456"}})
+    assert r["parametres"]["RSI"]["length"] == 9
+    assert r["parametres"]["Bandes de Bollinger"]["mult"] == 5.0      # borné au maximum
+    assert "Inconnu" not in r["parametres"]
+    assert r["couleurs"]["hausse"] == "#00FF00"
+    assert r["couleurs"]["baisse"] == "#FF5C5C"                       # valeur dangereuse refusée
+    assert "rsi" not in r["couleurs"]                                 # couleur non prise en charge
 
 
 def test_export_toml_relu_a_l_identique():
     base = tv.charger_base()
     base["affichage"]["disposition"] = 2
     base["affichage"]["indicateurs"] = ["Bandes de Bollinger"]
+    base["parametres"]["RSI"]["length"] = 9
+    base["couleurs"]["hausse"] = "#00FF00"
     relu = tv.valider(tomllib.loads(tv.en_toml(base)))
     assert relu == base

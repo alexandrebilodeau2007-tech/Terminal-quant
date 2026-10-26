@@ -51,11 +51,12 @@ PARAMETRES = {
 }
 
 # Couleurs réglables : clé -> (défaut, libellé).
+# Vérifié en ligne : TradingView applique les couleurs des bougies, du fond et de la grille.
+# Les couleurs des LIGNES d'indicateurs (RSI, moyennes) sont ignorées par les widgets gratuits
+# (réservées à la bibliothèque payante) : elles ne sont donc pas proposées.
 COULEURS = {
     "hausse": ("#2ECC71", "Bougie haussière"),
     "baisse": ("#FF5C5C", "Bougie baissière"),
-    "rsi": ("#FF9F1C", "Ligne du RSI"),
-    "moyenne": ("#4EA8DE", "Moyennes mobiles"),
     "fond": ("#0A0E14", "Fond"),
     "grille": ("#1F2A37", "Grille"),
 }
@@ -86,8 +87,6 @@ def valider(reglages: dict) -> dict:
     """Complète avec les défauts et remplace toute valeur hors liste blanche.
     Un fichier mal rempli ne casse jamais la page : la valeur fautive est ignorée."""
     r = deepcopy(DEFAUTS)
-    if reglages.get("_essai_tvjs") is True:
-        r["_essai_tvjs"] = True
     aff_in = reglages.get("affichage", {}) or {}
     aff = r["affichage"]
     if aff_in.get("disposition") in DISPOSITIONS:
@@ -188,11 +187,6 @@ def config_widget(graphique: dict, aff: dict, parametres: dict | None = None, co
             "mainSeriesProperties.candleStyle.wickUpColor": c["hausse"],
             "mainSeriesProperties.candleStyle.wickDownColor": c["baisse"],
         },
-        "studies_overrides": {
-            "relative strength index.plot.color": c["rsi"],
-            "moving average.plot.color": c["moyenne"],
-            "moving average exponential.plot.color": c["moyenne"],
-        },
         "calendar": False,
         "save_image": True,
         "show_popup_button": True,  # bouton pour ouvrir le graphique en grande fenêtre
@@ -205,64 +199,37 @@ def config_widget(graphique: dict, aff: dict, parametres: dict | None = None, co
     return config
 
 
-def _essai(i: int, cfg: dict) -> dict:
-    """TEMPORAIRE : variantes pour identifier les options acceptées par le widget."""
-    simples = [e["id"] if isinstance(e, dict) else e for e in cfg["studies"]]
-    if i == 0:   # paramètres d'indicateurs + couleurs des bougies, sans couleurs d'indicateurs
-        cfg.pop("studies_overrides")
-    elif i == 1:   # indicateurs avec paramètres, sans couleurs
-        cfg.pop("overrides"); cfg.pop("studies_overrides")
-    elif i == 2:  # couleurs des bougies seulement
-        cfg["studies"] = simples; cfg.pop("studies_overrides")
-    elif i == 3:  # couleurs des indicateurs seulement
-        cfg["studies"] = simples; cfg.pop("overrides")
-    return cfg
-
-
 def html_grille(reglages: dict) -> tuple[str, int]:
-    """Page HTML contenant 1, 2 ou 4 widgets, et sa hauteur totale en pixels."""
+    """Page HTML contenant 1, 2 ou 4 graphiques, et sa hauteur totale en pixels.
+
+    Bibliothèque utilisée : tv.js (TradingView.widget). Contrairement au script
+    « embed » plus récent, elle applique les PARAMÈTRES des indicateurs (RSI 9…)
+    et les COULEURS des bougies — vérifié en ligne sur l'app."""
     aff = reglages["affichage"]
     n = aff["disposition"]
     hauteur = aff["hauteur_simple"] if n == 1 else aff["hauteur_grille"]
     colonnes = 1 if n == 1 else 2
     rangees = 1 if n <= 2 else 2
-    ecart = 8
-    blocs = []
-    for i_essai, g in enumerate(reglages["graphiques"][:n]):
-        # Cadre extérieur de hauteur FIXE : le script TradingView réécrit le style de son
-        # propre conteneur (height:100 %), il lui faut donc un parent dont la hauteur est connue.
-        blocs.append(f"""
-  <div class="tq-cadre" style="height:{hauteur}px">
-    <div class="tradingview-widget-container" style="height:100%;width:100%">
-      <div class="tradingview-widget-container__widget" style="height:calc(100% - 24px);width:100%"></div>
-      <div class="tradingview-widget-copyright" style="font:11px sans-serif;color:#8B98A9;height:24px;line-height:24px">
-        <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank" style="color:#FF9F1C">Graphiques par TradingView</a></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-      {json.dumps(_essai(i_essai, config_widget(g, aff, reglages["parametres"], reglages["couleurs"])))}
-      </script>
-    </div>
-  </div>""")
-    if reglages.get("_essai_tvjs"):  # TEMPORAIRE : ancienne bibliothèque tv.js
-        cfg = config_widget(reglages["graphiques"][0], aff, reglages["parametres"], reglages["couleurs"])
-        cfg.update({"container_id": "tv_essai", "width": "100%", "height": hauteur})
-        cfg["studies_overrides"] = {
-            "relative strength index.plot.color": "#F7D154",
-            "relative strength index.plot.linewidth": 3,
-            "relative strength index.hlines background.color": "#FF9F1C",
-            "relative strength index.upperlimit.color": "#FF5C5C",
-            "relative strength index.lowerlimit.color": "#2ECC71",
-            "rsi.plot.color": "#F7D154",
-            "moving average.plot.color": "#FFFFFF",
-            "moving average.plot.linewidth": 3,
-        }
-        cfg.pop("autosize", None)
-        page = (f"<style>html,body{{margin:0;padding:0;background:#0A0E14}}</style><div id='tv_essai' style='height:{hauteur}px'></div>"
-                "<script src='https://s3.tradingview.com/tv.js'></script>"
-                f"<script>new TradingView.widget({json.dumps(cfg)});</script>")
-        return page, hauteur + 10
-    page = ("<style>html,body{margin:0;padding:0;background:#0A0E14}</style>"
+    ecart, legende = 8, 24
+    cadres, appels = [], []
+    for i, g in enumerate(reglages["graphiques"][:n]):
+        config = config_widget(g, aff, reglages["parametres"], reglages["couleurs"])
+        config.pop("autosize", None)
+        config.update({"container_id": f"tq_graphique_{i}", "width": "100%", "height": hauteur - legende})
+        # Cadre de hauteur FIXE : le graphique a toujours une taille connue.
+        cadres.append(
+            f"<div style='height:{hauteur}px'><div id='tq_graphique_{i}'></div>"
+            f"<div style='font:11px sans-serif;color:#8B98A9;height:{legende}px;line-height:{legende}px'>"
+            "<a href='https://www.tradingview.com/' rel='noopener nofollow' target='_blank' style='color:#FF9F1C'>"
+            "Graphiques par TradingView</a></div></div>")
+        # "<\/" : empêche toute fermeture prématurée de la balise <script> (défense en profondeur).
+        appels.append(f"new TradingView.widget({json.dumps(config).replace('</', '<\\/')});")
+    fond = reglages["couleurs"]["fond"]
+    page = (f"<style>html,body{{margin:0;padding:0;background:{fond}}}</style>"
             f"<div style='display:grid;grid-template-columns:repeat({colonnes},minmax(0,1fr));"
-            f"grid-auto-rows:{hauteur}px;gap:{ecart}px;background:{reglages["couleurs"]["fond"]}'>{''.join(blocs)}</div>")
+            f"grid-auto-rows:{hauteur}px;gap:{ecart}px;background:{fond}'>{''.join(cadres)}</div>"
+            "<script src='https://s3.tradingview.com/tv.js'></script>"
+            f"<script>{''.join(appels)}</script>")
     return page, rangees * hauteur + (rangees - 1) * ecart + 10
 
 

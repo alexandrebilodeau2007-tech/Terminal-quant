@@ -204,6 +204,23 @@ def _panneau_reglages(base: dict) -> dict:
                              index=list(tv.STYLES).index(aff["style"]), key="tvr_style")
         indicateurs = c5.multiselect("Indicateurs au chargement", list(tv.INDICATEURS), default=aff["indicateurs"],
                                      key="tvr_indicateurs")
+        # Paramètres des indicateurs affichés (période du RSI, des moyennes, des bandes).
+        parametres = {nom: dict(v) for nom, v in base["parametres"].items()}
+        avec_parametres = [i for i in indicateurs if i in tv.PARAMETRES]
+        if avec_parametres:
+            st.markdown("**Paramètres des indicateurs**")
+            champs = [(nom, cle, spec) for nom in avec_parametres for cle, spec in tv.PARAMETRES[nom].items()]
+            colonnes_p = st.columns(min(len(champs), 4))
+            for k, (nom, cle, (defaut, mini, maxi, libelle)) in enumerate(champs):
+                pas = 1 if isinstance(defaut, int) else 0.1
+                parametres[nom][cle] = colonnes_p[k % len(colonnes_p)].number_input(
+                    libelle, mini, maxi, parametres[nom][cle], pas, key=f"tvr_p_{nom}_{cle}")
+        st.markdown("**Couleurs**")
+        colonnes_c = st.columns(len(tv.COULEURS))
+        couleurs = {cle: colonnes_c[k].color_picker(libelle, base["couleurs"][cle], key=f"tvr_c_{cle}")
+                    for k, (cle, (_, libelle)) in enumerate(tv.COULEURS.items())}
+        st.caption("La couleur des lignes d'indicateurs (RSI, moyennes) n'est pas réglable ici : TradingView la réserve "
+                   "à sa version payante. Elle se change à l'écran avec la roue dentée de l'indicateur, sans être enregistrée.")
         o = st.columns(6)
         options = {
             "barre_outils_laterale": o[0].toggle("Outils de dessin", aff["barre_outils_laterale"], key="tvr_lat"),
@@ -227,6 +244,7 @@ def _panneau_reglages(base: dict) -> dict:
             st.error(f"Symbole non valide : {', '.join(invalides)}. Lettres, chiffres et : . ! ^ seulement.")
     reglages = {"affichage": {**aff, "disposition": disposition, cle_h: hauteur, "intervalle": intervalle,
                               "style": style, "indicateurs": indicateurs, **options},
+                "parametres": parametres, "couleurs": couleurs,
                 "graphiques": nouveaux + graphiques[disposition:]}
     return tv.valider(reglages)
 
@@ -260,7 +278,11 @@ def _tradingview() -> None:
         "Avec `permettre_modifications = false`, le panneau de réglages est masqué.\n"
         "- **TradingView n'offre pas d'API de données publique** : le terminal intègre leur widget gratuit, qui sert à "
         "l'affichage. Les calculs (formules, ratios, statistiques, export) se font dans les deux autres onglets.\n"
-        "- Les dessins faits dans un widget ne sont pas sauvegardés (fonction réservée aux comptes TradingView).\n"
+        "- **Ce qui s'enregistre dans la base** (vérifié en ligne) : style du graphique, intervalle, liste des indicateurs, "
+        "**paramètres des indicateurs** (période du RSI, des moyennes, des bandes de Bollinger), **couleurs des bougies**, "
+        "du fond et de la grille, barres d'outils.\n"
+        "- **Ce qui ne s'enregistre pas** : la couleur et l'épaisseur des lignes d'indicateurs (RSI, moyennes) et les dessins. "
+        "Les widgets gratuits les ignorent ; TradingView les réserve à sa bibliothèque payante et aux comptes TradingView.\n"
         "- **Contrats à terme et certains indices non affichables** dans le widget gratuit (message « Symbole disponible "
         "uniquement sur TradingView ») : utiliser `OANDA:XAUUSD` (or), `OANDA:XAGUSD` (argent), `TVC:USOIL` (pétrole) "
         "ou un FNB (`AMEX:SPY`, `TSX:XIU`).\n"
