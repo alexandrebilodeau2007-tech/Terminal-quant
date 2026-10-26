@@ -32,6 +32,22 @@ masquer_volume = false
 # false = le panneau de réglages est caché : tout le monde voit exactement la base
 permettre_modifications = true
 
+# Paramètres des indicateurs (RSI, moyennes, Bollinger) : utilisés quand l'indicateur est affiché.
+[parametres]
+"RSI" = { length = 9 }
+"Moyenne mobile simple" = { length = 20 }
+"Moyenne mobile exponentielle" = { length = 20 }
+"Bandes de Bollinger" = { length = 20, mult = 2.0 }
+
+# Couleurs (format #RRGGBB)
+[couleurs]
+hausse = "#2ECC71"
+baisse = "#FF5C5C"
+rsi = "#F7D154"
+moyenne = "#4EA8DE"
+fond = "#0A0E14"
+grille = "#1F2A37"
+
 # Un bloc [[graphiques]] par graphique, dans l'ordre (les 4 premiers sont utilisés).
 # symbole : format BOURSE:SYMBOLE (voir la colonne TradingView du répertoire, code TKR)
 # comparer : second symbole superposé, ou "" pour aucun

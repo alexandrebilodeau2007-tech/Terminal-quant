@@ -42,6 +42,25 @@ INTERVALLES = {"1": "1 min", "5": "5 min", "15": "15 min", "60": "1 heure", "240
                "D": "Jour", "W": "Semaine", "M": "Mois"}
 DISPOSITIONS = {1: "1 graphique", 2: "2 côte à côte", 4: "4 en grille (2 × 2)"}
 
+# Paramètres réglables par indicateur : nom affiché -> {entrée TradingView: (défaut, min, max, libellé)}.
+PARAMETRES = {
+    "RSI": {"length": (14, 2, 100, "Période du RSI")},
+    "Moyenne mobile simple": {"length": (50, 1, 500, "Période de la moyenne simple")},
+    "Moyenne mobile exponentielle": {"length": (20, 1, 500, "Période de la moyenne exponentielle")},
+    "Bandes de Bollinger": {"length": (20, 2, 200, "Période des bandes"), "mult": (2.0, 0.5, 5.0, "Écarts-types")},
+}
+
+# Couleurs réglables : clé -> (défaut, libellé).
+COULEURS = {
+    "hausse": ("#2ECC71", "Bougie haussière"),
+    "baisse": ("#FF5C5C", "Bougie baissière"),
+    "rsi": ("#FF9F1C", "Ligne du RSI"),
+    "moyenne": ("#4EA8DE", "Moyennes mobiles"),
+    "fond": ("#0A0E14", "Fond"),
+    "grille": ("#1F2A37", "Grille"),
+}
+COULEUR_SURE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
 SYMBOLE_SUR = re.compile(r"^[A-Za-z0-9:._!^/*+\-() ]{1,60}$")
 
 # Valeurs de secours si le fichier est absent ou incomplet.
@@ -52,6 +71,8 @@ DEFAUTS = {
         "plages_de_dates": True, "legende": True, "panneau_details": False, "masquer_volume": False,
         "permettre_modifications": True,
     },
+    "parametres": {nom: {cle: v[0] for cle, v in entrees.items()} for nom, entrees in PARAMETRES.items()},
+    "couleurs": {cle: v[0] for cle, v in COULEURS.items()},
     "graphiques": [{"symbole": "OANDA:XAUUSD", "comparer": "OANDA:XAGUSD"}, {"symbole": "AMEX:SPY", "comparer": ""},
                    {"symbole": "TSX:RY", "comparer": ""}, {"symbole": "TVC:USOIL", "comparer": ""}],
 }
@@ -84,6 +105,17 @@ def valider(reglages: dict) -> dict:
                 "panneau_details", "masquer_volume", "permettre_modifications"):
         if isinstance(aff_in.get(cle), bool):
             aff[cle] = aff_in[cle]
+    for nom, entrees in (reglages.get("parametres") or {}).items():
+        if nom not in PARAMETRES or not isinstance(entrees, dict):
+            continue
+        for cle, valeur in entrees.items():
+            if cle in PARAMETRES[nom] and isinstance(valeur, (int, float)) and not isinstance(valeur, bool):
+                defaut, mini, maxi, _ = PARAMETRES[nom][cle]
+                valeur = min(max(valeur, mini), maxi)
+                r["parametres"][nom][cle] = int(valeur) if isinstance(defaut, int) else float(valeur)
+    for cle, valeur in (reglages.get("couleurs") or {}).items():
+        if cle in COULEURS and isinstance(valeur, str) and COULEUR_SURE.match(valeur):
+            r["couleurs"][cle] = valeur.upper()
     graphiques = reglages.get("graphiques")
     if isinstance(graphiques, list) and graphiques:
         propres = []
@@ -107,8 +139,26 @@ def charger_base(chemin: Path = FICHIER_BASE) -> dict:
         return deepcopy(DEFAUTS)
 
 
-def config_widget(graphique: dict, aff: dict) -> dict:
+def _rgba(hexa: str) -> str:
+    """#0A0E14 -> rgba(10, 14, 20, 1) (format attendu par le widget pour le fond et la grille)."""
+    return f"rgba({int(hexa[1:3], 16)}, {int(hexa[3:5], 16)}, {int(hexa[5:7], 16)}, 1)"
+
+
+def _etudes(aff: dict, parametres: dict) -> list:
+    """Indicateurs : un identifiant seul, ou {id, inputs} quand l'indicateur a des paramètres."""
+    etudes = []
+    for nom in aff["indicateurs"]:
+        if nom in parametres:
+            etudes.append({"id": INDICATEURS[nom], "inputs": parametres[nom]})
+        else:
+            etudes.append(INDICATEURS[nom])
+    return etudes
+
+
+def config_widget(graphique: dict, aff: dict, parametres: dict | None = None, couleurs: dict | None = None) -> dict:
     """Configuration JSON d'UN widget « Advanced Chart »."""
+    parametres = parametres if parametres is not None else DEFAUTS["parametres"]
+    c = couleurs if couleurs is not None else DEFAUTS["couleurs"]
     config = {
         "autosize": True,
         "symbol": graphique["symbole"],
@@ -117,8 +167,8 @@ def config_widget(graphique: dict, aff: dict) -> dict:
         "theme": "dark",
         "style": aff["style"],
         "locale": "fr",
-        "backgroundColor": "rgba(10, 14, 20, 1)",
-        "gridColor": "rgba(31, 42, 55, 1)",
+        "backgroundColor": _rgba(c["fond"]),
+        "gridColor": _rgba(c["grille"]),
         "allow_symbol_change": True,
         "hide_side_toolbar": not aff["barre_outils_laterale"],
         "hide_top_toolbar": not aff["barre_outils_haut"],
@@ -126,7 +176,21 @@ def config_widget(graphique: dict, aff: dict) -> dict:
         "hide_legend": not aff["legende"],
         "details": aff["panneau_details"],
         "hide_volume": aff["masquer_volume"],
-        "studies": [INDICATEURS[i] for i in aff["indicateurs"]],
+        "studies": _etudes(aff, parametres),
+        # Couleurs des bougies et des indicateurs (clés du moteur de graphiques TradingView).
+        "overrides": {
+            "mainSeriesProperties.candleStyle.upColor": c["hausse"],
+            "mainSeriesProperties.candleStyle.downColor": c["baisse"],
+            "mainSeriesProperties.candleStyle.borderUpColor": c["hausse"],
+            "mainSeriesProperties.candleStyle.borderDownColor": c["baisse"],
+            "mainSeriesProperties.candleStyle.wickUpColor": c["hausse"],
+            "mainSeriesProperties.candleStyle.wickDownColor": c["baisse"],
+        },
+        "studies_overrides": {
+            "relative strength index.plot.color": c["rsi"],
+            "moving average.plot.color": c["moyenne"],
+            "moving average exponential.plot.color": c["moyenne"],
+        },
         "calendar": False,
         "save_image": True,
         "show_popup_button": True,  # bouton pour ouvrir le graphique en grande fenêtre
@@ -158,13 +222,13 @@ def html_grille(reglages: dict) -> tuple[str, int]:
       <div class="tradingview-widget-copyright" style="font:11px sans-serif;color:#8B98A9;height:24px;line-height:24px">
         <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank" style="color:#FF9F1C">Graphiques par TradingView</a></div>
       <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-      {json.dumps(config_widget(g, aff))}
+      {json.dumps(config_widget(g, aff, reglages["parametres"], reglages["couleurs"]))}
       </script>
     </div>
   </div>""")
     page = ("<style>html,body{margin:0;padding:0;background:#0A0E14}</style>"
             f"<div style='display:grid;grid-template-columns:repeat({colonnes},minmax(0,1fr));"
-            f"grid-auto-rows:{hauteur}px;gap:{ecart}px;background:#0A0E14'>{''.join(blocs)}</div>")
+            f"grid-auto-rows:{hauteur}px;gap:{ecart}px;background:{reglages["couleurs"]["fond"]}'>{''.join(blocs)}</div>")
     return page, rangees * hauteur + (rangees - 1) * ecart + 10
 
 
@@ -184,6 +248,10 @@ def en_toml(reglages: dict) -> str:
     lignes = ["# Réglages de BASE des graphiques TradingView — exportés depuis le terminal.",
               "# Remplacer le fichier tradingview.toml du dépôt GitHub par celui-ci.", "", "[affichage]"]
     lignes += [f"{cle} = {valeur(v)}" for cle, v in aff.items()]
+    lignes += ["", "[parametres]"]
+    for nom, entrees in reglages["parametres"].items():
+        lignes.append(f"{json.dumps(nom, ensure_ascii=False)} = {{ " + ", ".join(f"{k} = {valeur(v)}" for k, v in entrees.items()) + " }")
+    lignes += ["", "[couleurs]"] + [f"{cle} = {valeur(v)}" for cle, v in reglages["couleurs"].items()]
     for g in reglages["graphiques"]:
         lignes += ["", "[[graphiques]]", f"symbole = {valeur(g['symbole'])}", f"comparer = {valeur(g['comparer'])}"]
     return "\n".join(lignes) + "\n"
