@@ -8,6 +8,7 @@ La barre de commande de la barre latérale accepte ce code suivi d'arguments :
     CMP GC=F SI=F    comparer l'or et l'argent
     MKT AAPL MSFT    marchés avec ces tickers
     TKR or           répertoire filtré sur « or »
+    SEAS GC=F        saisonnalité de l'or
 """
 
 from __future__ import annotations
@@ -36,6 +37,8 @@ FONCTIONS: list[Fonction] = [
              "Performance, volatility and correlations across markets"),
     Fonction("CMP", "Comparator & formulas", "Markets", ":material/compare_arrows:", "page_comparateur",
              "Two symbols side by side, ticker formulas, TradingView charts"),
+    Fonction("SEAS", "Seasonality", "Markets", ":material/calendar_month:", "page_saisonnalite",
+             "Seasonal chart, pattern statistics, screener, events, monthly returns"),
     Fonction("PORT", "Portfolio & risk", "Portfolio", ":material/pie_chart:", "page_risque",
              "VaR, Markowitz optimization and ETF risk level"),
     Fonction("FA", "Fundamental analysis", "Companies", ":material/account_balance:", "page_fondamental",
@@ -58,6 +61,7 @@ ARGUMENTS = {
     "MKT": ["cmd_marches_libre"],
     "TKR": ["cmd_rep_recherche"],
     "PORT": ["cmd_risque_libre"],
+    "SEAS": ["cmd_seas_ticker"],
 }
 
 

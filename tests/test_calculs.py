@@ -442,3 +442,116 @@ def test_export_excel_dates_avec_fuseau():
     df["mixte"] = df["mixte"].astype(object)
     octets = exporter_excel({"Calls": df}, {"Underlying": "MU"})
     assert octets[:2] == b"PK"
+
+
+# ============================================================ SEAS — saisonnalité
+from calculs import saisonnalite as sz
+
+
+def _prix_saisonniers(annees=range(2005, 2026), hausse=0.10):
+    """Prix de bourse (jours ouvrables) plats, sauf une hausse régulière de +10 % entre
+    le 1er et le 31 mars de chaque année : la saisonnalité est connue d'avance."""
+    jours = pd.bdate_range(f"{min(annees) - 1}-12-01", f"{max(annees)}-12-31")
+    niveaux, niveau = [], 100.0
+    for d in jours:
+        if d.month == 3:
+            nb = len(pd.bdate_range(f"{d.year}-03-01", f"{d.year}-03-31"))
+            niveau *= (1 + hausse) ** (1 / nb)
+        niveaux.append(niveau)
+    return pd.Series(niveaux, index=jours)
+
+
+def test_jour_de_l_annee_et_bissextile():
+    from datetime import date
+    assert sz.jour_de_l_annee(date(2024, 1, 1)) == 0
+    assert sz.jour_de_l_annee(date(2024, 12, 31)) == 364
+    assert sz.jour_de_l_annee(date(2024, 2, 29)) == sz.jour_de_l_annee(date(2024, 2, 28))
+    assert sz.duree_calendaire(318, 9) == 365 - 318 + 9 + 1      # 15 nov. -> 10 janv.
+
+
+def test_fenetre_saisonniere_connue():
+    prix = _prix_saisonniers()
+    g = sz.grille_calendaire(prix)
+    debut, fin = sz.jour_de_l_annee(pd.Timestamp("2001-03-01")), sz.jour_de_l_annee(pd.Timestamp("2001-03-31"))
+    annees = sz.annees_fenetre(g, debut, fin)
+    t = sz.rendements_fenetre(g, debut, fin, annees)
+    assert len(t) == 21 and np.allclose(t["Return"], 0.10)
+    s = sz.statistiques_fenetre(t, sz.duree_calendaire(debut, fin))
+    assert s["Hit rate"] == 1 and abs(s["Average return"] - 0.10) < 1e-12
+    assert abs(s["Annualized return"] - (1.10 ** (365 / 31) - 1)) < 1e-9
+    court = sz.rendements_fenetre(g, debut, fin, annees, short=True)
+    assert np.allclose(court["Return"], -0.10) and np.allclose(court["Max drop"], -0.10)
+    # Hors de mars : rendement nul
+    t2 = sz.rendements_fenetre(g, 200, 250, sz.annees_fenetre(g, 200, 250))
+    assert np.allclose(t2["Return"], 0.0)
+
+
+def test_courbe_saisonniere_et_detendance():
+    g = sz.grille_calendaire(_prix_saisonniers())
+    annees = sz.annees_completes(g)
+    c = sz.courbe_saisonniere(g, annees)
+    assert abs(c.iloc[sz.jour_de_l_annee(pd.Timestamp("2001-02-27"))]) < 1e-12
+    assert abs(c.iloc[-1] - 0.10) < 1e-12
+    d = sz.courbe_saisonniere(g, annees, detendance=True)
+    assert abs(d.iloc[-1]) < 1e-12 and d.max() > 0.05
+
+
+def test_fenetre_chevauchant_le_nouvel_an():
+    jours = pd.bdate_range("2009-12-01", "2021-01-31")
+    # +5 % entre le 20 décembre et le 10 janvier, plat ailleurs
+    niv, v = [], 100.0
+    for d in jours:
+        if (d.month == 12 and d.day >= 20) or (d.month == 1 and d.day <= 10):
+            v *= 1.05 ** (1 / 14)
+        niv.append(v)
+    g = sz.grille_calendaire(pd.Series(niv, index=jours))
+    deb, fin = sz.jour_de_l_annee(pd.Timestamp("2001-12-15")), sz.jour_de_l_annee(pd.Timestamp("2001-01-15"))
+    t = sz.rendements_fenetre(g, deb, fin, sz.annees_fenetre(g, deb, fin))
+    assert len(t) >= 10 and (t["Return"] > 0.04).all()
+    assert all(r.End.year == r.Index + 1 for r in t.itertuples())
+
+
+def test_screener_retrouve_la_fenetre():
+    g = sz.grille_calendaire(_prix_saisonniers())
+    c = sz.CriteresScreener(annees=15, jours_min=20, jours_max=40, taux_min=0.9, sens="Long", par_actif=1)
+    res = sz.chercher_fenetres(g, c)
+    assert not res.empty
+    meilleur = res.iloc[0]
+    assert meilleur["Start"].startswith("Mar") or meilleur["Start"].startswith("Feb")
+    assert meilleur["Hit rate"] == 1.0
+
+
+def test_significativite_et_rang():
+    g = sz.grille_calendaire(_prix_saisonniers() * (1 + 0.0))
+    deb, fin = sz.jour_de_l_annee(pd.Timestamp("2001-03-01")), sz.jour_de_l_annee(pd.Timestamp("2001-03-31"))
+    annees = sz.annees_fenetre(g, deb, fin)
+    # Bruit pour éviter un écart-type nul
+    t = sz.rendements_fenetre(g, deb, fin, annees)
+    t["Return"] = t["Return"] + np.random.default_rng(1).normal(0, 0.01, len(t))
+    s = sz.significativite(t)
+    assert s["p-value (mean)"] < 0.001 and s["p-value (hit rate)"] < 0.001
+    rang = sz.comparaison_toutes_fenetres(g, sz.annees_completes(g), deb, fin)
+    assert rang["Percentile vs all windows"] > 0.9
+
+
+def test_cycle_presidentiel_et_evenements():
+    assert sz.filtrer_annees([2020, 2021, 2022, 2023, 2024], 0) == [2020, 2024]
+    assert sz.filtrer_annees([2020, 2021, 2022], 2, exclure=[2022]) == []
+    from datetime import date
+    assert sz.jour_election_us(2024) == date(2024, 11, 5)
+    assert sz.jour_election_us(2020) == date(2020, 11, 3)
+    assert sz._jour_semaine_n(2026, 11, 3, 4) == date(2026, 11, 26)      # Thanksgiving 2026
+    prix = _prix_saisonniers()
+    ch = sz.etude_evenement(prix, sz.dates_evenement("Christmas", prix.index, list(range(2006, 2025))), 5, 5)
+    assert ch.shape[1] == 11 and np.allclose(ch[0], 0.0)
+
+
+def test_mensuel_et_ics():
+    prix = _prix_saisonniers()
+    tab = sz.rendements_mensuels_table(prix)
+    st_m = sz.statistiques_mensuelles(tab)
+    assert abs(st_m.loc["Mar", "Average"] - 0.10) < 1e-9 and st_m.loc["Mar", "Hit rate"] == 1
+    from datetime import date
+    ics = sz.calendrier_ics([{"ticker": "GC=F", "direction": "Long", "start_day": 59, "end_day": 89,
+                              "avg": 0.1, "hit": 1.0, "years": 15}], date(2026, 10, 27))
+    assert ics.count("BEGIN:VEVENT") == 2 and "20270301" in ics

@@ -254,6 +254,67 @@ AIDE: dict[str, str] = {
 
 **Why it is useful**: compare the credit risk of two issuers, whatever their maturities.
 """,
+    "seas": """
+**What it does**: measures how an asset **usually** behaves at each time of the year, over 5 to 30 years or more.
+
+**Example**: natural gas has often risen between late August and October, before the heating season. The terminal shows the average path of the year, the return of each year over that window, and whether the effect is statistically solid.
+
+**Why it is useful**: time an analysis or a trade with history in mind. A seasonal pattern is a **statistic, not a forecast**: always look for an economic reason.
+""",
+    "seas_chart": """
+**What it does**: the **seasonal chart** is the average year. Each year is rebased to 0 % on Dec 31, then the paths are averaged (or the median is taken).
+
+**How to use it**: **drag across the chart** (or move the two sliders) to choose a window; the statistics below update. *Detrend* removes the long-term rise so only the seasonal shape remains. The dotted blue line is the current year. *Compare with* overlays a second asset.
+
+**Example**: S&P 500, 25 years, Oct 27 → Jan 05: the curve shows the classic year-end rally.
+
+**Filters**: US presidential cycle (election, post-election, midterm, pre-election years), odd/even years, and excluding crisis years such as 2008 or 2020.
+""",
+    "seas_stats": """
+**What it does**: the statistics of the chosen window, year by year.
+
+- **Average / median return**: typical gain over the window.
+- **Hit rate**: share of years with a gain (e.g. 12 of 15 = 80%).
+- **Annualized return**: the average return converted to a yearly pace — it magnifies short windows.
+- **Average profit / loss, max profit / loss**: size of the good and bad years.
+- **Sharpe / Sortino**: return per unit of risk, from daily returns inside the windows.
+- **Better than … of all windows**: rank against the same length started on each of the 365 days.
+
+**The verdict** (green / yellow / red) uses a t-test and a binomial test: with 10–15 years, even random prices produce windows that won 80% of the time.
+""",
+    "seas_detail": """
+**What it does**: one line per year — entry and exit dates and prices, return, and the **largest rise and drop** during the window.
+
+**Why it is useful**: a window can end positive after a painful −10% along the way. The max drop tells you what you would have had to endure.
+""",
+    "seas_screener": """
+**What it does**: scans many assets and tests **every start day of the year × every length** in your range, long and short, then keeps the best non-overlapping windows per asset.
+
+**Example**: commodities, 15 years, 10–45 days, hit rate ≥ 80%, starting within 30 days → the patterns that begin soon. **Select a row** to open it in the chart.
+
+**Caution**: testing thousands of windows guarantees impressive-looking results by chance. Open each one and read the significance verdict.
+""",
+    "seas_events": """
+**What it does**: the average path of an asset **around an event**: US elections, Thanksgiving, Christmas, monthly options expiration (3rd Friday), first or last trading day of the month, quarter end, or your own dates (FOMC, earnings…).
+
+**Example**: S&P 500, first trading day of the month, window day −1 → day +3: the "turn of the month" effect.
+
+**Reading**: day 0 = close on the event day (or the last close before it if markets are closed). The grey lines are the individual events.
+""",
+    "seas_monthly": """
+**What it does**: a heat map of every month's return (green = up, red = down), the average and hit rate of each month, and the same for each weekday.
+
+**Example**: if September is red 7 years out of 10, the "September effect" is visible at a glance.
+
+**Why it is useful**: a quick overview before zooming on a precise window in the chart.
+""",
+    "seas_watch": """
+**What it does**: keeps the patterns you saved, with their next start date and status (active now or starts in N days).
+
+**Reminders**: download the **.ics calendar** and import it into Google Calendar, Outlook or Apple Calendar: you get one reminder at the start and one at the end of each window.
+
+**Note**: the list lasts for your session; export it to Excel to keep it.
+""",
 }
 
 

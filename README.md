@@ -36,6 +36,7 @@ reachable from the top menu or from the **command bar** on the left.
 | `TKR` | **Ticker directory** | ~175 symbols by family (US and TSX stocks, indices, commodities, forex, crypto, ETFs, bonds, rates, option underlyings), with Yahoo and TradingView symbols, search and CSV export |
 | `MKT` | **Multi-asset markets** | Performance (1 month, 3 months, year to date, 1 year), volatility, correlation matrix, candlesticks with moving averages |
 | `CMP` | **Comparator & formulas** | Two symbols side by side (base 100, ratio, rolling correlation and beta) · ticker formulas as on TradingView (`GC=F / SI=F`, `CL=F - BZ=F`…) · embedded TradingView charts, also available in a **charts-only window** |
+| `SEAS` | **Seasonality** | Seasonal chart (average year over 5–30+ years, detrended, presidential-cycle and year filters, comparison) · pattern statistics with significance tests · screener for the best windows · event-based seasonality · monthly heat map · watchlist with calendar reminders |
 | `PORT` | **Portfolio & risk** | *Optimization & VaR* tab: VaR and CVaR (4 methods), Kupiec, Markowitz · *Risk level* tab: official CSA risk rating of an ETF, a security or a portfolio, beta, drawdown, fund holdings |
 | `FA` | **Fundamental analysis** | Financial statements (SEC EDGAR, Yahoo fallback), ratios, DuPont, P/E, DCF with **your** assumptions and sensitivity, thesis notebook, Excel export |
 | `OPT` | **Options** | Option chain filtered by liquidity, implied volatility smile, Greeks, Black-Scholes calculator |
@@ -102,6 +103,15 @@ The *Convert* box expresses everything in the base currency, i.e. the return act
   The **base settings are shared by all visitors**: they come from [`tradingview.toml`](tradingview.toml). To change them for everyone,
   adjust the display in the app, click *Export these settings as base*, then replace that file on GitHub.
   The *Open charts in a separate window* button opens the same grid alone in its own window.
+
+### SEAS — Seasonality
+- **Seasonal chart**: pick an asset and the number of years; **drag across the chart** (or use the two sliders) to select a window. Options: long/short, average or median curve, *Detrend*, US presidential cycle or odd/even years, exclude outlier years, overlay this year and a second asset.
+- **Pattern statistics**: annualized, average and median return, hit rate, average profit/loss, max profit/loss, standard deviation, volatility, Sharpe, Sortino, calendar and trading days, rank against all windows of the same length, and a **significance verdict** (t-test and binomial test). Below: return by year, cumulative profit, year-by-year details (max rise and drop), price chart with the windows highlighted, Excel export.
+- **Screener**: scans directory families or your tickers, every start day × every length, long and short; filters on hit rate, length and "starting within N days". Select a row to open it in the chart.
+- **Events**: average path around US elections, Thanksgiving, Christmas, options expiration, first/last trading day of the month, quarter end, or your own dates (FOMC, earnings…).
+- **Monthly & weekdays**: heat map of monthly returns, average and hit rate per month and per weekday.
+- **Watchlist**: saved patterns with their next start date; export to Excel or to an **.ics calendar** (reminders in Google Calendar, Outlook or Apple Calendar).
+- Command bar: `SEAS GC=F`. Uses the full Yahoo history (independent of the global period), in the asset's own currency.
 
 ### PORT — Portfolio & risk (Optimization & VaR tab)
 1. Select 2 to 20 **investable** assets (not `^TNX`: it is a rate, not a price).
@@ -214,9 +224,10 @@ terminal-quant/
 │   ├── options_math.py         Black-Scholes-Merton, Greeks, implied volatility
 │   ├── spreads.py              Spreads in bp, z-score, curve interpolation, G-spread
 │   ├── formule.py              Ticker formulas (safe parser, no eval)
+│   ├── saisonnalite.py         Seasonality: calendar grid, seasonal curve, window statistics, tests, screener, events
 │   └── profil_risque.py        CSA risk level, beta, ETF or portfolio profile
 ├── interface/                DISPLAY layer: one Streamlit page per function
-│   ├── page_accueil.py  page_repertoire.py  page_marches.py  page_comparateur.py
+│   ├── page_accueil.py  page_repertoire.py  page_marches.py  page_comparateur.py  page_saisonnalite.py
 │   ├── page_risque.py  page_fondamental.py  page_options.py  page_taux.py  page_spreads.py
 │   ├── vue_graphiques.py       Charts-only window (?view=charts)
 │   ├── navigation.py           Function codes, menu and command bar
@@ -240,7 +251,7 @@ pip install -r requirements.txt
 python -m pytest tests/ -v
 ```
 
-The 60 tests compare the calculations with known values, for example:
+The 70 tests compare the calculations with known values, for example:
 - Black-Scholes: Hull's textbook example (S=42, K=40 → call 4.76) and put-call parity;
 - Markowitz: closed-form 2-asset minimum variance, constraints respected, infeasible case detected;
 - VaR: convergence to the normal distribution, CVaR ≥ VaR, Cornish-Fisher on fat tails, Kupiec;
@@ -249,7 +260,8 @@ The 60 tests compare the calculations with known values, for example:
 - Spreads: conversion to bp, common dates, z-score, interpolated G-spread;
 - Formulas: operator precedence, hyphenated tickers (`BTC-USD`), refusal of any non-arithmetic code;
 - Risk level: CSA grid at exact boundaries, annualized monthly standard deviation, known beta;
-- TradingView: settings validation, URL round trip, full-window grid.
+- TradingView: settings validation, URL round trip, full-window grid;
+- Seasonality: known synthetic pattern recovered (window return, hit rate, annualization), New Year windows, detrending, screener, significance tests, US election dates and Thanksgiving, monthly table, .ics file.
 
 ---
 
