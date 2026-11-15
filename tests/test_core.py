@@ -127,6 +127,30 @@ def test_seasonality():
     print("Fenêtre:", {k: r["window"][k] for k in ("avg", "median", "win_rate", "n")})
 
 
+def test_cot():
+    from server import cot
+    rows = [{"cftc_contract_market_code": "099741", "report_date_as_yyyy_mm_dd": f"2026-11-{d:02d}T00:00:00.000",
+             "open_interest_all": "700000", "dealer_positions_long_all": "50000", "dealer_positions_short_all": "200000",
+             "asset_mgr_positions_long": "400000", "asset_mgr_positions_short": "100000",
+             "lev_money_positions_long": str(60000 + d * 1000), "lev_money_positions_short": "90000",
+             "lev_money_positions_spread": "1"} for d in (3, 10)]
+    class R:
+        def raise_for_status(self): pass
+        def json(self): return rows
+    import httpx
+    orig = httpx.get
+    httpx.get = lambda *a, **k: R()
+    try:
+        out = cot.refresh()
+    finally:
+        httpx.get = orig
+    eur = out["rows"][0]
+    assert eur["ccy"] == "EUR" and eur["date"] == "2026-11-10"
+    lev = eur["groups"]["lev"]
+    assert lev["net"] == -20000 and lev["change"] == 7000 and lev["index"] == 100, lev
+    assert eur["groups"]["dealer"]["pct_long"] == 20
+
+
 def test_api():
     from fastapi.testclient import TestClient
     from server.main import app
@@ -176,4 +200,4 @@ def test_api():
 
 
 if __name__ == "__main__":
-    test_pipeline(); test_seasonality(); test_api(); print("\nTOUS LES TESTS OK")
+    test_pipeline(); test_seasonality(); test_cot(); test_api(); print("\nTOUS LES TESTS OK")

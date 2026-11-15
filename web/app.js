@@ -360,6 +360,16 @@ function verdict(e){
   return b==="positif"?`<span class="verdict good">BON ${e.currency}</span>`:b==="négatif"?`<span class="verdict bad">MAUVAIS ${e.currency}</span>`:`<span class="verdict neu">NEUTRE</span>`;
 }
 function countdown(t){const ms=new Date(t).getTime()-Date.now(); if(ms<=0) return "EN COURS"; const h=Math.floor(ms/3.6e6),m=Math.floor(ms%3.6e6/6e4); return h>23?Math.floor(h/24)+"j "+(h%24)+"h":h?`${h}h${String(m).padStart(2,"0")}`:`${m} min`;}
+function kfmt(n){ if(n==null) return "—"; const a=Math.abs(n), s=n>0?"+":n<0?"−":""; return s+(a>=1000?(a/1000).toFixed(1)+"K":Math.round(a)); }
+function cotCell(g){ if(!g) return '<span class="dim">—</span>';
+  return `<div style="min-width:130px">${sentBar({long:g.pct_long,short:100-g.pct_long})}<div class="mono" style="font-size:10px;margin-top:3px"><span class="${g.net>0?"pos":"neg"}">net ${kfmt(g.net)}</span> <span class="mute">· sem. ${kfmt(g.change)}</span></div></div>`; }
+function cotRead(r){ const g=r.groups.lev; if(!g||g.index==null) return '<span class="mute">—</span>';
+  return g.index>=90?'<span class="pos">TRÈS LONG (extrême)</span>':g.index<=10?'<span class="neg">TRÈS COURT (extrême)</span>':g.index>=60?'<span class="pos">acheteur</span>':g.index<=40?'<span class="neg">vendeur</span>':'<span class="mute">neutre</span>'; }
+function cotTable(rows){
+  return `<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Devise</th><th>Banques (dealers)</th><th>Asset managers</th><th>Hedge funds</th><th class="n">Indice 6 mois</th><th class="n">Lecture</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr><td><span class="ccy">${FLAGS[r.ccy]} ${r.ccy}</span><div class="dim mono" style="font-size:9px">${esc(r.date)}</div></td><td>${cotCell(r.groups.dealer)}</td><td>${cotCell(r.groups.asset)}</td><td>${cotCell(r.groups.lev)}</td>
+    <td class="n mono">${r.groups.lev?.index??"—"}</td><td class="n mono" style="font-size:10px">${cotRead(r)}</td></tr>`).join("")}</tbody></table></div>`;
+}
 function sentBar(r){return `<div class="sbar"><div class="l" style="width:${r.long}%">${r.long>14?r.long+"%":""}</div><div class="s" style="width:${r.short}%">${r.short>14?r.short+"%":""}</div></div>`}
 async function loadDashboard(){
   const el=$("#v-accueil"); let d;
@@ -374,6 +384,8 @@ async function loadDashboard(){
      <div class="stgrid">${d.stances.sort((a,b)=>b.score-a.score).map(x=>`<div class="st" onclick="show('devises');openCurrency('${x.code}')" style="cursor:pointer"><div class="c">${x.flag} ${x.code}</div><div class="r">${x.rate!=null?x.rate+"%":"—"} · ${x.red}🔴 ${x.orange}🟠</div>${stanceBadge(x)}</div>`).join("")}</div></div>
    <div class="panel c6"><div class="ph"><b>Sentiment retail</b> · % long / % short</div>
      ${d.sentiment_configured?(d.sentiment.map(r=>`<div class="li"><span class="ccy" style="min-width:64px">${esc(r.symbol)}</span><span class="grow">${sentBar(r)}</span><span class="v ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}" style="font-size:10px">${esc(r.signal)}</span></div>`).join("")||'<div class="empty">Chargement…</div>'):'<div class="empty">Chargement du sentiment Myfxbook…</div>'}</div>
+   <div class="panel c6"><div class="ph"><b>Positionnement institutionnel</b> · COT hedge funds<div class="r"><button class="chip" onclick="show('macro')">DÉTAIL →</button></div></div>
+     ${(d.cot||[]).map(r=>{const g=r.groups.lev; return g?`<div class="li"><span class="ccy" style="min-width:64px">${FLAGS[r.ccy]} ${r.ccy}</span><span class="grow">${sentBar({long:g.pct_long,short:100-g.pct_long})}</span><span class="v mono ${g.net>0?"pos":"neg"}" style="font-size:10px">${kfmt(g.net)}</span><span class="v mono" style="font-size:10px">${cotRead(r)}</span></div>`:""}).join("")||'<div class="empty">Chargement du rapport COT…</div>'}</div>
    <div class="panel c6"><div class="ph"><b>Fil de nouvelles</b><div class="r"><button class="chip" onclick="show('nouvelles')">TOUT →</button></div></div>
      <div class="pb news" style="padding-top:0">${d.news.map(n=>`<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}<small>${n.time?fT.format(new Date(n.time)):""} · ${esc(n.source||"")}</small></a>`).join("")}</div></div>
   </div>`;
@@ -381,10 +393,10 @@ async function loadDashboard(){
 function stanceBadgeLbl(l){return `<span class="badge ${String(l).toLowerCase()}">${esc(l)}</span>`}
 
 /* ---------------- macro (comparatif pays + triage) ---------------- */
-let MX=null, MX_SORT=store.get("mxSort",{key:"rate",dir:-1}), SENT=null;
+let COT=null, MX=null, MX_SORT=store.get("mxSort",{key:"rate",dir:-1}), SENT=null;
 async function loadMacro(){
   const el=$("#v-macro");
-  try{ MX=await api("/api/macro"); SENT=await api("/api/sentiment"); }catch{ el.innerHTML='<div class="empty">Serveur injoignable.</div>'; return }
+  try{ MX=await api("/api/macro"); SENT=await api("/api/sentiment"); COT=await api("/api/cot"); }catch{ el.innerHTML='<div class="empty">Serveur injoignable.</div>'; return }
   renderMacro();
 }
 function mxVal(r,k){ const c=r[k]; if(!c) return null; if(k==="stance") return c.score; return c.value ?? null; }
@@ -406,7 +418,10 @@ function renderMacro(){
     ${SENT?.configured?`<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Paire</th><th style="min-width:180px">Long / Short</th><th class="n">Positions</th><th class="n hide-m">Prix moy. long</th><th class="n hide-m">Prix moy. short</th><th class="n">Lecture</th></tr></thead><tbody>
       ${sent.map(r=>`<tr><td class="ccy">${esc(r.symbol)}</td><td>${sentBar(r)}</td><td class="n mute">${r.positions??"—"}</td><td class="n hide-m mute">${r.avg_long??"—"}</td><td class="n hide-m mute">${r.avg_short??"—"}</td><td class="n ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}">${esc(r.signal)}</td></tr>`).join("")}
     </tbody></table></div>`:'<div class="empty">Chargement du sentiment Myfxbook… (mis à jour toutes les 5 min)</div>'}
-   </div>`;
+   </div>
+   <div class="panel"><div class="ph"><b>Positionnement institutionnel</b> · rapport COT de la CFTC${COT?.updated?" · MAJ "+fDs.format(new Date(COT.updated*1000)):""}</div>
+    ${COT?.rows?.length?cotTable(COT.rows):'<div class="empty">Chargement du rapport COT…</div>'}
+    <p class="note" style="padding:0 12px 12px"><b>Banques (dealers)</b> : grandes banques et intermédiaires, souvent en contrepartie de leurs clients (couverture). <b>Asset managers</b> : fonds de pension, fonds communs, assureurs. <b>Hedge funds</b> : argent spéculatif, le groupe le plus suivi pour le sentiment. Barre = % long vs short, « sem. » = variation de la position nette sur la semaine. Indice 6 mois : 0 = position la plus courte des 26 dernières semaines, 100 = la plus longue (au-dessus de 90 ou sous 10 = positionnement extrême, risque de retournement). Données au mardi, publiées le vendredi 15 h 30.</p></div>`;
   el.querySelector("thead").onclick=e=>{const th=e.target.closest("th");if(!th)return;const k=th.dataset.k;if(k==="code")return;
     MX_SORT=MX_SORT.key===k?{key:k,dir:-MX_SORT.dir}:{key:k,dir:-1};store.set("mxSort",MX_SORT);renderMacro();};
   el.querySelector("tbody").onclick=e=>{const tr=e.target.closest("tr");if(tr){show("devises");openCurrency(tr.dataset.c)}};

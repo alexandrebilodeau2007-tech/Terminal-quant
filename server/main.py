@@ -12,7 +12,7 @@ from datetime import timedelta
 
 from fastapi.responses import Response
 
-from . import calendar_data as cal, engine, push, weekly, seasonality, storage, sentiment, macro, indicators, fiches
+from . import calendar_data as cal, engine, push, weekly, seasonality, storage, sentiment, macro, indicators, fiches, cot
 from .config import WEB_DIR, APP_TOKEN, PORT, TIMEZONE, ANTHROPIC_API_KEY, TE_API_KEY
 from .countries import CURRENCIES
 
@@ -193,6 +193,19 @@ def get_sentiment():
     return {"configured": bool(data and data.get("rows")) or sentiment.configured(), "data": data}
 
 
+@app.get("/api/cot")
+def get_cot():
+    return cot.latest() or {"rows": []}
+
+
+@app.post("/api/cot/refresh")
+async def cot_refresh():
+    try:
+        return await asyncio.to_thread(cot.refresh)
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
 @app.get("/api/sentiment/probe")
 def sentiment_probe():
     """Vérifie quelles sources de sentiment répondent depuis ce serveur."""
@@ -254,7 +267,7 @@ def dashboard():
     srows = [r for r in sent.get("rows", []) if r["symbol"] in majors]
     return {"upcoming": [enrich(e) for e in upcoming], "released": [enrich(e) for e in released], "stances": stances,
             "news": engine.news_items()[:10], "headline": wk.get("headline"), "counts": wk.get("counts"),
-            "sentiment": srows, "sentiment_configured": bool(sent.get("rows")) or sentiment.configured()}
+            "cot": (cot.latest() or {}).get("rows", []), "sentiment": srows, "sentiment_configured": bool(sent.get("rows")) or sentiment.configured()}
 
 
 @app.get("/api/seasonality/symbols")

@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from . import calendar_data as cal, central_banks, push, storage, weekly, sources, sentiment
+from . import calendar_data as cal, central_banks, push, storage, weekly, sources, sentiment, cot
 from .config import (TIMEZONE, REMINDER_MINUTES, FAST_POLL_SECONDS, RELEASE_TIMEOUT_MINUTES,
                      WEEK_REFRESH_MINUTES, NEWS_REFRESH_MINUTES, WEEKLY_DAY, WEEKLY_HOUR, FJ_REFRESH_SECONDS)
 from .countries import CURRENCIES
@@ -14,7 +14,7 @@ from .countries import CURRENCIES
 log = logging.getLogger("engine")
 TZ = ZoneInfo(TIMEZONE)
 
-STATE = {"last_week": 0.0, "last_history": 0.0, "last_news": 0.0, "last_fj": 0.0, "last_sent": 0.0, "last_poll": {}, "running": False,
+STATE = {"last_week": 0.0, "last_history": 0.0, "last_news": 0.0, "last_fj": 0.0, "last_sent": 0.0, "last_cot": 0.0, "last_poll": {}, "running": False,
          "last_error": None}
 
 
@@ -230,6 +230,12 @@ async def loop():
                     await asyncio.to_thread(sentiment.refresh)
                 except Exception as ex:
                     log.info("Sentiment: %s", ex)
+            if time.time() - STATE["last_cot"] > 6 * 3600:
+                STATE["last_cot"] = time.time()
+                try:
+                    await asyncio.to_thread(cot.refresh)
+                except Exception as ex:
+                    log.info("COT: %s", ex)
             if time.time() - STATE["last_news"] > NEWS_REFRESH_MINUTES * 60:
                 await asyncio.to_thread(refresh_news)
             if time.time() - STATE["last_history"] > 12 * 3600:
