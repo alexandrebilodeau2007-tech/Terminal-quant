@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="icon" href="/icons/icon-192.png">
 <title>Macro Terminal</title>
-<link rel="stylesheet" href="/styles.css?v=4">
+<link rel="stylesheet" href="/styles.css?v=5">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
 </head>
@@ -27,9 +27,11 @@
   </div>
   <div class="tape" id="tape"></div>
   <nav class="tabs" id="tabs">
-    <button data-v="semaine" class="on"><span class="ic">◧</span>SEMAINE</button>
+    <button data-v="accueil" class="on"><span class="ic">⌂</span>ACCUEIL</button>
+    <button data-v="semaine"><span class="ic">◧</span>SEMAINE</button>
     <button data-v="calendrier"><span class="ic">☷</span>CALENDRIER</button>
     <button data-v="nouvelles"><span class="ic">≡</span>NOUVELLES</button>
+    <button data-v="macro"><span class="ic">▤</span>MACRO</button>
     <button data-v="devises"><span class="ic">¤</span>DEVISES</button>
     <button data-v="graphiques"><span class="ic">◩</span>GRAPHIQUES</button>
     <button data-v="saison"><span class="ic">∿</span>SAISONNALITÉ</button>
@@ -38,8 +40,14 @@
 </header>
 
 <main>
+  <!-- ACCUEIL -->
+  <section class="view on" id="v-accueil"></section>
+
   <!-- SEMAINE -->
-  <section class="view on" id="v-semaine"></section>
+  <section class="view" id="v-semaine"></section>
+
+  <!-- MACRO -->
+  <section class="view" id="v-macro"></section>
 
   <!-- CALENDRIER -->
   <section class="view" id="v-calendrier">
@@ -103,6 +111,6 @@
   <section class="view" id="v-alertes"></section>
 </main>
 <div class="toast" id="toast"></div>
-<script src="/app.js?v=4"></script>
+<script src="/app.js?v=5"></script>
 </body>
 </html>

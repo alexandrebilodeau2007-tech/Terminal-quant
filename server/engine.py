@@ -1,11 +1,12 @@
 """Boucle d'arrière-plan : rafraîchit les données, envoie rappels + chiffres réels, et l'analyse du dimanche."""
 import asyncio
 import logging
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from . import calendar_data as cal, central_banks, push, storage, weekly, sources
+from . import calendar_data as cal, central_banks, push, storage, weekly, sources, sentiment
 from .config import (TIMEZONE, REMINDER_MINUTES, FAST_POLL_SECONDS, RELEASE_TIMEOUT_MINUTES,
                      WEEK_REFRESH_MINUTES, NEWS_REFRESH_MINUTES, WEEKLY_DAY, WEEKLY_HOUR, FJ_REFRESH_SECONDS)
 from .countries import CURRENCIES
@@ -13,7 +14,7 @@ from .countries import CURRENCIES
 log = logging.getLogger("engine")
 TZ = ZoneInfo(TIMEZONE)
 
-STATE = {"last_week": 0.0, "last_history": 0.0, "last_news": 0.0, "last_fj": 0.0, "last_poll": {}, "running": False,
+STATE = {"last_week": 0.0, "last_history": 0.0, "last_news": 0.0, "last_fj": 0.0, "last_sent": 0.0, "last_poll": {}, "running": False,
          "last_error": None}
 
 
@@ -66,16 +67,43 @@ def reminder_text(e):
     return title, body
 
 
+SPEECH_RE = re.compile(r"\b(speaks?|speech|testif(y|ies)|testimony|press conference|hearing|remarks|"
+                       r"parliament|senate|congress|semi-annual|monetary policy report|statement)\b", re.I)
+
+
+def is_speech(e):
+    return bool(SPEECH_RE.search(e.get("title", "")))
+
+
 def release_text(e):
+    """Couleur façon Forex Factory : 🟢 bon pour la devise, 🔴 mauvais, ⚪ en ligne."""
     s = e.get("surprise")
-    arrow = ""
+    ccy = e["currency"]
     if s:
-        arrow = "▲" if s["diff"] > 0 else ("▼" if s["diff"] < 0 else "=")
-    title = f"{_dot(e['impact'])} {_flag(e['currency'])} {e['currency']} {e['title']} : {e['actual_str']} {arrow}".strip()
-    body = f"Réel {e['actual_str']} · Consensus {e['forecast_str']} · Préc. {e['previous_str']}"
+        color = {"positif": "🟢", "négatif": "🔴"}.get(s["ccy_bias"], "⚪")
+        verdict = {"positif": f"BON pour le {ccy}", "négatif": f"MAUVAIS pour le {ccy}"}.get(s["ccy_bias"], f"neutre pour le {ccy}")
+    else:
+        color, verdict = "⚪", "pas de consensus"
+    title = f"{color} {_flag(ccy)} {ccy} {e['title']} : {e['actual_str']}"
+    body = f"{verdict.upper()} · Réel {e['actual_str']} vs consensus {e['forecast_str']} (préc. {e['previous_str']})"
     if s:
-        body += f"\n{s['label']} ({s['diff_str']}) → lecture brute {s['ccy_bias']} pour le {e['currency']}"
+        body += f" · écart {s['diff_str']}"
     return title, body
+
+
+def live_text(e):
+    """Notification « en direct » pour les discours de banquiers centraux."""
+    ccy = e["currency"]
+    who = re.sub(r"\s*(speaks?|speech|testifies)\s*$", "", e["title"], flags=re.I).strip()
+    bank = CURRENCIES.get(ccy, {}).get("bank", "")
+    title = f"🎙️ EN DIRECT · {_flag(ccy)} {who}"
+    body = f"{bank} ({ccy}) parle maintenant. Surveille la volatilité sur le {ccy}."
+    return title, body
+
+
+def live_url(e):
+    from urllib.parse import quote
+    return "https://www.youtube.com/results?search_query=" + quote(e["title"] + " live") + "&sp=EgJAAQ%253D%253D"
 
 
 def refresh_week():
@@ -149,6 +177,13 @@ def check_alerts():
             title, body = reminder_text(e)
             push.send(title, body, tag=rk, url="/#calendrier", kind="reminder", currency=e["currency"], impact=e["impact"])
             _mark(rk)
+        if is_speech(e):
+            lk = f"live:{e['id']}"
+            if -RELEASE_TIMEOUT_MINUTES * 60 < dt <= 30 and lk not in sent:
+                title, body = live_text(e)
+                push.send(title, body, tag=lk, url=live_url(e), kind="live", currency=e["currency"], impact=e["impact"])
+                _mark(lk)
+            continue
         if dt <= 0 and ak not in sent:
             if -dt > RELEASE_TIMEOUT_MINUTES * 60:
                 _mark(ak)  # trop vieux / jamais publié : on abandonne sans notifier
@@ -189,6 +224,12 @@ async def loop():
                 await asyncio.to_thread(refresh_week)
             if time.time() - STATE["last_fj"] > FJ_REFRESH_SECONDS:
                 await asyncio.to_thread(refresh_fj)
+            if time.time() - STATE["last_sent"] > 300:
+                STATE["last_sent"] = time.time()
+                try:
+                    await asyncio.to_thread(sentiment.refresh)
+                except Exception as ex:
+                    log.info("Sentiment: %s", ex)
             if time.time() - STATE["last_news"] > NEWS_REFRESH_MINUTES * 60:
                 await asyncio.to_thread(refresh_news)
             if time.time() - STATE["last_history"] > 12 * 3600:

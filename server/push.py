@@ -14,7 +14,7 @@ _lock = threading.RLock()
 KEY_FILE = "vapid_private.pem"
 
 DEFAULT_PREFS = {"currencies": ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "NZD", "CHF", "CNY"],
-                 "impacts": ["high", "medium"], "reminder": True, "release": True, "weekly": True}
+                 "impacts": ["high", "medium"], "reminder": True, "release": True, "weekly": True, "live": True}
 
 
 def _ensure_keys():
@@ -80,7 +80,7 @@ def send(title: str, body: str, *, tag: str | None = None, url: str = "/", kind:
     sent, dead = 0, []
     for sid, s in subscriptions().items():
         p = s["prefs"]
-        if kind in ("reminder", "release", "weekly") and not p.get(kind, True):
+        if kind in ("reminder", "release", "weekly", "live") and not p.get(kind, True):
             continue
         if currency and currency not in p.get("currencies", []):
             continue

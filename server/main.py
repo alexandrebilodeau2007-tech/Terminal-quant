@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import calendar_data as cal, engine, push, weekly, seasonality, storage
+from . import calendar_data as cal, engine, push, weekly, seasonality, storage, sentiment, macro
 from .config import WEB_DIR, APP_TOKEN, PORT, TIMEZONE, ANTHROPIC_API_KEY, TE_API_KEY
 from .countries import CURRENCIES
 
@@ -108,6 +108,69 @@ def news(ccy: str | None = None, source: str | None = None, limit: int = 120):
         kw = CURRENCIES[ccy.upper()]["keywords"]
         items = [n for n in items if any(k in f" {n['title']} ".lower() for k in kw)]
     return items[:limit]
+
+
+@app.get("/api/macro")
+def macro_table():
+    hist = cal.load_history()
+    week = cal.load_week()["events"]
+    by_id = {e["id"]: e for e in hist}
+    by_id.update({e["id"]: e for e in week})
+    evs = sorted(by_id.values(), key=lambda e: e["time"])
+    return macro.table(evs, engine.overviews())
+
+
+@app.get("/api/sentiment")
+def get_sentiment():
+    return {"configured": sentiment.configured(), "data": sentiment.latest()}
+
+
+@app.post("/api/sentiment/refresh")
+async def sentiment_refresh():
+    try:
+        return {"ok": True, "data": await asyncio.to_thread(sentiment.refresh)}
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/settings")
+def get_settings():
+    s = storage.load("settings.json", {})
+    return {"myfxbook_email": s.get("myfxbook_email", ""), "myfxbook_configured": sentiment.configured()}
+
+
+@app.post("/api/settings")
+async def set_settings(req: Request):
+    body = await req.json()
+    s = storage.load("settings.json", {})
+    for k in ("myfxbook_email", "myfxbook_password"):
+        if body.get(k) is not None:
+            s[k] = str(body[k]).strip()
+    storage.save("settings.json", s)
+    sentiment._state["session"] = None
+    return {"ok": True, "myfxbook_configured": sentiment.configured()}
+
+
+@app.get("/api/dashboard")
+def dashboard():
+    from datetime import timedelta
+    w = cal.load_week()
+    now = datetime.now(timezone.utc)
+    evs = [e for e in w["events"] if e["impact"] in ("high", "medium")]
+    upcoming = [e for e in evs if cal.parse_time(e["time"]) >= now - timedelta(minutes=5) and not e.get("released")][:8]
+    released = sorted([e for e in evs if e.get("released") and cal.parse_time(e["time"]) >= now - timedelta(hours=36)],
+                      key=lambda e: e["time"], reverse=True)[:10]
+    ovs = engine.overviews()
+    stances = [{"code": c, "flag": o["flag"], "label": o["stance"]["label"], "score": o["stance"]["score"],
+                "rate": (o.get("policy_rate") or {}).get("rate"), "red": o["red_count"], "orange": o["orange_count"]}
+               for c, o in ovs.items()]
+    wk = weekly.latest() or {}
+    sent = sentiment.latest() or {}
+    majors = ["EURUSD", "GBPUSD", "USDJPY", "USDCAD", "AUDUSD", "NZDUSD", "USDCHF", "XAUUSD"]
+    srows = [r for r in sent.get("rows", []) if r["symbol"] in majors]
+    return {"upcoming": upcoming, "released": released, "stances": stances,
+            "news": engine.news_items()[:10], "headline": wk.get("headline"), "counts": wk.get("counts"),
+            "sentiment": srows, "sentiment_configured": sentiment.configured()}
 
 
 @app.get("/api/seasonality/symbols")

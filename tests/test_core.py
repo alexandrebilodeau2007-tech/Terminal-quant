@@ -26,6 +26,7 @@ WEEK = [
     tv("4", NOW + timedelta(hours=5), "DE", "ZEW Economic Sentiment Index", 0, 40.0, 39.3),
     tv("5", NOW + timedelta(hours=6), "US", "Initial Jobless Claims", 0, 225, 230, scale="K"),
     tv("6", NOW - timedelta(hours=3), "US", "Non Farm Payrolls", 1, 65, 60, actual=165, scale="K"),
+    tv("7", NOW - timedelta(minutes=1), "GB", "BoE Gov Bailey Speaks", 1, None, None),
 ]
 HISTORY = [
     tv("h1", NOW - timedelta(days=200), "US", "Fed Interest Rate Decision", 1, 4.25, 4.5, actual=4.25, unit="%"),
@@ -100,6 +101,7 @@ def test_pipeline():
     engine.check_alerts()
     kinds = [k["kind"] for _, _, k in SENT]
     assert "reminder" in kinds, SENT
+    assert "live" in kinds, "notification en direct pour un discours"
     assert state["fast"], "fast poll lancé"
     rel = [t for t, b, k in SENT if k["kind"] == "release"]
     assert any("Unemployment" in t and "6.9%" in t for t in rel), rel
@@ -137,6 +139,13 @@ def test_api():
     assert any(n["source"] == "FinancialJuice" for n in c.get("/api/news").json())
     assert c.get("/api/news?ccy=EUR&source=FinancialJuice").json()[0]["title"].startswith("ECB")
     assert len(c.get("/api/push/key").json()["key"]) > 80
+    mx = c.get("/api/macro").json()
+    assert len(mx["rows"]) == 9 and mx["columns"][0]["key"] == "rate"
+    usd = next(r for r in mx["rows"] if r["code"] == "USD")
+    assert usd["rate"]["value"] == 4.0 and usd["cpi"]["str"] == "3.1%", usd
+    d = c.get("/api/dashboard").json()
+    assert "upcoming" in d and len(d["stances"]) == 9
+    assert c.get("/api/sentiment").json()["configured"] is False
     sub = {"endpoint": "https://web.push.apple.com/abc", "keys": {"p256dh": "x", "auth": "y"}}
     assert c.post("/api/push/subscribe", json={"subscription": sub}).json()["ok"]
     r = c.post("/api/push/prefs", json={"endpoint": sub["endpoint"], "prefs": {"currencies": ["USD"]}}).json()

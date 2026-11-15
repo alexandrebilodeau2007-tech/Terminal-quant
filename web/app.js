@@ -72,6 +72,8 @@ function show(v){
   if(v==="graphiques") renderCharts();
   if(v==="devises") loadCurrencies();
   if(v==="nouvelles") loadNews();
+  if(v==="accueil") loadDashboard();
+  if(v==="macro") loadMacro();
   if(v==="alertes") renderAlerts();
   if(v==="saison") initSeason();
   window.scrollTo(0,0);
@@ -228,6 +230,65 @@ async function loadNews(){
 $("#newsCcy").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;NEWS_F.ccy=b.dataset.c;store.set("newsFilter",NEWS_F);loadNews()});
 $("#newsSrc").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;NEWS_F.src=b.dataset.s;store.set("newsFilter",NEWS_F);loadNews()});
 
+
+/* ---------------- accueil (tableau de bord) ---------------- */
+function verdict(e){
+  const b=e.surprise?.ccy_bias;
+  return b==="positif"?`<span class="verdict good">BON ${e.currency}</span>`:b==="négatif"?`<span class="verdict bad">MAUVAIS ${e.currency}</span>`:`<span class="verdict neu">NEUTRE</span>`;
+}
+function countdown(t){const ms=new Date(t).getTime()-Date.now(); if(ms<=0) return "EN COURS"; const h=Math.floor(ms/3.6e6),m=Math.floor(ms%3.6e6/6e4); return h>23?Math.floor(h/24)+"j "+(h%24)+"h":h?`${h}h${String(m).padStart(2,"0")}`:`${m} min`;}
+function sentBar(r){return `<div class="sbar"><div class="l" style="width:${r.long}%">${r.long>14?r.long+"%":""}</div><div class="s" style="width:${r.short}%">${r.short>14?r.short+"%":""}</div></div>`}
+async function loadDashboard(){
+  const el=$("#v-accueil"); let d;
+  try{ d=await api("/api/dashboard"); }catch{ return }
+  el.innerHTML=`<div class="dash">
+   ${d.headline?`<div class="panel c12"><div class="ph"><b>Cette semaine</b> · ${d.counts?d.counts.red+" 🔴 · "+d.counts.orange+" 🟠":""}<div class="r"><button class="chip" onclick="show('semaine')">ANALYSE →</button></div></div><div class="pb"><div class="headline">${esc(d.headline)}</div></div></div>`:""}
+   <div class="panel c6"><div class="ph"><b>Prochaines annonces</b> · 🔴/🟠<div class="r"><button class="chip" onclick="show('calendrier')">CALENDRIER →</button></div></div>
+     ${d.upcoming.map(e=>`<div class="li"><span class="t">${fDs.format(new Date(e.time)).replace(".","")} ${fT.format(new Date(e.time))}</span><i class="imp ${e.impact}"></i><span class="ccy">${e.currency}</span><span class="grow">${esc(e.title)}</span><span class="v mute">${esc(e.forecast_str)}</span><span class="cd">${countdown(e.time)}</span></div>`).join("")||'<div class="empty">Rien à venir.</div>'}</div>
+   <div class="panel c6"><div class="ph"><b>Derniers chiffres</b> · réel vs consensus</div>
+     ${d.released.map(e=>`<div class="li"><span class="t">${fT.format(new Date(e.time))}</span><span class="ccy">${e.currency}</span><span class="grow">${esc(e.title)}</span><span class="v"><b>${esc(e.actual_str)}</b> <span class="mute">/ ${esc(e.forecast_str)}</span></span>${verdict(e)}</div>`).join("")||'<div class="empty">Aucun chiffre publié récemment.</div>'}</div>
+   <div class="panel c12"><div class="ph"><b>Banques centrales</b> · ton et semaine<div class="r"><button class="chip" onclick="show('macro')">MACRO →</button></div></div>
+     <div class="stgrid">${d.stances.sort((a,b)=>b.score-a.score).map(x=>`<div class="st" onclick="show('devises');openCurrency('${x.code}')" style="cursor:pointer"><div class="c">${x.flag} ${x.code}</div><div class="r">${x.rate!=null?x.rate+"%":"—"} · ${x.red}🔴 ${x.orange}🟠</div>${stanceBadge(x)}</div>`).join("")}</div></div>
+   <div class="panel c6"><div class="ph"><b>Sentiment retail</b> · % long / % short</div>
+     ${d.sentiment_configured?(d.sentiment.map(r=>`<div class="li"><span class="ccy" style="min-width:64px">${esc(r.symbol)}</span><span class="grow">${sentBar(r)}</span><span class="v ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}" style="font-size:10px">${esc(r.signal)}</span></div>`).join("")||'<div class="empty">Chargement…</div>'):'<div class="empty">Connecte ton compte Myfxbook gratuit dans l\'onglet ALERTES pour voir le % de traders long/short.</div>'}</div>
+   <div class="panel c6"><div class="ph"><b>Fil de nouvelles</b><div class="r"><button class="chip" onclick="show('nouvelles')">TOUT →</button></div></div>
+     <div class="pb news" style="padding-top:0">${d.news.map(n=>`<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}<small>${n.time?fT.format(new Date(n.time)):""} · ${esc(n.source||"")}</small></a>`).join("")}</div></div>
+  </div>`;
+}
+function stanceBadgeLbl(l){return `<span class="badge ${String(l).toLowerCase()}">${esc(l)}</span>`}
+
+/* ---------------- macro (comparatif pays + triage) ---------------- */
+let MX=null, MX_SORT=store.get("mxSort",{key:"rate",dir:-1}), SENT=null;
+async function loadMacro(){
+  const el=$("#v-macro");
+  try{ MX=await api("/api/macro"); SENT=await api("/api/sentiment"); }catch{ el.innerHTML='<div class="empty">Serveur injoignable.</div>'; return }
+  renderMacro();
+}
+function mxVal(r,k){ const c=r[k]; if(!c) return null; if(k==="stance") return c.score; return c.value ?? null; }
+function renderMacro(){
+  const el=$("#v-macro"); const cols=MX.columns;
+  const rows=[...MX.rows].sort((a,b)=>{const x=mxVal(a,MX_SORT.key),y=mxVal(b,MX_SORT.key); if(x==null) return 1; if(y==null) return -1; return (x-y)*MX_SORT.dir;});
+  const cell=(r,k)=>{const c=r[k]; if(!c) return '<span class="dim">—</span>';
+    if(k==="stance") return stanceBadgeLbl(c.label);
+    if(k==="rate") return `${esc(c.str)}${c.change?` <span class="${c.change>0?"neg":"pos"}" style="font-size:10px">${c.change>0?"+":""}${c.change}pb</span>`:""}`;
+    const cls=c.bias==="positif"?"heat-pos":c.bias==="négatif"?"heat-neg":"";
+    return `<span class="${cls}" title="${esc(c.period||"")} · préc. ${esc(c.prev)}">${esc(c.str)}</span>`;};
+  const sent=SENT?.data?.rows||[];
+  el.innerHTML=`
+   <div class="panel"><div class="ph"><b>Macro comparée</b> · clique sur une colonne pour trier · vert/rouge = dernier chiffre bon/mauvais pour la devise</div>
+    <div style="overflow-x:auto"><table class="cal mx"><thead><tr><th data-k="code">Devise</th>${cols.map(c=>`<th class="n ${MX_SORT.key===c.key?"sorted":""}" data-k="${c.key}">${esc(c.label)}${MX_SORT.key===c.key?(MX_SORT.dir>0?" ▲":" ▼"):""}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r=>`<tr style="cursor:pointer" data-c="${r.code}"><td><span class="ccy">${r.flag} ${r.code}</span> <small class="dim">${esc(r.bank.split("(")[0])}</small></td>${cols.map(c=>`<td class="n">${cell(r,c.key)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    <p class="note" style="padding:0 12px 12px">Source : calendrier TradingView (données Trading Economics). Touche une ligne pour ouvrir la fiche du pays.</p></div>
+   <div class="panel"><div class="ph"><b>Sentiment retail</b> · Myfxbook Community Outlook${SENT?.data?.updated?" · MAJ "+fT.format(new Date(SENT.data.updated*1000)):""}</div>
+    ${SENT?.configured?`<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Paire</th><th style="min-width:180px">Long / Short</th><th class="n">Positions</th><th class="n hide-m">Prix moy. long</th><th class="n hide-m">Prix moy. short</th><th class="n">Lecture</th></tr></thead><tbody>
+      ${sent.map(r=>`<tr><td class="ccy">${esc(r.symbol)}</td><td>${sentBar(r)}</td><td class="n mute">${r.positions??"—"}</td><td class="n hide-m mute">${r.avg_long??"—"}</td><td class="n hide-m mute">${r.avg_short??"—"}</td><td class="n ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}">${esc(r.signal)}</td></tr>`).join("")}
+    </tbody></table></div>`:'<div class="empty">Connecte ton compte Myfxbook gratuit dans l\'onglet ALERTES.</div>'}
+   </div>`;
+  el.querySelector("thead").onclick=e=>{const th=e.target.closest("th");if(!th)return;const k=th.dataset.k;if(k==="code")return;
+    MX_SORT=MX_SORT.key===k?{key:k,dir:-MX_SORT.dir}:{key:k,dir:-1};store.set("mxSort",MX_SORT);renderMacro();};
+  el.querySelector("tbody").onclick=e=>{const tr=e.target.closest("tr");if(tr){show("devises");openCurrency(tr.dataset.c)}};
+}
+
 /* ---------------- devises ---------------- */
 function stanceBadge(s){const l=(s?.label||"—");return `<span class="badge ${l.toLowerCase()}">${esc(l)}</span>`}
 async function loadCurrencies(){
@@ -355,7 +416,9 @@ async function renderAlerts(){
   const supported="serviceWorker" in navigator && "PushManager" in window;
   const sub=supported? await currentSub():null;
   let prefs=null; if(sub){ try{ prefs=(await api("/api/push/get",{method:"POST",body:JSON.stringify({endpoint:sub.endpoint})})).prefs }catch{} }
-  prefs = prefs || {currencies:[...CCYS],impacts:["high","medium"],reminder:true,release:true,weekly:true};
+  prefs = prefs || {currencies:[...CCYS],impacts:["high","medium"],reminder:true,release:true,weekly:true,live:true};
+  if(prefs.live===undefined) prefs.live=true;
+  let st={}; try{ st=await api("/api/settings"); }catch{}
   el.innerHTML=`
    ${isIOS&&!standalone?`<div class="ios"><b>📱 Sur iPhone :</b> les notifications fonctionnent seulement si le site est installé.<br>
      1. Touche <b>Partager</b> (carré avec flèche) dans Safari<br>2. <b>Sur l'écran d'accueil</b><br>3. Ouvre l'app <b>Macro</b> depuis l'écran d'accueil, puis reviens ici et touche <b>Activer</b>.</div>`:""}
@@ -378,9 +441,14 @@ async function renderAlerts(){
      <div class="mono mute" style="font-size:11px;margin:12px 0 6px">IMPACT</div>
      <div class="chips" id="pImp">${[["high","🔴 ROUGE"],["medium","🟠 ORANGE"]].map(([k,l])=>`<button class="chip ${prefs.impacts.includes(k)?"on":""}" data-i="${k}">${l}</button>`).join("")}</div>
      <div class="mono mute" style="font-size:11px;margin:12px 0 6px">TYPES</div>
-     <div class="chips" id="pType">${[["reminder","⏰ RAPPEL AVANT"],["release","📈 CHIFFRE RÉEL"],["weekly","📊 ANALYSE DIMANCHE"]].map(([k,l])=>`<button class="chip ${prefs[k]?"on":""}" data-t="${k}">${l}</button>`).join("")}</div>
+     <div class="chips" id="pType">${[["reminder","⏰ RAPPEL AVANT"],["release","🟢🔴 CHIFFRE RÉEL"],["live","🎙️ BANQUIERS EN DIRECT"],["weekly","📊 ANALYSE DIMANCHE"]].map(([k,l])=>`<button class="chip ${prefs[k]?"on":""}" data-t="${k}">${l}</button>`).join("")}</div>
      <div style="margin-top:14px"><button class="btn" id="pSave" ${!sub?"disabled":""}>ENREGISTRER</button></div>
    </div></div>
+   <div class="panel"><div class="ph"><b>Sentiment retail</b> · compte Myfxbook ${st.myfxbook_configured?'<span class="badge dovish">CONNECTÉ</span>':'<span class="badge neutre">NON CONNECTÉ</span>'}</div><div class="pb">
+     <p class="note" style="margin-top:0">Crée un compte gratuit sur myfxbook.com, puis entre tes identifiants ici. Ils restent sur ton serveur et servent seulement à lire le « Community Outlook » (% de traders long/short).</p>
+     <div class="chips"><input id="mfxE" type="email" placeholder="Courriel Myfxbook" value="${esc(st.myfxbook_email||"")}" style="flex:1;min-width:200px">
+     <input id="mfxP" type="password" placeholder="Mot de passe Myfxbook" style="flex:1;min-width:160px">
+     <button class="btn" id="mfxSave">CONNECTER</button></div></div></div>
    <div class="panel"><div class="ph"><b>État du serveur</b></div><div class="pb mono" style="font-size:12px;line-height:1.8">
      Dernière MAJ calendrier : ${h.week_updated?fDs.format(new Date(h.week_updated))+" "+fT.format(new Date(h.week_updated)):"—"}<br>
      Sources en erreur : ${h.errors?.length?`<span class="neg">${esc(h.errors.join(" | "))}</span>`:'<span class="pos">aucune</span>'}<br>
@@ -400,6 +468,11 @@ async function renderAlerts(){
   $("#pImp").onclick=e=>{const b=e.target.closest("button");if(!b)return;const i=b.dataset.i;P.impacts=P.impacts.includes(i)?P.impacts.filter(x=>x!==i):[...P.impacts,i];b.classList.toggle("on")};
   $("#pType").onclick=e=>{const b=e.target.closest("button");if(!b)return;const t=b.dataset.t;P[t]=!P[t];b.classList.toggle("on")};
   $("#pSave").onclick=async()=>{const s=await currentSub();if(!s)return;await api("/api/push/prefs",{method:"POST",body:JSON.stringify({endpoint:s.endpoint,prefs:P})});toast("Préférences enregistrées")};
+  $("#mfxSave").onclick=async()=>{
+    await api("/api/settings",{method:"POST",body:JSON.stringify({myfxbook_email:$("#mfxE").value,myfxbook_password:$("#mfxP").value})});
+    try{ await api("/api/sentiment/refresh",{method:"POST"}); toast("Myfxbook connecté ✅"); }catch(e){ toast("Échec Myfxbook : "+e.message.slice(0,60)); }
+    renderAlerts();
+  };
   $("#pushTest").onclick=async()=>{const r=await api("/api/push/test",{method:"POST"});toast(r.sent?"Test envoyé":"Aucun abonné")};
   $("#pushOn").onclick=async()=>{
     try{
@@ -417,7 +490,7 @@ async function renderAlerts(){
 if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js",{scope:"/"}).catch(console.warn);
 renderFilters(); initTape(); health(); tick();
 loadCal().then(loadWeekly);
-const startView=(location.hash||"#semaine").slice(1); show(["semaine","calendrier","nouvelles","devises","graphiques","saison","alertes"].includes(startView)?startView:"semaine");
-setInterval(()=>{ if(!document.hidden){ loadCal(); if($("#v-nouvelles").classList.contains("on")) loadNews(); } }, 20000);
+const startView=(location.hash||"#accueil").slice(1); show(["accueil","semaine","calendrier","nouvelles","macro","devises","graphiques","saison","alertes"].includes(startView)?startView:"accueil");
+setInterval(()=>{ if(!document.hidden){ loadCal(); if($("#v-nouvelles").classList.contains("on")) loadNews(); if($("#v-accueil").classList.contains("on")) loadDashboard(); } }, 20000);
 setInterval(()=>{ if(!document.hidden){ health(); } }, 60000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ loadCal(); health(); } });
