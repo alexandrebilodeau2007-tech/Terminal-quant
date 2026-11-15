@@ -365,6 +365,31 @@ function cotCell(g){ if(!g) return '<span class="dim">—</span>';
   return `<div style="min-width:130px">${sentBar({long:g.pct_long,short:100-g.pct_long})}<div class="mono" style="font-size:10px;margin-top:3px"><span class="${g.net>0?"pos":"neg"}">net ${kfmt(g.net)}</span> <span class="mute">· sem. ${kfmt(g.change)}</span></div></div>`; }
 function cotRead(r){ const g=r.groups.lev; if(!g||g.index==null) return '<span class="mute">—</span>';
   return g.index>=90?'<span class="pos">TRÈS LONG (extrême)</span>':g.index<=10?'<span class="neg">TRÈS COURT (extrême)</span>':g.index>=60?'<span class="pos">acheteur</span>':g.index<=40?'<span class="neg">vendeur</span>':'<span class="mute">neutre</span>'; }
+const VS_PAIRS=[["EURUSD","EUR",1],["GBPUSD","GBP",1],["USDJPY","JPY",-1],["USDCAD","CAD",-1],["AUDUSD","AUD",1],["NZDUSD","NZD",1],["USDCHF","CHF",-1]];
+function vsRows(sentRows=SENT?.data?.rows, cotRows=COT?.rows){
+  const sent=Object.fromEntries((sentRows||[]).map(r=>[r.symbol,r]));
+  const cot=Object.fromEntries((cotRows||[]).map(r=>[r.ccy,r]));
+  return VS_PAIRS.map(([pair,ccy,dir])=>{
+    const r=sent[pair], c=cot[ccy]; if(!r||!c) return null;
+    const side=g=>g?{long:dir>0?g.pct_long:100-g.pct_long, net:dir*g.net}:null;
+    const hf=side(c.groups.lev), am=side(c.groups.asset);
+    let sig="Pas de divergence", cls="mute";
+    if(hf){
+      if(r.long>=60&&hf.net<0){sig="Retail acheteurs, hedge funds vendeurs → biais BAISSIER";cls="neg"}
+      else if(r.short>=60&&hf.net>0){sig="Retail vendeurs, hedge funds acheteurs → biais HAUSSIER";cls="pos"}
+      else if(r.long>=60&&hf.net>0||r.short>=60&&hf.net<0){sig="Tout le monde du même côté";cls="mute"}
+    }
+    return {pair,r,hf,am,sig,cls};
+  }).filter(Boolean);
+}
+function vsTable(){
+  const rows=vsRows(); if(!rows.length) return '<div class="empty">En attente du sentiment Myfxbook et du rapport COT…</div>';
+  return `<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Paire</th><th>Retail (Myfxbook)</th><th>Hedge funds (COT)</th><th class="hide-m">Asset managers (COT)</th><th class="n">Lecture</th></tr></thead><tbody>
+  ${rows.map(x=>`<tr><td class="ccy">${x.pair}</td><td style="min-width:130px">${sentBar(x.r)}</td>
+    <td style="min-width:130px">${x.hf?sentBar({long:x.hf.long,short:100-x.hf.long}):"—"}</td>
+    <td class="hide-m" style="min-width:130px">${x.am?sentBar({long:x.am.long,short:100-x.am.long}):"—"}</td>
+    <td class="n ${x.cls}" style="font-size:11px;white-space:normal;min-width:160px">${x.sig}</td></tr>`).join("")}</tbody></table></div>`;
+}
 function cotTable(rows){
   return `<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Devise</th><th>Banques (dealers)</th><th>Asset managers</th><th>Hedge funds</th><th class="n">Indice 6 mois</th><th class="n">Lecture</th></tr></thead><tbody>
   ${rows.map(r=>`<tr><td><span class="ccy">${FLAGS[r.ccy]} ${r.ccy}</span><div class="dim mono" style="font-size:9px">${esc(r.date)}</div></td><td>${cotCell(r.groups.dealer)}</td><td>${cotCell(r.groups.asset)}</td><td>${cotCell(r.groups.lev)}</td>
@@ -384,6 +409,7 @@ async function loadDashboard(){
      <div class="stgrid">${d.stances.sort((a,b)=>b.score-a.score).map(x=>`<div class="st" onclick="show('devises');openCurrency('${x.code}')" style="cursor:pointer"><div class="c">${x.flag} ${x.code}</div><div class="r">${x.rate!=null?x.rate+"%":"—"} · ${x.red}🔴 ${x.orange}🟠</div>${stanceBadge(x)}</div>`).join("")}</div></div>
    <div class="panel c6"><div class="ph"><b>Sentiment retail</b> · % long / % short</div>
      ${d.sentiment_configured?(d.sentiment.map(r=>`<div class="li"><span class="ccy" style="min-width:64px">${esc(r.symbol)}</span><span class="grow">${sentBar(r)}</span><span class="v ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}" style="font-size:10px">${esc(r.signal)}</span></div>`).join("")||'<div class="empty">Chargement…</div>'):'<div class="empty">Chargement du sentiment Myfxbook…</div>'}</div>
+   ${(()=>{const v=vsRows(d.sentiment,d.cot).filter(x=>x.cls!=="mute");return v.length?`<div class="panel c12"><div class="ph"><b>Divergences retail vs institutionnels</b><div class="r"><button class="chip" onclick="show('macro')">DÉTAIL →</button></div></div>${v.map(x=>`<div class="li"><span class="ccy" style="min-width:64px">${x.pair}</span><span class="grow ${x.cls}" style="font-size:12px">${x.sig}</span><span class="v mono mute" style="font-size:10px">retail ${x.r.long}% long · HF ${x.hf.long}% long</span></div>`).join("")}</div>`:""})()}
    <div class="panel c6"><div class="ph"><b>Positionnement institutionnel</b> · COT hedge funds<div class="r"><button class="chip" onclick="show('macro')">DÉTAIL →</button></div></div>
      ${(d.cot||[]).map(r=>{const g=r.groups.lev; return g?`<div class="li"><span class="ccy" style="min-width:64px">${FLAGS[r.ccy]} ${r.ccy}</span><span class="grow">${sentBar({long:g.pct_long,short:100-g.pct_long})}</span><span class="v mono ${g.net>0?"pos":"neg"}" style="font-size:10px">${kfmt(g.net)}</span><span class="v mono" style="font-size:10px">${cotRead(r)}</span></div>`:""}).join("")||'<div class="empty">Chargement du rapport COT…</div>'}</div>
    <div class="panel c6"><div class="ph"><b>Fil de nouvelles</b><div class="r"><button class="chip" onclick="show('nouvelles')">TOUT →</button></div></div>
@@ -419,6 +445,9 @@ function renderMacro(){
       ${sent.map(r=>`<tr><td class="ccy">${esc(r.symbol)}</td><td>${sentBar(r)}</td><td class="n mute">${r.positions??"—"}</td><td class="n hide-m mute">${r.avg_long??"—"}</td><td class="n hide-m mute">${r.avg_short??"—"}</td><td class="n ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}">${esc(r.signal)}</td></tr>`).join("")}
     </tbody></table></div>`:'<div class="empty">Chargement du sentiment Myfxbook… (mis à jour toutes les 5 min)</div>'}
    </div>
+   <div class="panel"><div class="ph"><b>Retail vs institutionnels</b> · % long / short sur la paire</div>
+    ${vsTable()}
+    <p class="note" style="padding:0 12px 12px">Retail = traders particuliers (Myfxbook, en direct). Institutionnels = hedge funds et asset managers du rapport COT (hebdomadaire), convertis dans le sens de la paire (ex. USDJPY : position courte sur le yen = longue sur la paire). Les banques (dealers) ne sont pas comparées ici parce qu'elles sont surtout en contrepartie de leurs clients. Une divergence (retail ≥ 60 % d'un côté, hedge funds de l'autre) est un signal contrarien ; à confirmer avec ton analyse technique.</p></div>
    <div class="panel"><div class="ph"><b>Positionnement institutionnel</b> · rapport COT de la CFTC${COT?.updated?" · MAJ "+fDs.format(new Date(COT.updated*1000)):""}</div>
     ${COT?.rows?.length?cotTable(COT.rows):'<div class="empty">Chargement du rapport COT…</div>'}
     <p class="note" style="padding:0 12px 12px"><b>Banques (dealers)</b> : grandes banques et intermédiaires, souvent en contrepartie de leurs clients (couverture). <b>Asset managers</b> : fonds de pension, fonds communs, assureurs. <b>Hedge funds</b> : argent spéculatif, le groupe le plus suivi pour le sentiment. Barre = % long vs short, « sem. » = variation de la position nette sur la semaine. Indice 6 mois : 0 = position la plus courte des 26 dernières semaines, 100 = la plus longue (au-dessus de 90 ou sous 10 = positionnement extrême, risque de retournement). Données au mardi, publiées le vendredi 15 h 30.</p></div>`;
