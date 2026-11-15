@@ -104,6 +104,7 @@ def refresh():
             "signal": "Contrarien HAUSSIER" if short_p >= 65 else ("Contrarien BAISSIER" if long_p >= 65 else "Neutre"),
         })
     rows.sort(key=lambda r: -(r["positions"] or 0))
+    rows = [r for r in rows if (r["positions"] or 0) >= 200] or rows  # retire les cryptos quasi vides
     out = {"updated": time.time(), "source": source, "rows": rows}
     storage.save("sentiment.json", out)
     return out
