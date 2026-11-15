@@ -65,6 +65,7 @@ function initTape(){
 
 /* ---------------- navigation ---------------- */
 function show(v){
+  document.querySelectorAll(".modal").forEach(m=>m.remove());
   document.querySelectorAll(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));
   document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
   if(location.hash!=="#"+v) history.replaceState(null,"","#"+v);
