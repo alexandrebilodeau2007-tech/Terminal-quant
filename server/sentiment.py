@@ -4,6 +4,7 @@ Nécessite un compte Myfxbook gratuit : l'utilisateur entre son courriel et son 
 dans l'onglet Alertes du terminal (stockés seulement sur le serveur, dans data/settings.json).
 """
 import logging
+import re
 import time
 from urllib.parse import quote
 
@@ -34,9 +35,39 @@ def _login(client):
     _state["session"] = data["session"]
 
 
-def refresh():
-    if not configured():
-        return None
+OUTLOOK_URL = "https://www.myfxbook.com/community/outlook"
+_ROW = re.compile(
+    r"([A-Z]{6}|XAUUSD|XAGUSD)\s+([\d.]+)\s+[+-]?\d+\s*pips\s+([\d.]+)\s+[+-]?\d+\s*pips\s+([\d.]+)\s+"
+    r"Symbol\s+Action\s+Percentage\s+Volume\s+Positions\s+\1\s+Short\s+(\d+)%\s+([\d.]+)\s*lots\s+(\d+)\s+"
+    r"Long\s+(\d+)%\s+([\d.]+)\s*lots\s+(\d+)", re.I)
+
+
+def parse_outlook(html: str) -> list[dict]:
+    """Lit la page publique Community Outlook (aucun compte requis)."""
+    txt = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html, flags=re.S | re.I)
+    txt = re.sub(r"<[^>]+>", " ", txt)
+    txt = re.sub(r"&nbsp;|&#160;", " ", txt)
+    txt = re.sub(r"\s+", " ", txt)
+    rows = []
+    for m in _ROW.finditer(txt):
+        sym, avg_s, avg_l, price, sp, sv, spos, lp, lv, lpos = m.groups()
+        rows.append({"name": sym.upper(), "avgShortPrice": float(avg_s), "avgLongPrice": float(avg_l),
+                     "shortPercentage": int(sp), "longPercentage": int(lp),
+                     "shortVolume": float(sv), "longVolume": float(lv),
+                     "totalPositions": int(spos) + int(lpos), "price": float(price)})
+    return rows
+
+
+def _scrape():
+    with httpx.Client(timeout=20, follow_redirects=True, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9"}) as c:
+        r = c.get(OUTLOOK_URL)
+        r.raise_for_status()
+    return parse_outlook(r.text)
+
+
+def _api():
     with httpx.Client(timeout=20, headers={"User-Agent": "Mozilla/5.0"}) as c:
         if not _state["session"]:
             _login(c)
@@ -47,8 +78,21 @@ def refresh():
             data = c.get(f"{API}/get-community-outlook.json?session={_state['session']}").json()
         if data.get("error"):
             raise RuntimeError(data.get("message", "Erreur Myfxbook"))
+    return data.get("symbols", [])
+
+
+def refresh():
+    symbols, source, err = [], "", None
+    try:
+        symbols, source = _scrape(), "Myfxbook Community Outlook (page publique)"
+    except Exception as e:
+        err = e
+    if not symbols and configured():
+        symbols, source = _api(), "Myfxbook Community Outlook (API)"
+    if not symbols:
+        raise RuntimeError(f"Sentiment indisponible: {err}")
     rows = []
-    for s in data.get("symbols", []):
+    for s in symbols:
         long_p = float(s.get("longPercentage", 0))
         short_p = float(s.get("shortPercentage", 0))
         rows.append({
@@ -60,7 +104,7 @@ def refresh():
             "signal": "Contrarien HAUSSIER" if short_p >= 65 else ("Contrarien BAISSIER" if long_p >= 65 else "Neutre"),
         })
     rows.sort(key=lambda r: -(r["positions"] or 0))
-    out = {"updated": time.time(), "source": "Myfxbook Community Outlook", "rows": rows}
+    out = {"updated": time.time(), "source": source, "rows": rows}
     storage.save("sentiment.json", out)
     return out
 

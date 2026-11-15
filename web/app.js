@@ -250,7 +250,7 @@ async function loadDashboard(){
    <div class="panel c12"><div class="ph"><b>Banques centrales</b> · ton et semaine<div class="r"><button class="chip" onclick="show('macro')">MACRO →</button></div></div>
      <div class="stgrid">${d.stances.sort((a,b)=>b.score-a.score).map(x=>`<div class="st" onclick="show('devises');openCurrency('${x.code}')" style="cursor:pointer"><div class="c">${x.flag} ${x.code}</div><div class="r">${x.rate!=null?x.rate+"%":"—"} · ${x.red}🔴 ${x.orange}🟠</div>${stanceBadge(x)}</div>`).join("")}</div></div>
    <div class="panel c6"><div class="ph"><b>Sentiment retail</b> · % long / % short</div>
-     ${d.sentiment_configured?(d.sentiment.map(r=>`<div class="li"><span class="ccy" style="min-width:64px">${esc(r.symbol)}</span><span class="grow">${sentBar(r)}</span><span class="v ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}" style="font-size:10px">${esc(r.signal)}</span></div>`).join("")||'<div class="empty">Chargement…</div>'):'<div class="empty">Connecte ton compte Myfxbook gratuit dans l\'onglet ALERTES pour voir le % de traders long/short.</div>'}</div>
+     ${d.sentiment_configured?(d.sentiment.map(r=>`<div class="li"><span class="ccy" style="min-width:64px">${esc(r.symbol)}</span><span class="grow">${sentBar(r)}</span><span class="v ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}" style="font-size:10px">${esc(r.signal)}</span></div>`).join("")||'<div class="empty">Chargement…</div>'):'<div class="empty">Chargement du sentiment Myfxbook…</div>'}</div>
    <div class="panel c6"><div class="ph"><b>Fil de nouvelles</b><div class="r"><button class="chip" onclick="show('nouvelles')">TOUT →</button></div></div>
      <div class="pb news" style="padding-top:0">${d.news.map(n=>`<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}<small>${n.time?fT.format(new Date(n.time)):""} · ${esc(n.source||"")}</small></a>`).join("")}</div></div>
   </div>`;
@@ -282,7 +282,7 @@ function renderMacro(){
    <div class="panel"><div class="ph"><b>Sentiment retail</b> · Myfxbook Community Outlook${SENT?.data?.updated?" · MAJ "+fT.format(new Date(SENT.data.updated*1000)):""}</div>
     ${SENT?.configured?`<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Paire</th><th style="min-width:180px">Long / Short</th><th class="n">Positions</th><th class="n hide-m">Prix moy. long</th><th class="n hide-m">Prix moy. short</th><th class="n">Lecture</th></tr></thead><tbody>
       ${sent.map(r=>`<tr><td class="ccy">${esc(r.symbol)}</td><td>${sentBar(r)}</td><td class="n mute">${r.positions??"—"}</td><td class="n hide-m mute">${r.avg_long??"—"}</td><td class="n hide-m mute">${r.avg_short??"—"}</td><td class="n ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}">${esc(r.signal)}</td></tr>`).join("")}
-    </tbody></table></div>`:'<div class="empty">Connecte ton compte Myfxbook gratuit dans l\'onglet ALERTES.</div>'}
+    </tbody></table></div>`:'<div class="empty">Chargement du sentiment Myfxbook… (mis à jour toutes les 5 min)</div>'}
    </div>`;
   el.querySelector("thead").onclick=e=>{const th=e.target.closest("th");if(!th)return;const k=th.dataset.k;if(k==="code")return;
     MX_SORT=MX_SORT.key===k?{key:k,dir:-MX_SORT.dir}:{key:k,dir:-1};store.set("mxSort",MX_SORT);renderMacro();};
@@ -444,8 +444,8 @@ async function renderAlerts(){
      <div class="chips" id="pType">${[["reminder","⏰ RAPPEL AVANT"],["release","🟢🔴 CHIFFRE RÉEL"],["live","🎙️ BANQUIERS EN DIRECT"],["weekly","📊 ANALYSE DIMANCHE"]].map(([k,l])=>`<button class="chip ${prefs[k]?"on":""}" data-t="${k}">${l}</button>`).join("")}</div>
      <div style="margin-top:14px"><button class="btn" id="pSave" ${!sub?"disabled":""}>ENREGISTRER</button></div>
    </div></div>
-   <div class="panel"><div class="ph"><b>Sentiment retail</b> · compte Myfxbook ${st.myfxbook_configured?'<span class="badge dovish">CONNECTÉ</span>':'<span class="badge neutre">NON CONNECTÉ</span>'}</div><div class="pb">
-     <p class="note" style="margin-top:0">Crée un compte gratuit sur myfxbook.com, puis entre tes identifiants ici. Ils restent sur ton serveur et servent seulement à lire le « Community Outlook » (% de traders long/short).</p>
+   <div class="panel"><div class="ph"><b>Sentiment retail</b> · compte Myfxbook (optionnel) ${st.myfxbook_configured?'<span class="badge dovish">CONNECTÉ</span>':''}</div><div class="pb">
+     <p class="note" style="margin-top:0">Le % de traders long/short est lu automatiquement sur la page publique Myfxbook, sans compte. Si un jour elle bloque l'accès, tu pourras entrer ici un compte Myfxbook gratuit comme solution de secours.</p>
      <div class="chips"><input id="mfxE" type="email" placeholder="Courriel Myfxbook" value="${esc(st.myfxbook_email||"")}" style="flex:1;min-width:200px">
      <input id="mfxP" type="password" placeholder="Mot de passe Myfxbook" style="flex:1;min-width:160px">
      <button class="btn" id="mfxSave">CONNECTER</button></div></div></div>

@@ -122,7 +122,8 @@ def macro_table():
 
 @app.get("/api/sentiment")
 def get_sentiment():
-    return {"configured": sentiment.configured(), "data": sentiment.latest()}
+    data = sentiment.latest()
+    return {"configured": bool(data and data.get("rows")) or sentiment.configured(), "data": data}
 
 
 @app.post("/api/sentiment/refresh")
@@ -170,7 +171,7 @@ def dashboard():
     srows = [r for r in sent.get("rows", []) if r["symbol"] in majors]
     return {"upcoming": upcoming, "released": released, "stances": stances,
             "news": engine.news_items()[:10], "headline": wk.get("headline"), "counts": wk.get("counts"),
-            "sentiment": srows, "sentiment_configured": sentiment.configured()}
+            "sentiment": srows, "sentiment_configured": bool(sent.get("rows")) or sentiment.configured()}
 
 
 @app.get("/api/seasonality/symbols")
