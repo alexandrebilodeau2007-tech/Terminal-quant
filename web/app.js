@@ -22,7 +22,6 @@ const fClock = new Intl.DateTimeFormat("fr-FR",{timeZone:TZ,hour:"2-digit",minut
 const store = { get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k)) ?? d}catch{return d}}, set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}} };
 
 let CAL = {events:[]}, CCY_LIST = [], CHART_PAGE = store.get("chartPage",0), charts = {};
-let FILTER = store.get("calFilter",{ccy:CCYS,imp:["high","medium"]});
 
 function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",2600)}
 
@@ -76,6 +75,8 @@ function show(v){
   if(v==="macro") loadMacro();
   if(v==="alertes") renderAlerts();
   if(v==="saison") initSeason();
+  if(v==="calendrier"){ renderFilters(); loadCalView(); }
+  if(v==="fiches") loadFiches();
   window.scrollTo(0,0);
 }
 $("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(b)show(b.dataset.v)});
@@ -104,54 +105,178 @@ async function health(){
   }catch{ $("#statusDot").className="dot bad"; $("#statusTxt").textContent="hors ligne"; }
 }
 
-/* ---------------- calendrier ---------------- */
+/* ---------------- calendrier (style Forex Factory) ---------------- */
+const RANGES=[["yesterday","Hier"],["today","Aujourd'hui"],["tomorrow","Demain"],["thisweek","Cette semaine"],["nextweek","Sem. prochaine"],["lastweek","Sem. passée"],["thismonth","Ce mois"]];
+const IMPACTS=[["high","🔴 Élevé"],["medium","🟠 Moyen"],["low","🟡 Faible"],["holiday","⚪ Férié"]];
+const CATS=["Croissance","Inflation","Emploi","Banque centrale","Obligations","Logement","Sondage conso.","Sondage entreprises","Discours","Divers"];
+let CV = Object.assign({range:"thisweek",imp:["high","medium"],cats:[...CATS],ccy:[...CCYS],q:"",hidePast:false,open:true}, store.get("calView",{}));
+let CALV = {events:[]}, EVDET = {}, FICHES = null;
+function saveCV(){ store.set("calView",{...CV,q:""}); }
+
 function surpriseCell(e){
   const s=e.surprise; if(!s) return '<span class="dim">—</span>';
   const c = s.ccy_bias==="positif"?"pos":s.ccy_bias==="négatif"?"neg":"neu";
   return `<span class="${c}">${esc(s.diff_str)}</span>`;
 }
+function countdown(ms){
+  if(ms<=0) return "en cours";
+  const h=Math.floor(ms/3.6e6), m=Math.floor(ms%3.6e6/6e4);
+  return h>23? Math.floor(h/24)+"j "+(h%24)+"h" : h? `${h}h${String(m).padStart(2,"0")}` : `${m} min`;
+}
 function calRows(events, {grouped=true}={}){
   const now=Date.now();
-  const nextId=(events.find(e=>!e.released&&new Date(e.time).getTime()>now-60000)||{}).id;
+  const nextId=(events.find(e=>!e.released&&e.impact!=="holiday"&&new Date(e.time).getTime()>now-60000)||{}).id;
   const hasTE = events.some(e=>e.te_forecast_str);
-  let h=`<thead><tr><th>Heure</th><th>Dev.</th><th>Événement</th><th class="n">Réel</th><th class="n">Cons.</th><th class="n">Préc.</th>${hasTE?'<th class="n hide-m">TE</th>':""}<th class="n hide-m">Écart</th></tr></thead><tbody>`;
+  const cols = hasTE?9:8;
+  let h=`<thead><tr><th>Heure</th><th>Dev.</th><th>Événement</th><th></th><th class="n">Réel</th><th class="n">Prév.</th><th class="n">Préc.</th>${hasTE?'<th class="n hide-m">TE</th>':""}<th class="n hide-m">Écart</th></tr></thead><tbody>`;
   let day="";
   for(const e of events){
     const d=fD.format(new Date(e.time));
-    if(grouped && d!==day){day=d;h+=`<tr class="day"><td colspan="${hasTE?8:7}">${esc(d.toUpperCase())}</td></tr>`}
-    const past=new Date(e.time).getTime()<now && e.released;
+    if(grouped && d!==day){day=d;h+=`<tr class="day"><td colspan="${cols}">${esc(d.toUpperCase())}</td></tr>`}
+    const past=new Date(e.time).getTime()<now && (e.released||e.impact==="holiday");
     const act=e.released?`<span class="act ${e.surprise?.ccy_bias==="positif"?"pos":e.surprise?.ccy_bias==="négatif"?"neg":""}">${esc(e.actual_str)}</span>`:'<span class="dim">…</span>';
-    h+=`<tr class="${past?"past":""} ${e.id===nextId?"nextev":""}">
-      <td class="mono">${fT.format(new Date(e.time))}</td>
+    const isNext=e.id===nextId;
+    const time=e.impact==="holiday"?"Journée":fT.format(new Date(e.time));
+    h+=`<tr class="evrow ${past?"past":""} ${isNext?"nextev":""}" data-t="${esc(e.title)}" data-c="${e.currency}" data-id="${esc(e.id)}" data-cols="${cols}">
+      <td class="mono">${time}${isNext?`<div class="cd">${countdown(new Date(e.time).getTime()-now)}</div>`:""}</td>
       <td><span class="ccy">${FLAGS[e.currency]||""} ${e.currency}</span></td>
       <td><div class="evt"><i class="imp ${e.impact}"></i><div>${esc(e.title)} <small>${esc(e.period||"")}${e.country&&!["US","GB","JP","CA","AU","NZ","CH","CN"].includes(e.country)?" · "+e.country:""}</small>
-        <div class="src">${esc((e.sources||[]).join(" · "))}</div></div></div></td>
+        <div class="src">${e.category?`<span class="cat">${esc(e.category)}</span> `:""}${esc((e.sources||[]).join(" · "))}</div></div></div></td>
+      <td class="det">${e.fiche?'<span title="Ma fiche">📘</span>':""}<span class="fold">▸</span></td>
       <td class="n">${act}</td><td class="n">${esc(e.forecast_str)}</td><td class="n mute">${esc(e.previous_str)}</td>
       ${hasTE?`<td class="n hide-m mute">${esc(e.te_forecast_str||"—")}</td>`:""}
       <td class="n hide-m">${surpriseCell(e)}</td></tr>`;
   }
   return h+"</tbody>";
 }
-function renderFilters(){
-  $("#calCcy").innerHTML = CCYS.map(c=>`<button class="chip ${FILTER.ccy.includes(c)?"on":""}" data-c="${c}">${FLAGS[c]} ${c}</button>`).join("")
-    + `<button class="chip" data-c="ALL">TOUT</button>`;
-  $("#calImp").innerHTML = [["high","🔴 ROUGE"],["medium","🟠 ORANGE"]].map(([k,l])=>`<button class="chip ${FILTER.imp.includes(k)?"on":""}" data-i="${k}">${l}</button>`).join("");
+
+/* détail d'un événement (clic sur une ligne, partout dans l'app) */
+document.addEventListener("click",async ev=>{
+  const fb=ev.target.closest("[data-fiche]"); if(fb){ ev.stopPropagation(); openFiche(fb.dataset.fiche); return; }
+  const tr=ev.target.closest("tr.evrow"); if(!tr || ev.target.closest("a")) return;
+  const nx=tr.nextElementSibling;
+  if(nx && nx.classList.contains("evdet")){ nx.remove(); tr.classList.remove("open"); return; }
+  tr.classList.add("open");
+  const row=document.createElement("tr"); row.className="evdet";
+  row.innerHTML=`<td colspan="${tr.dataset.cols||8}"><div class="dbox"><div class="empty" style="padding:14px">Chargement…</div></div></td>`;
+  tr.after(row);
+  const key=tr.dataset.c+"|"+tr.dataset.t;
+  try{
+    EVDET[key] = EVDET[key] || await api(`/api/event?ccy=${encodeURIComponent(tr.dataset.c)}&title=${encodeURIComponent(tr.dataset.t)}`);
+    row.querySelector(".dbox").innerHTML = detailHtml(EVDET[key], tr.dataset.t, tr.dataset.c);
+    drawHist(row, EVDET[key]);
+  }catch{ row.querySelector(".dbox").innerHTML='<div class="empty">Détail indisponible.</div>'; }
+});
+function detailHtml(d,title,ccy){
+  const nxt=d.next?fDs.format(new Date(d.next))+" "+fT.format(new Date(d.next)):"—";
+  const spec=[["Source",d.source],["Mesure",d.measures],["Effet habituel",d.usual_effect],["Catégorie",d.category],["Prochaine publication",nxt],["Pourquoi les traders s'y intéressent",d.why]];
+  const hist=d.history||[];
+  return `<div class="dgrid">
+    <div><div class="dh">SPÉCIFICATIONS · ${FLAGS[ccy]||""} ${esc(ccy)} ${esc(title)}</div>
+      <table class="spec">${spec.map(([k,v])=>`<tr><th>${k}</th><td>${esc(v)}</td></tr>`).join("")}</table>
+      ${d.fiche?`<button class="btn sm" data-fiche="${esc(d.fiche)}">📘 OUVRIR MA FICHE</button>`:""}
+    </div>
+    <div><div class="dh">HISTORIQUE</div>
+      ${hist.length?`<div class="hc"><canvas></canvas></div>
+      <table class="hist"><tr><th>Date</th><th class="n">Réel</th><th class="n">Prév.</th><th class="n">Préc.</th></tr>
+      ${hist.slice(0,8).map(h=>`<tr><td>${fDs.format(new Date(h.time))}</td><td class="n ${h.bias==="positif"?"pos":h.bias==="négatif"?"neg":""}">${esc(h.actual)}</td><td class="n">${esc(h.forecast)}</td><td class="n mute">${esc(h.previous)}</td></tr>`).join("")}</table>`
+      :'<div class="empty" style="padding:14px">Pas encore d\'historique pour cet événement.</div>'}
+    </div></div>`;
 }
-$("#calCcy").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
-  const c=b.dataset.c; if(c==="ALL") FILTER.ccy = FILTER.ccy.length===CCYS.length?[]:[...CCYS];
-  else FILTER.ccy = FILTER.ccy.includes(c)?FILTER.ccy.filter(x=>x!==c):[...FILTER.ccy,c];
-  store.set("calFilter",FILTER); renderFilters(); renderCal();});
-$("#calImp").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const i=b.dataset.i;
-  FILTER.imp = FILTER.imp.includes(i)?FILTER.imp.filter(x=>x!==i):[...FILTER.imp,i]; store.set("calFilter",FILTER); renderFilters(); renderCal();});
-$("#refreshCal").onclick=async()=>{toast("Actualisation…");try{await api("/api/calendar/refresh",{method:"POST"});await loadCal();toast("À jour")}catch{toast("Échec")}};
+function drawHist(row,d){
+  const cv=row.querySelector("canvas"); if(!cv||!window.Chart) return;
+  const h=(d.history||[]).filter(x=>x.actual_num!=null).slice(0,14).reverse();
+  new Chart(cv,{type:"bar",data:{labels:h.map(x=>fDs.format(new Date(x.time))),datasets:[{data:h.map(x=>x.actual_num),
+    backgroundColor:h.map(x=>x.bias==="positif"?"#18c787":x.bias==="négatif"?"#ef4454":"#56606d")}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#7d8896",font:{size:9}},grid:{display:false}},y:{ticks:{color:"#7d8896",font:{size:9}},grid:{color:"#1b222b"}}}}});
+}
+
+/* filtres */
+function chipRow(list, sel, attr){ return list.map(([k,l])=>`<button class="chip ${sel.includes(k)?"on":""}" data-${attr}="${esc(k)}">${l}</button>`).join(""); }
+function renderFilters(){
+  $("#calRange").innerHTML = RANGES.map(([k,l])=>`<button class="chip ${CV.range===k?"on":""}" data-r="${k}">${l}</button>`).join("");
+  $("#calImp").innerHTML = chipRow(IMPACTS, CV.imp, "i");
+  $("#calCat").innerHTML = chipRow(CATS.map(c=>[c,c]), CV.cats, "k") + `<button class="chip" data-k="ALL">TOUS</button>`;
+  $("#calCcy").innerHTML = chipRow(CCYS.map(c=>[c,FLAGS[c]+" "+c]), CV.ccy, "c") + `<button class="chip" data-c="ALL">TOUTES</button>`;
+  $("#calPast").classList.toggle("on",CV.hidePast);
+  $("#calFilters").style.display = CV.open?"":"none";
+  $("#calToggle").textContent = CV.open?"FILTRES ▴":"FILTRES ▾";
+  const n=[CV.imp.length<4,CV.cats.length<CATS.length,CV.ccy.length<CCYS.length,CV.hidePast].filter(Boolean).length;
+  $("#calSum").textContent = `${RANGES.find(r=>r[0]===CV.range)[1]} · ${n} filtre${n>1?"s":""} actif${n>1?"s":""}`;
+}
+function toggleIn(arr,v,all){ return v==="ALL" ? (arr.length===all.length?[]:[...all]) : arr.includes(v)?arr.filter(x=>x!==v):[...arr,v]; }
+$("#v-calendrier").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b||!b.closest(".calbar")) return;
+  if(b.dataset.r){ CV.range=b.dataset.r; saveCV(); renderFilters(); loadCalView(); return; }
+  if(b.dataset.i){ CV.imp=toggleIn(CV.imp,b.dataset.i,IMPACTS.map(x=>x[0])); }
+  else if(b.dataset.k){ CV.cats=toggleIn(CV.cats,b.dataset.k,CATS); }
+  else if(b.dataset.c){ CV.ccy=toggleIn(CV.ccy,b.dataset.c,CCYS); }
+  else if(b.id==="calPast"){ CV.hidePast=!CV.hidePast; }
+  else if(b.id==="calToggle"){ CV.open=!CV.open; }
+  else if(b.id==="calReset"){ CV={range:"thisweek",imp:["high","medium"],cats:[...CATS],ccy:[...CCYS],q:"",hidePast:false,open:true}; $("#calQ").value=""; saveCV(); renderFilters(); loadCalView(); return; }
+  else if(b.id==="refreshCal"){ toast("Actualisation…"); api("/api/calendar/refresh",{method:"POST"}).then(()=>{loadCalView();loadCal();toast("À jour")}).catch(()=>toast("Échec")); return; }
+  else return;
+  saveCV(); renderFilters(); renderCal();
+});
+$("#calQ").addEventListener("input",e=>{CV.q=e.target.value.trim().toLowerCase(); renderCal();});
 
 function renderCal(){
-  const ev=(CAL.events||[]).filter(e=>FILTER.ccy.includes(e.currency)&&FILTER.imp.includes(e.impact));
-  $("#calTable").innerHTML = ev.length? calRows(ev) : `<tr><td class="empty">Aucun événement pour ces filtres.${CAL.errors?.length?"<br>"+esc(CAL.errors.join(" | ")):""}</td></tr>`;
+  const now=Date.now();
+  const ev=(CALV.events||[]).filter(e=>CV.ccy.includes(e.currency)&&CV.imp.includes(e.impact)&&CV.cats.includes(e.category||"Divers")
+    &&(!CV.q||(e.title+" "+e.currency+" "+(e.category||"")).toLowerCase().includes(CV.q))
+    &&(!CV.hidePast||!(new Date(e.time).getTime()<now-60000&&(e.released||e.impact==="holiday"))));
+  $("#calCount").textContent=`${ev.length} événement${ev.length>1?"s":""}`;
+  $("#calTable").innerHTML = ev.length? calRows(ev) : `<tr><td class="empty">Aucun événement pour ces filtres.${CALV.errors?.length?"<br>"+esc(CALV.errors.join(" | ")):""}</td></tr>`;
+}
+async function loadCalView(){
+  try{ CALV = await api(`/api/calendar?impacts=high,medium,low,holiday&range=${CV.range}`); renderCal(); }catch(e){console.warn(e)}
 }
 async function loadCal(){
-  try{ CAL = await api("/api/calendar"); renderCal(); tick(); if($("#v-semaine").classList.contains("on")&&!WEEK) loadWeekly(); }catch(e){console.warn(e)}
+  try{ CAL = await api("/api/calendar"); tick(); if($("#v-semaine").classList.contains("on")&&!WEEK) loadWeekly(); }catch(e){console.warn(e)}
 }
+
+/* ---------------- fiches ---------------- */
+async function getFiches(){ if(!FICHES){ FICHES=(await api("/api/fiches")).items||[]; } return FICHES; }
+function ficheBody(f){
+  const li=a=>`<ul>${(a||[]).map(x=>x.startsWith("– ")?`<li class="sub">${esc(x.slice(2))}</li>`:`<li>${esc(x)}</li>`).join("")}</ul>`;
+  const tok=encodeURIComponent(store.get("token",""));
+  const rel=(CAL.events||[]).filter(e=>e.fiche===f.id&&!e.released);
+  return `<table class="spec">
+      <tr><th>🌎 Pays</th><td>${esc(f.pays)}</td></tr><tr><th>⏱ Temporalité</th><td>${esc(f.temporalite)}</td></tr>
+      <tr><th>📊 Croissance ou inflation</th><td>${esc(f.type)}</td></tr><tr><th>📅 Publication</th><td>${esc(f.publication)}</td></tr>
+      <tr><th>⏳ Fréquence</th><td>${esc(f.frequence)}</td></tr><tr><th>🔥 Importance</th><td>${esc(f.importance)}</td></tr></table>
+    <div class="dh">📖 EXPLICATION</div>${li(f.explication)}
+    <div class="dh">❓ COMMENT ÇA FONCTIONNE</div>${li(f.fonctionnement)}
+    <div class="dh">🔎 CE QU'IL FAUT REGARDER</div>${li(f.regarder)}
+    ${rel.length?`<div class="dh">📆 CETTE SEMAINE</div><div class="mono" style="font-size:12px">${rel.map(e=>`${FLAGS[e.currency]} ${fDs.format(new Date(e.time))} ${fT.format(new Date(e.time))} · ${esc(e.title)}`).join("<br>")}</div>`:""}
+    <details style="margin-top:12px"><summary class="mono" style="cursor:pointer;color:var(--acc2);font-size:12px">VOIR LA FICHE ORIGINALE</summary>
+      <img loading="lazy" src="/api/fiches/img/${esc(f.img)}?token=${tok}" style="width:100%;margin-top:8px;border-radius:4px"></details>`;
+}
+async function openFiche(id){
+  const f=(await getFiches()).find(x=>x.id===id); if(!f) return toast("Fiche introuvable");
+  const d=document.createElement("div"); d.className="modal";
+  d.innerHTML=`<div class="panel mbox"><div class="ph"><b>📘 ${esc(f.title)}</b> · ${esc(f.group)}<div class="r"><button class="chip" data-x>✕</button></div></div><div class="pb fiche">${ficheBody(f)}</div></div>`;
+  d.onclick=e=>{ if(e.target===d||e.target.closest("[data-x]")) d.remove(); };
+  document.body.appendChild(d);
+}
+async function loadFiches(){
+  const el=$("#ficheList");
+  try{
+    const items=await getFiches();
+    if(!items.length){ el.innerHTML='<div class="empty">Fiches indisponibles.</div>'; return; }
+    const q=($("#ficheQ").value||"").toLowerCase();
+    const groups=[...new Set(items.map(f=>f.group))];
+    el.innerHTML=groups.map(g=>{
+      const fs=items.filter(f=>f.group===g&&(!q||JSON.stringify(f).toLowerCase().includes(q)));
+      if(!fs.length) return "";
+      return `<div class="dh" style="margin:14px 0 8px">${esc(g.toUpperCase())}</div><div class="fgrid">${fs.map(f=>{
+        const n=(CAL.events||[]).find(e=>e.fiche===f.id&&!e.released);
+        return `<button class="fcard" data-fiche="${f.id}"><b>${esc(f.title)}</b><span>${esc(f.type)} · ${esc(f.frequence)}</span>
+          <span class="imp-t">🔥 ${esc(f.importance)}</span>${n?`<span class="soon">📆 ${FLAGS[n.currency]} ${fDs.format(new Date(n.time))} ${fT.format(new Date(n.time))}</span>`:""}</button>`}).join("")}</div>`;
+    }).join("") || '<div class="empty">Aucune fiche ne correspond.</div>';
+  }catch{ el.innerHTML='<div class="empty">Fiches indisponibles.</div>'; }
+}
+$("#ficheQ").addEventListener("input",loadFiches);
 
 /* ---------------- semaine ---------------- */
 let WEEK=null;
@@ -490,7 +615,8 @@ async function renderAlerts(){
 if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js",{scope:"/"}).catch(console.warn);
 renderFilters(); initTape(); health(); tick();
 loadCal().then(loadWeekly);
-const startView=(location.hash||"#accueil").slice(1); show(["accueil","semaine","calendrier","nouvelles","macro","devises","graphiques","saison","alertes"].includes(startView)?startView:"accueil");
+const startView=(location.hash||"#accueil").slice(1); show(["accueil","semaine","calendrier","fiches","nouvelles","macro","devises","graphiques","saison","alertes"].includes(startView)?startView:"accueil");
+setInterval(()=>{ if(!document.hidden&&$("#v-calendrier").classList.contains("on")) loadCalView(); }, 60000);
 setInterval(()=>{ if(!document.hidden){ loadCal(); if($("#v-nouvelles").classList.contains("on")) loadNews(); if($("#v-accueil").classList.contains("on")) loadDashboard(); } }, 20000);
 setInterval(()=>{ if(!document.hidden){ health(); } }, 60000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ loadCal(); health(); } });

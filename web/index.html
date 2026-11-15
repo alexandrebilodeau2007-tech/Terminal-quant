@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="icon" href="/icons/icon-192.png">
 <title>Macro Terminal</title>
-<link rel="stylesheet" href="/styles.css?v=6">
+<link rel="stylesheet" href="/styles.css?v=7">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
 </head>
@@ -30,6 +30,7 @@
     <button data-v="accueil" class="on"><span class="ic">⌂</span>ACCUEIL</button>
     <button data-v="semaine"><span class="ic">◧</span>SEMAINE</button>
     <button data-v="calendrier"><span class="ic">☷</span>CALENDRIER</button>
+    <button data-v="fiches"><span class="ic">▣</span>FICHES</button>
     <button data-v="nouvelles"><span class="ic">≡</span>NOUVELLES</button>
     <button data-v="macro"><span class="ic">▤</span>MACRO</button>
     <button data-v="devises"><span class="ic">¤</span>DEVISES</button>
@@ -52,14 +53,31 @@
   <!-- CALENDRIER -->
   <section class="view" id="v-calendrier">
     <div class="panel">
-      <div class="ph"><b>Calendrier économique</b> · dossiers 🔴 / 🟠 · heure de l'Est
+      <div class="ph"><b>Calendrier économique</b> · heure de l'Est · <span class="mono" id="calCount"></span>
         <div class="r"><button class="chip" id="refreshCal">↻</button></div></div>
-      <div class="pb" style="padding-bottom:6px">
-        <div class="chips" id="calCcy"></div>
-        <div class="chips" style="margin-top:8px" id="calImp"></div>
+      <div class="pb calbar" style="padding-bottom:6px">
+        <div class="chips" id="calRange"></div>
+        <div class="chips" style="margin-top:8px;align-items:center">
+          <input id="calQ" type="search" placeholder="Rechercher un événement…" style="flex:1;min-width:150px">
+          <button class="chip" id="calToggle">FILTRES</button><button class="chip" id="calPast">MASQUER PASSÉS</button><button class="chip" id="calReset">RÉINIT.</button>
+        </div>
+        <div class="mono dim" id="calSum" style="font-size:10px;margin-top:6px"></div>
+        <div id="calFilters">
+          <div class="flab">IMPACT</div><div class="chips" id="calImp"></div>
+          <div class="flab">TYPE D'ÉVÉNEMENT</div><div class="chips" id="calCat"></div>
+          <div class="flab">DEVISE</div><div class="chips" id="calCcy"></div>
+        </div>
+        <div class="legend"><span class="pos">■</span> réel bon pour la devise <span class="neg">■</span> mauvais <i class="imp high"></i> élevé <i class="imp medium"></i> moyen <i class="imp low"></i> faible · touche une ligne pour le détail · 📘 = ta fiche</div>
       </div>
       <div style="overflow-x:auto"><table class="cal" id="calTable"></table></div>
     </div>
+  </section>
+
+  <!-- FICHES -->
+  <section class="view" id="v-fiches">
+    <div class="panel"><div class="ph"><b>Fiches de triche macro</b> · indicateurs avancés et retardés</div>
+      <div class="pb"><input id="ficheQ" type="search" placeholder="Rechercher (ex. inflation, logement, BLS)…" style="width:100%">
+        <div id="ficheList"></div></div></div>
   </section>
 
   <!-- NOUVELLES -->
@@ -111,6 +129,6 @@
   <section class="view" id="v-alertes"></section>
 </main>
 <div class="toast" id="toast"></div>
-<script src="/app.js?v=6"></script>
+<script src="/app.js?v=7"></script>
 </body>
 </html>

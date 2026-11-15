@@ -8,7 +8,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import calendar_data as cal, engine, push, weekly, seasonality, storage, sentiment, macro
+from datetime import timedelta
+
+from fastapi.responses import Response
+
+from . import calendar_data as cal, engine, push, weekly, seasonality, storage, sentiment, macro, indicators, fiches
 from .config import WEB_DIR, APP_TOKEN, PORT, TIMEZONE, ANTHROPIC_API_KEY, TE_API_KEY
 from .countries import CURRENCIES
 
@@ -57,11 +61,74 @@ def public_url():
     return {"url": found[-1] if found else None}
 
 
+RANGES = ["yesterday", "today", "tomorrow", "thisweek", "nextweek", "lastweek", "thismonth"]
+
+
+def _range_bounds(rng: str):
+    now = datetime.now(cal.TZ)
+    day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    ws, we = cal.week_bounds()
+    if rng == "today":
+        return day, day + timedelta(days=1)
+    if rng == "yesterday":
+        return day - timedelta(days=1), day
+    if rng == "tomorrow":
+        return day + timedelta(days=1), day + timedelta(days=2)
+    if rng == "nextweek":
+        return we, we + timedelta(days=7)
+    if rng == "lastweek":
+        return ws - timedelta(days=7), ws
+    if rng == "thismonth":
+        m0 = day.replace(day=1)
+        m1 = (m0 + timedelta(days=32)).replace(day=1)
+        return m0, m1
+    return ws, we
+
+
+def enrich(e: dict) -> dict:
+    return {**e, "category": indicators.classify(e["title"]), "fiche": fiches.match(e["title"])}
+
+
 @app.get("/api/calendar")
-def calendar(impacts: str = "high,medium"):
-    w = cal.load_week()
+def calendar(impacts: str = "high,medium", range: str = "thisweek"):
+    start, end = _range_bounds(range if range in RANGES else "thisweek")
+    w = cal.load_range(start.astimezone(timezone.utc), end.astimezone(timezone.utc))
     keep = set(impacts.split(","))
-    return {**w, "events": [e for e in w["events"] if e["impact"] in keep]}
+    return {**w, "range": range, "categories": indicators.CATEGORIES,
+            "events": [enrich(e) for e in w["events"] if e["impact"] in keep]}
+
+
+@app.get("/api/event")
+def event_detail(title: str, ccy: str):
+    spec = indicators.describe(title, ccy)
+    hist = [e for e in cal.load_history() + cal.load_week()["events"]
+            if e["currency"] == ccy and e.get("released") and cal.similarity(e["title"], title) >= 0.6]
+    uniq = {}
+    for e in hist:
+        uniq[e["time"][:16]] = e
+    hist = sorted(uniq.values(), key=lambda e: e["time"], reverse=True)[:14]
+    now = datetime.now(timezone.utc)
+    upcoming = [e for e in cal.load_week()["events"] + cal.load_range(*[x.astimezone(timezone.utc) for x in _range_bounds("nextweek")])["events"]
+                if e["currency"] == ccy and cal.similarity(e["title"], title) >= 0.6 and cal.parse_time(e["time"]) > now]
+    fid = fiches.match(title)
+    return {**spec, "fiche": fid, "next": min((e["time"] for e in upcoming), default=None),
+            "history": [{"time": e["time"], "period": e.get("period", ""), "actual": e.get("actual_str"),
+                         "forecast": e.get("forecast_str"), "previous": e.get("previous_str"),
+                         "actual_num": cal._num(e.get("actual")), "bias": (e.get("surprise") or {}).get("ccy_bias")}
+                        for e in hist]}
+
+
+@app.get("/api/fiches")
+def get_fiches():
+    return {"items": fiches.all_items()}
+
+
+@app.get("/api/fiches/img/{name}")
+def fiche_img(name: str):
+    data = fiches.image(name)
+    if not data:
+        raise HTTPException(404, "Introuvable")
+    return Response(data, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
 
 
 @app.post("/api/calendar/refresh")
@@ -126,6 +193,22 @@ def get_sentiment():
     return {"configured": bool(data and data.get("rows")) or sentiment.configured(), "data": data}
 
 
+@app.get("/api/sentiment/probe")
+def sentiment_probe():
+    """Vérifie quelles sources de sentiment répondent depuis ce serveur."""
+    import httpx
+    urls = {"myfxbook_api": "https://www.myfxbook.com/api/login.json?email=test%40example.com&password=x",
+            "myfxbook_page": sentiment.OUTLOOK_URL}
+    out = {}
+    for k, u in urls.items():
+        try:
+            r = httpx.get(u, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+            out[k] = {"status": r.status_code, "body": r.text[:160]}
+        except Exception as e:
+            out[k] = {"error": str(e)[:160]}
+    return out
+
+
 @app.post("/api/sentiment/refresh")
 async def sentiment_refresh():
     try:
@@ -169,7 +252,7 @@ def dashboard():
     sent = sentiment.latest() or {}
     majors = ["EURUSD", "GBPUSD", "USDJPY", "USDCAD", "AUDUSD", "NZDUSD", "USDCHF", "XAUUSD"]
     srows = [r for r in sent.get("rows", []) if r["symbol"] in majors]
-    return {"upcoming": upcoming, "released": released, "stances": stances,
+    return {"upcoming": [enrich(e) for e in upcoming], "released": [enrich(e) for e in released], "stances": stances,
             "news": engine.news_items()[:10], "headline": wk.get("headline"), "counts": wk.get("counts"),
             "sentiment": srows, "sentiment_configured": bool(sent.get("rows")) or sentiment.configured()}
 

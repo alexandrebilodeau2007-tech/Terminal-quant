@@ -150,6 +150,27 @@ def test_api():
     assert c.post("/api/push/subscribe", json={"subscription": sub}).json()["ok"]
     r = c.post("/api/push/prefs", json={"endpoint": sub["endpoint"], "prefs": {"currencies": ["USD"]}}).json()
     assert r["prefs"]["currencies"] == ["USD"]
+    # calendrier style Forex Factory
+    from server import fiches, indicators
+    fiches.set_items([{"id": "nfp", "title": "NFP", "group": "Retardé (lagging)", "match": r"non.?farm", "img": "nfp.png"},
+                      {"id": "core-cpi", "title": "Core CPI", "group": "Retardé (lagging)", "match": r"core cpi", "img": "c.png"},
+                      {"id": "cpi", "title": "CPI", "group": "Retardé (lagging)", "match": r"\bcpi\b", "img": "x.png"}],
+                     {"nfp.png": b"PNG"})
+    assert fiches.match("Core CPI m/m") == "core-cpi" and fiches.match("CPI y/y") == "cpi"
+    full = c.get("/api/calendar?impacts=high,medium,low,holiday&range=thisweek").json()
+    assert full["categories"] == indicators.CATEGORIES
+    nfp = next(e for e in full["events"] if e["title"] == "Non Farm Payrolls")
+    assert nfp["category"] == "Emploi" and nfp["fiche"] == "nfp", nfp
+    assert len(full["events"]) >= len(c.get("/api/calendar").json()["events"])
+    nxt = c.get("/api/calendar?range=nextweek").json()
+    assert nxt["range"] == "nextweek" and "events" in nxt
+    d = c.get("/api/event?ccy=USD&title=Non Farm Payrolls").json()
+    assert d["category"] == "Emploi" and d["usual_effect"].startswith("Réel >") and d["fiche"] == "nfp"
+    assert d["history"] and d["history"][0]["actual"] == "165K", d["history"][:2]
+    j = c.get("/api/event?ccy=USD&title=Initial Jobless Claims").json()
+    assert j["usual_effect"].startswith("Réel <")
+    assert c.get("/api/fiches").json()["items"][0]["id"] == "nfp"
+    assert c.get("/api/fiches/img/nfp.png").content == b"PNG"
     assert c.get("/").status_code == 200 and c.get("/sw.js").status_code == 200
     assert c.get("/manifest.webmanifest").status_code == 200
 

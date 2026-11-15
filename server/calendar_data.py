@@ -11,7 +11,7 @@ from . import sources
 
 log = logging.getLogger("calendar")
 TZ = ZoneInfo(TIMEZONE)
-IMPACT_RANK = {"low": 0, "medium": 1, "high": 2}
+IMPACT_RANK = {"holiday": -1, "low": 0, "medium": 1, "high": 2}
 
 
 # ------------------------------------------------------------------ helpers
@@ -109,7 +109,7 @@ def norm_ff(row: dict) -> dict | None:
     ccy = row.get("country", "")
     if ccy not in CURRENCIES or not row.get("date"):
         return None
-    imp = {"High": "high", "Medium": "medium", "Low": "low"}.get(row.get("impact"))
+    imp = {"High": "high", "Medium": "medium", "Low": "low", "Holiday": "holiday"}.get(row.get("impact"))
     if not imp:
         return None  # jours fériés etc.
     return {
@@ -154,7 +154,7 @@ def merge(tv_rows: list[dict], ff_rows: list[dict], te_rows: list[dict]) -> list
                 m["forecast"] = ff["forecast"]
             if "Forex Factory" not in m["sources"]:
                 m["sources"].append("Forex Factory")
-        elif ff["impact"] in ("high", "medium"):
+        elif ff["impact"] in ("high", "medium", "holiday"):
             ff["ff_impact"] = ff["impact"]
             events.append(ff)
 
@@ -257,6 +257,33 @@ def fast_actual(events_at_slot: list[dict]) -> list[dict]:
             decorate(ev)
             updated.append(ev)
     return updated
+
+
+_RANGE_CACHE: dict = {}
+
+
+def load_range(start: datetime, end: datetime) -> dict:
+    """Événements entre start et end (semaine courante = week.json, sinon TradingView + FF à la demande)."""
+    ws, we = week_bounds()
+    if start >= ws and end <= we:
+        w = load_week()
+        return {**w, "events": [e for e in w["events"] if start <= parse_time(e["time"]) < end]}
+    key = (start.isoformat(), end.isoformat())
+    hit = _RANGE_CACHE.get(key)
+    if hit and datetime.now().timestamp() - hit[0] < 600:
+        return hit[1]
+    errors = []
+    try:
+        tv = sources.fetch_tradingview(start, end, ALL_COUNTRIES)
+    except Exception as e:
+        tv, errors = [], [f"TradingView: {e}"]
+    ff = [r for r in storage.load("raw_ff.json", {"rows": []})["rows"]
+          if r.get("date") and start <= parse_time(r["date"]) < end]
+    out = {"updated": datetime.now(timezone.utc).isoformat(), "start": start.isoformat(), "end": end.isoformat(),
+           "errors": errors, "events": merge(tv, ff, [])}
+    if not errors:
+        _RANGE_CACHE[key] = (datetime.now().timestamp(), out)
+    return out
 
 
 def load_week() -> dict:

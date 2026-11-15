@@ -163,3 +163,40 @@ table.mx th{cursor:pointer;user-select:none;white-space:nowrap}
 table.mx th.sorted{color:var(--acc)}
 table.mx td{white-space:nowrap}
 .heat-pos{color:var(--green)}.heat-neg{color:var(--red)}
+
+/* ---- calendrier style Forex Factory ---- */
+.imp.holiday{background:#9aa4b1}
+.flab{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim);margin:10px 0 5px}
+.legend{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.cat{font-size:9px;letter-spacing:.06em;color:var(--blue);border:1px solid #1d3550;border-radius:3px;padding:0 4px;margin-right:3px}
+table.cal tr.evrow{cursor:pointer}
+table.cal tr.evrow:hover td{background:#0e131a}
+table.cal tr.open td{background:#111821}
+table.cal td.det{white-space:nowrap;color:var(--dim);font-size:11px;text-align:right;padding-left:0;padding-right:0}
+table.cal tr.open .fold{display:inline-block;transform:rotate(90deg)}
+.cd{font-size:10px;color:var(--acc);margin-top:2px}
+tr.evdet>td{padding:0!important;background:#080b0f;border-bottom:1px solid var(--line2)}
+.dbox{padding:12px}
+.dgrid{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
+@media(max-width:760px){.dgrid{grid-template-columns:1fr}}
+.dh{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--acc);margin:10px 0 6px}
+table.spec{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px}
+table.spec th{width:34%;text-align:left;vertical-align:top;color:var(--mute);font-weight:500;padding:6px 8px 6px 0;border-bottom:1px solid #141a22;font-size:11px}
+table.spec td{padding:6px 0;border-bottom:1px solid #141a22;line-height:1.45}
+table.hist{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px}
+table.hist th{color:var(--dim);font-weight:500;text-align:left;padding:4px 6px;font-size:10px}
+table.hist td{padding:5px 6px;border-top:1px solid #141a22}
+table.hist .n{text-align:right}
+.hc{height:130px;margin-bottom:8px}
+.btn.sm{font-size:11px;padding:7px 11px}
+.modal{position:fixed;inset:0;background:#000c;z-index:90;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:calc(var(--safe-t) + 20px) 10px 40px}
+.mbox{width:min(760px,100%);margin:0}
+.fiche ul{margin:4px 0 6px;padding-left:18px;line-height:1.5;font-size:13px}
+.fiche li{margin:4px 0}
+.fiche li.sub{list-style:circle;margin-left:16px;color:var(--mute)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.fcard{display:flex;flex-direction:column;gap:4px;text-align:left;background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:12px;color:var(--txt);cursor:pointer}
+.fcard:hover{border-color:var(--acc)}
+.fcard b{font-size:14px}
+.fcard span{font-family:var(--mono);font-size:10.5px;color:var(--mute)}
+.fcard .soon{color:var(--acc2)}
