@@ -118,11 +118,6 @@ function surpriseCell(e){
   const c = s.ccy_bias==="positif"?"pos":s.ccy_bias==="négatif"?"neg":"neu";
   return `<span class="${c}">${esc(s.diff_str)}</span>`;
 }
-function countdown(ms){
-  if(ms<=0) return "en cours";
-  const h=Math.floor(ms/3.6e6), m=Math.floor(ms%3.6e6/6e4);
-  return h>23? Math.floor(h/24)+"j "+(h%24)+"h" : h? `${h}h${String(m).padStart(2,"0")}` : `${m} min`;
-}
 function calRows(events, {grouped=true}={}){
   const now=Date.now();
   const nextId=(events.find(e=>!e.released&&e.impact!=="holiday"&&new Date(e.time).getTime()>now-60000)||{}).id;
@@ -138,7 +133,7 @@ function calRows(events, {grouped=true}={}){
     const isNext=e.id===nextId;
     const time=e.impact==="holiday"?"Journée":fT.format(new Date(e.time));
     h+=`<tr class="evrow ${past?"past":""} ${isNext?"nextev":""}" data-t="${esc(e.title)}" data-c="${e.currency}" data-id="${esc(e.id)}" data-cols="${cols}">
-      <td class="mono">${time}${isNext?`<div class="cd">${countdown(new Date(e.time).getTime()-now)}</div>`:""}</td>
+      <td class="mono">${time}${isNext?`<div class="cd">${(c=>c==="EN COURS"?c:"dans "+c)(countdown(e.time))}</div>`:""}</td>
       <td><span class="ccy">${FLAGS[e.currency]||""} ${e.currency}</span></td>
       <td><div class="evt"><i class="imp ${e.impact}"></i><div>${esc(e.title)} <small>${esc(e.period||"")}${e.country&&!["US","GB","JP","CA","AU","NZ","CH","CN"].includes(e.country)?" · "+e.country:""}</small>
         <div class="src">${e.category?`<span class="cat">${esc(e.category)}</span> `:""}${esc((e.sources||[]).join(" · "))}</div></div></div></td>
@@ -226,7 +221,9 @@ function renderCal(){
     &&(!CV.q||(e.title+" "+e.currency+" "+(e.category||"")).toLowerCase().includes(CV.q))
     &&(!CV.hidePast||!(new Date(e.time).getTime()<now-60000&&(e.released||e.impact==="holiday"))));
   $("#calCount").textContent=`${ev.length} événement${ev.length>1?"s":""}`;
+  const opened=[...document.querySelectorAll("#calTable tr.evrow.open")].map(r=>r.dataset.id);
   $("#calTable").innerHTML = ev.length? calRows(ev) : `<tr><td class="empty">Aucun événement pour ces filtres.${CALV.errors?.length?"<br>"+esc(CALV.errors.join(" | ")):""}</td></tr>`;
+  opened.forEach(id=>{ const r=[...document.querySelectorAll("#calTable tr.evrow")].find(x=>x.dataset.id===id); if(r) r.click(); });
 }
 async function loadCalView(){
   try{ CALV = await api(`/api/calendar?impacts=high,medium,low,holiday&range=${CV.range}`); renderCal(); }catch(e){console.warn(e)}
