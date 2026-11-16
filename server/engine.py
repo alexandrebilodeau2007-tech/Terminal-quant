@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from . import calendar_data as cal, central_banks, push, storage, weekly, sources, sentiment, cot
+from . import calendar_data as cal, central_banks, push, storage, weekly, sources, sentiment, cot, rates, macro
 from .config import (TIMEZONE, REMINDER_MINUTES, FAST_POLL_SECONDS, RELEASE_TIMEOUT_MINUTES,
                      WEEK_REFRESH_MINUTES, NEWS_REFRESH_MINUTES, WEEKLY_DAY, WEEKLY_HOUR, FJ_REFRESH_SECONDS)
 from .countries import CURRENCIES
@@ -14,7 +14,7 @@ from .countries import CURRENCIES
 log = logging.getLogger("engine")
 TZ = ZoneInfo(TIMEZONE)
 
-STATE = {"last_week": 0.0, "last_history": 0.0, "last_news": 0.0, "last_fj": 0.0, "last_sent": 0.0, "last_cot": 0.0, "last_poll": {}, "running": False,
+STATE = {"last_week": 0.0, "last_history": 0.0, "last_news": 0.0, "last_fj": 0.0, "last_sent": 0.0, "last_cot": 0.0, "last_rates": 0.0, "last_poll": {}, "running": False,
          "last_error": None}
 
 
@@ -230,6 +230,13 @@ async def loop():
                     await asyncio.to_thread(sentiment.refresh)
                 except Exception as ex:
                     log.info("Sentiment: %s", ex)
+            if time.time() - STATE["last_rates"] > 1800:
+                STATE["last_rates"] = time.time()
+                try:
+                    cur = {r["code"]: (r.get("rate") or {}).get("value") for r in macro.table()["rows"]}
+                    await asyncio.to_thread(rates.refresh, cur)
+                except Exception as ex:
+                    log.info("Taux: %s", ex)
             if time.time() - STATE["last_cot"] > 6 * 3600:
                 STATE["last_cot"] = time.time()
                 try:

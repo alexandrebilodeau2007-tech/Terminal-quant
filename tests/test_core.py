@@ -151,6 +151,22 @@ def test_cot():
     assert eur["groups"]["dealer"]["pct_long"] == 20
 
 
+def test_rates():
+    from server import rates
+    prices = {"CBOT:ZQX2026": 96.12, "CBOT:ZQZ2026": 95.935, "CBOT:ZQF2027": 95.83, "CBOT:ZQG2027": 95.675, "CBOT:ZQH2027": 95.595,
+              "CBOT:ZQJ2027": 95.5, "CBOT:ZQK2027": 95.43, "CBOT:ZQM2027": 95.365, "CBOT:ZQN2027": 95.335, "CBOT:ZQQ2027": 95.305,
+              "CBOT:ZQU2027": 95.295, "CBOT:ZQV2027": 95.285, "CBOT:ZQX2027": 95.305, "CBOT:ZQZ2027": 95.32,
+              "TMX:CRAU2026": 97.4, "TMX:CRAZ2026": 97.29, "TMX:CRAH2027": 97.05, "TMX:CRAM2027": 96.88, "TMX:CRAU2027": 96.755, "TMX:CRAZ2027": 96.665}
+    rows, curve = rates.fed(prices, 4.0)
+    assert rows and rows[0]["hike"] + rows[0]["hold"] + rows[0]["cut"] == 100 and curve
+    rows, curve = rates.quarterly("CAD", prices, 2.5)
+    assert rows and all(r["rate"] > 2.5 for r in rows), rows[:2]
+    rates._scan = lambda t: prices
+    out = rates.refresh({"USD": 4.0, "CAD": 2.5, "EUR": 2.0})
+    assert out["banks"]["USD"]["ok"] and out["banks"]["CAD"]["ok"] and not out["banks"]["AUD"]["ok"]
+    assert out["banks"]["EUR"]["ok"] is False  # pas de prix Euribor fournis
+
+
 def test_api():
     from fastapi.testclient import TestClient
     from server.main import app
@@ -200,4 +216,4 @@ def test_api():
 
 
 if __name__ == "__main__":
-    test_pipeline(); test_seasonality(); test_cot(); test_api(); print("\nTOUS LES TESTS OK")
+    test_pipeline(); test_seasonality(); test_cot(); test_rates(); test_api(); print("\nTOUS LES TESTS OK")

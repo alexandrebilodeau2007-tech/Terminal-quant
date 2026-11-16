@@ -70,6 +70,9 @@ function show(v){
   document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
   if(location.hash!=="#"+v) history.replaceState(null,"","#"+v);
   if(v==="graphiques") renderCharts();
+  if(v==="force" && window.loadForce) loadForce();
+  if(v==="taux" && window.loadRates) loadRates();
+  if(v!=="graphiques" && window.stopCharts) stopCharts();
   if(v==="devises") loadCurrencies();
   if(v==="nouvelles") loadNews();
   if(v==="accueil") loadDashboard();
@@ -516,15 +519,6 @@ async function openCurrency(code){
 }
 
 /* ---------------- graphiques ---------------- */
-function renderCharts(){
-  $("#pager").innerHTML = CHART_PAGES.map((p,i)=>`<button class="chip ${i===CHART_PAGE?"on":""}" data-p="${i}">${i+1}. ${esc(p.name)}</button>`).join("");
-  const page=CHART_PAGES[CHART_PAGE]; const tf=$("#tf").value;
-  $("#charts").innerHTML = page.syms.map((_,i)=>`<div class="chartbox" id="ch${i}"></div>`).join("");
-  page.syms.forEach((s,i)=>tvWidget($("#ch"+i),"embed-widget-advanced-chart.js",chartCfg(s,tf)));
-}
-$("#pager").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;CHART_PAGE=+b.dataset.p;store.set("chartPage",CHART_PAGE);renderCharts()});
-$("#tf").onchange=renderCharts;
-
 /* ---------------- saisonnalité ---------------- */
 let seasonInit=false;
 function mmdd(d){return String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
@@ -657,7 +651,7 @@ async function renderAlerts(){
 if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js",{scope:"/"}).catch(console.warn);
 renderFilters(); initTape(); health(); tick();
 loadCal().then(loadWeekly);
-const startView=(location.hash||"#accueil").slice(1); show(["accueil","semaine","calendrier","fiches","nouvelles","macro","devises","graphiques","saison","alertes"].includes(startView)?startView:"accueil");
+const startView=(location.hash||"#accueil").slice(1); show(["accueil","semaine","calendrier","fiches","nouvelles","macro","devises","graphiques","force","taux","saison","alertes"].includes(startView)?startView:"accueil");
 setInterval(()=>{ if(!document.hidden&&$("#v-calendrier").classList.contains("on")) loadCalView(); }, 60000);
 setInterval(()=>{ if(!document.hidden){ loadCal(); if($("#v-nouvelles").classList.contains("on")) loadNews(); if($("#v-accueil").classList.contains("on")) loadDashboard(); } }, 20000);
 setInterval(()=>{ if(!document.hidden){ health(); } }, 60000);

@@ -108,8 +108,24 @@ table.cal tr.nextev td{background:#1a1206}
 .tone.hawkish{color:var(--red)} .tone.dovish{color:var(--blue)}
 
 /* ---------- charts ---------- */
-.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.chartbox{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;height:calc((100vh - 290px)/2);min-height:300px}
+.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;--rows:2}
+.charts.l1{grid-template-columns:1fr;--rows:1}.charts.l2{--rows:1}.charts.l4{--rows:2}.charts.l6{grid-template-columns:repeat(3,minmax(0,1fr));--rows:2}.charts.l8{grid-template-columns:repeat(4,minmax(0,1fr));--rows:2}
+.chartbox{background:#000;border:1px solid var(--line);border-radius:6px;overflow:hidden;height:calc((100vh - 175px)/var(--rows) - 6px);min-height:260px;display:flex;flex-direction:column}
+.charts.hasmax .chartbox{display:none}.charts.hasmax .chartbox.max{display:flex;grid-column:1/-1;height:calc(100vh - 170px)}
+.chhead{display:flex;align-items:center;gap:8px;padding:4px 8px;border-bottom:1px solid #15181d;font-size:12px;min-height:30px}
+.chsym{background:transparent;border:1px solid transparent;color:var(--txt);font-family:var(--mono);font-weight:700;font-size:12px;width:92px;padding:2px 4px;border-radius:3px}
+.chsym:hover,.chsym:focus{border-color:var(--line2);background:#0c1015;outline:none}
+.chname{color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;font-size:11px}
+.chlast{font-size:12px;white-space:nowrap}
+.chlegend{font-size:10px;color:var(--dim);white-space:nowrap}.chlegend i{display:inline-block;width:10px;height:2px;vertical-align:middle;margin:0 3px 0 6px}
+.chmax{padding:1px 6px;font-size:11px}
+.chplot{flex:1;min-height:0}
+.chpanel .ph{flex-wrap:wrap}.chpanel select{max-width:160px}
+body.chfull #tape,body.chfull #tabs,body.chfull header,body.chfull .topbar{display:none!important}
+body.chfull #v-graphiques{position:fixed;inset:0;z-index:80;background:#000;padding:4px;overflow:auto}
+body.chfull .chartbox{height:calc((100vh - 60px)/var(--rows) - 6px)}
+body.chfull .charts.hasmax .chartbox.max{height:calc(100vh - 60px)}
+@media(max-width:760px){.charts,.charts.l6,.charts.l8{grid-template-columns:1fr}.chartbox{height:360px}.chlegend{display:none}}
 @media(max-width:860px){.charts{grid-template-columns:1fr}.chartbox{height:340px}}
 .pager{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 
@@ -200,3 +216,26 @@ table.hist .n{text-align:right}
 .fcard b{font-size:14px}
 .fcard span{font-family:var(--mono);font-size:10.5px;color:var(--mute)}
 .fcard .soon{color:var(--acc2)}
+
+/* ---- force FX ---- */
+.stchart{height:360px;position:relative}
+.stlegend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;font-family:var(--mono);font-size:11px}
+.stl{border-left:3px solid var(--c);padding:2px 7px;background:#0c1015;border-radius:3px}.stl b{color:var(--c)}
+.pfgrid{display:grid;grid-template-columns:minmax(260px,1fr) 2fr;gap:16px}
+@media(max-width:760px){.pfgrid{grid-template-columns:1fr}.stchart{height:280px}}
+table.pfpairs td,table.pfpairs th{padding:5px 8px;font-size:12px}
+table.heat{border-collapse:separate;border-spacing:2px;font-family:var(--mono);font-size:11px;width:100%}
+table.heat th{color:var(--dim);font-weight:500;padding:4px;text-align:center;white-space:nowrap}
+table.heat td{text-align:center;padding:7px 4px;border-radius:3px;color:#fff;min-width:58px}
+/* ---- taux BC ---- */
+.rtcards{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+@media(max-width:760px){.rtcards{grid-template-columns:repeat(2,1fr)}}
+.rtc{background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:10px 12px}
+.rtc small{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--dim);margin-bottom:4px}
+.rtc b{font-size:17px}
+.rtgrid{display:grid;grid-template-columns:1.1fr 1fr;gap:18px}
+@media(max-width:760px){.rtgrid{grid-template-columns:1fr}}
+.scen{display:grid;grid-template-columns:72px 1fr 48px;align-items:center;gap:10px;margin:6px 0;font-size:12px}
+.sbarh{height:22px;background:#0c1015;border-radius:3px;overflow:hidden}.sbarh div{height:100%}
+.sbarh .hk{background:#1f8f6d}.sbarh .hd{background:#8a93a3}.sbarh .ct{background:#c93b4b}
+table.rtt td,table.rtt th{padding:6px 8px;font-size:12px}

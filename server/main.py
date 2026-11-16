@@ -12,7 +12,7 @@ from datetime import timedelta
 
 from fastapi.responses import Response
 
-from . import calendar_data as cal, engine, push, weekly, seasonality, storage, sentiment, macro, indicators, fiches, cot
+from . import calendar_data as cal, engine, push, weekly, seasonality, storage, sentiment, macro, indicators, fiches, cot, market, rates
 from .config import WEB_DIR, APP_TOKEN, PORT, TIMEZONE, ANTHROPIC_API_KEY, TE_API_KEY
 from .countries import CURRENCIES
 
@@ -191,6 +191,57 @@ def macro_table():
 def get_sentiment():
     data = sentiment.latest()
     return {"configured": bool(data and data.get("rows")) or sentiment.configured(), "data": data}
+
+
+# ---------- marché : chandelles, force des devises, performance ----------
+@app.get("/api/symbols")
+def symbols():
+    return {"symbols": [{"code": k, "yahoo": v[0], "name": v[1]} for k, v in market.SYMBOLS.items()]}
+
+
+@app.get("/api/ohlc")
+async def ohlc(symbol: str, interval: str = "60"):
+    try:
+        return await asyncio.to_thread(market.ohlc, symbol, interval)
+    except Exception as e:
+        raise HTTPException(400, f"Données indisponibles pour {symbol}: {str(e)[:120]}")
+
+
+@app.get("/api/strength")
+async def strength(window: str = "1d"):
+    try:
+        return await asyncio.to_thread(market.strength, window)
+    except Exception as e:
+        raise HTTPException(400, str(e)[:160])
+
+
+@app.get("/api/fxperf")
+async def fxperf(period: str = "1D"):
+    try:
+        perf, norm = await asyncio.gather(asyncio.to_thread(market.performance, period),
+                                          asyncio.to_thread(market.normalized, period))
+        return {**perf, "normalized": norm, "periods": market.PERIODS}
+    except Exception as e:
+        raise HTTPException(400, str(e)[:160])
+
+
+@app.get("/api/quotes")
+async def quotes(codes: str = "EURUSD,GBPUSD,USDJPY,USDCAD,AUDUSD,NZDUSD,USDCHF"):
+    return {"rows": await asyncio.to_thread(market.quote_table, codes.split(","))}
+
+
+@app.get("/api/rates")
+def get_rates():
+    return rates.latest() or {"banks": {}}
+
+
+@app.post("/api/rates/refresh")
+async def rates_refresh():
+    try:
+        cur = {r["code"]: (r.get("rate") or {}).get("value") for r in macro.table()["rows"]}
+        return await asyncio.to_thread(rates.refresh, cur)
+    except Exception as e:
+        raise HTTPException(400, str(e)[:200])
 
 
 @app.get("/api/cot")

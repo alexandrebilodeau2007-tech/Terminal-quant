@@ -12,9 +12,10 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="icon" href="/icons/icon-192.png">
 <title>Macro Terminal</title>
-<link rel="stylesheet" href="/styles.css?v=8">
+<link rel="stylesheet" href="/styles.css?v=9">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js" defer></script>
 </head>
 <body>
 <header>
@@ -35,6 +36,8 @@
     <button data-v="macro"><span class="ic">▤</span>MACRO</button>
     <button data-v="devises"><span class="ic">¤</span>DEVISES</button>
     <button data-v="graphiques"><span class="ic">◩</span>GRAPHIQUES</button>
+    <button data-v="force"><span class="ic">⇅</span>FORCE FX</button>
+    <button data-v="taux"><span class="ic">%</span>TAUX BC</button>
     <button data-v="saison"><span class="ic">∿</span>SAISONNALITÉ</button>
     <button data-v="alertes"><span class="ic">◉</span>ALERTES</button>
   </nav>
@@ -97,13 +100,39 @@
 
   <!-- GRAPHIQUES -->
   <section class="view" id="v-graphiques">
-    <div class="panel"><div class="ph"><b>Graphiques</b> · 4 par page
-      <div class="r"><select id="tf">
-        <option value="15">15 min</option><option value="60" selected>1 h</option><option value="240">4 h</option>
-        <option value="D">Jour</option><option value="W">Semaine</option></select></div></div>
-      <div class="pb"><div class="pager" id="pager"></div></div>
+    <div class="panel chpanel"><div class="ph"><b>Graphiques</b> <span class="mono dim hide-m">· SMMA 50 / 200 · chandelles gris = hausse, orange = baisse</span>
+      <div class="r chips" id="chTools">
+        <select id="chTpl" title="Modèle"></select>
+        <select id="chLayout" title="Disposition"><option value="1">1 graphique</option><option value="2">2 graphiques</option><option value="4" selected>4 graphiques</option><option value="6">6 graphiques</option><option value="8">8 graphiques</option></select>
+        <select id="tf"><option value="5">5 min</option><option value="15">15 min</option><option value="60" selected>1 h</option><option value="240">4 h</option><option value="D">Jour</option><option value="W">Semaine</option></select>
+        <button class="chip" id="chSave" title="Enregistrer comme modèle perso">💾</button>
+        <button class="chip" id="chFull" title="Plein écran">⛶</button>
+      </div></div>
     </div>
     <div class="charts" id="charts"></div>
+  </section>
+
+  <!-- FORCE FX -->
+  <section class="view" id="v-force">
+    <div class="panel"><div class="ph"><b>Force des devises</b> <span class="mono dim">· en points de base, 0 = moyenne du panier</span>
+      <div class="r chips" id="stWin"></div></div>
+      <div class="pb"><div class="stlegend" id="stLegend"></div><div class="stchart"><canvas id="stCanvas"></canvas></div></div></div>
+    <div class="panel"><div class="ph"><b>Performance des devises</b><div class="r chips" id="pfPer"></div></div>
+      <div class="pb">
+        <div class="pfgrid">
+          <div><div class="dh">PAIRES MAJEURES</div><table class="cal pfpairs" id="pfPairs"></table></div>
+          <div><div class="dh">PERFORMANCE NORMALISÉE (%)</div><div class="stchart" style="height:300px"><canvas id="pfCanvas"></canvas></div></div>
+        </div>
+        <div class="dh" style="margin-top:14px">MATRICE · ligne = devise de base, colonne = devise cotée, % de variation sur la période</div>
+        <div style="overflow-x:auto"><table class="heat" id="pfHeat"></table></div>
+      </div></div>
+  </section>
+
+  <!-- TAUX BC -->
+  <section class="view" id="v-taux">
+    <div class="panel"><div class="ph"><b>Probabilités de taux</b> <span class="mono dim hide-m">· estimées à partir des futures de taux</span>
+      <div class="r chips" id="rtBanks"></div></div>
+      <div class="pb" id="rtBody"><div class="empty">Chargement…</div></div></div>
   </section>
 
   <!-- SAISONNALITÉ -->
@@ -129,6 +158,7 @@
   <section class="view" id="v-alertes"></section>
 </main>
 <div class="toast" id="toast"></div>
-<script src="/app.js?v=11"></script>
+<script src="/app.js?v=12"></script>
+<script src="/charts.js?v=1"></script>
 </body>
 </html>
