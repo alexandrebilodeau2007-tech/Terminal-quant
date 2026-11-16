@@ -43,7 +43,7 @@ async function renderCharts(){
   LC = CH.syms.slice(0,n).map((s,i)=>buildChart(i,s));
   chTimer=setInterval(()=>LC.forEach(c=>c&&c.refresh()), ["5","15"].includes(CH.tf)?20000:60000);
 }
-function stopCharts(){ if(chTimer){clearInterval(chTimer);chTimer=null;} LC.forEach(c=>{try{c&&c.chart.remove()}catch{}}); LC=[]; }
+function stopCharts(){ if(chTimer){clearInterval(chTimer);chTimer=null;} LC.forEach(c=>{try{c.dead=true;c.ro.disconnect();c.chart.remove()}catch{}}); LC=[]; }
 function buildChart(i,sym){
   const el=$("#chp"+i); if(!el) return null;
   const chart=LightweightCharts.createChart(el,{layout:{background:{type:"solid",color:"#000"},textColor:"#9aa4b1",fontFamily:"'IBM Plex Mono',monospace",fontSize:11},
@@ -55,12 +55,14 @@ function buildChart(i,sym){
   const s50=chart.addLineSeries({color:C50,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
   const s200=chart.addLineSeries({color:C200,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
   const ro=new ResizeObserver(()=>chart.applyOptions({width:el.clientWidth,height:el.clientHeight})); ro.observe(el);
-  const obj={chart,sym,candles,s50,s200,first:true,async refresh(){
+  const obj={chart,sym,candles,s50,s200,ro,first:true,dead:false,async refresh(){
+    if(this.dead) return;
     try{
       const d=await api(`/api/ohlc?symbol=${encodeURIComponent(this.sym)}&interval=${CH.tf}`);
       const off=-new Date().getTimezoneOffset()*60; // heure locale pour l'axe
       const bars=d.bars.map(b=>({time:b.t+off,open:b.o,high:b.h,low:b.l,close:b.c}));
       if(["D","W"].includes(CH.tf)) bars.forEach(b=>b.time=b.time-off);
+      if(this.dead) return;
       candles.setData(bars);
       const closes=d.bars.map(b=>b.c);
       const m50=smma(closes,50), m200=smma(closes,200);
