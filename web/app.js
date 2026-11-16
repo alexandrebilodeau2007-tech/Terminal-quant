@@ -69,7 +69,7 @@ function show(v){
   document.querySelectorAll(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));
   document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
   if(location.hash!=="#"+v) history.replaceState(null,"","#"+v);
-  if(v==="graphiques") renderCharts();
+  if(v==="graphiques"){ if(window.renderCharts) renderCharts(); else setTimeout(()=>window.renderCharts&&renderCharts(),300); }
   if(v==="force" && window.loadForce) loadForce();
   if(v==="taux" && window.loadRates) loadRates();
   if(v!=="graphiques" && window.stopCharts) stopCharts();

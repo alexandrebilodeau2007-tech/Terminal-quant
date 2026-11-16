@@ -179,3 +179,4 @@ function renderRates(){
     scales:{x:{ticks:{color:"#7d8896",font:{size:10}},grid:{color:"#15181d"}},y:{position:"right",ticks:{color:"#7d8896",font:{size:10},callback:v=>v.toFixed(2)+"%"},grid:{color:"#15181d"}}}}});
 }
 window.loadForce=loadForce; window.loadRates=loadRates; window.stopCharts=stopCharts;
+window.renderCharts=renderCharts;
