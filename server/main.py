@@ -218,7 +218,7 @@ async def probe(req: Request):
                 r = httpx.post(it["url"], json=it["json"], timeout=20, headers={"User-Agent": "Mozilla/5.0"})
             else:
                 r = httpx.get(it["url"], timeout=20, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
-            out[it["url"]] = {"status": r.status_code, "body": r.text[:1500]}
+            out[it["url"]] = {"status": r.status_code, "body": r.text[:20000]}
         except Exception as e:
             out[it["url"]] = {"error": str(e)[:200]}
     return out
