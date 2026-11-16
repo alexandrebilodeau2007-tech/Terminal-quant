@@ -239,3 +239,5 @@ table.heat td{text-align:center;padding:7px 4px;border-radius:3px;color:#fff;min
 .sbarh{height:22px;background:#0c1015;border-radius:3px;overflow:hidden}.sbarh div{height:100%}
 .sbarh .hk{background:#1f8f6d}.sbarh .hd{background:#8a93a3}.sbarh .ct{background:#c93b4b}
 table.rtt td,table.rtt th{padding:6px 8px;font-size:12px}
+.scen{min-width:0}.scen .sbarh{min-width:0}
+@media(max-width:760px){.scen{grid-template-columns:64px 1fr 42px}.chpanel .ph .hide-m{display:none}#v-taux .ph{flex-wrap:wrap}#v-taux .ph .r{width:100%;margin-top:6px}}
