@@ -206,6 +206,24 @@ async def cot_refresh():
         raise HTTPException(400, str(e))
 
 
+@app.post("/api/probe")
+async def probe(req: Request):
+    """Outil de diagnostic : teste des URL depuis le serveur (GET ou POST JSON)."""
+    import httpx
+    body = await req.json()
+    out = {}
+    for it in body.get("items", []):
+        try:
+            if it.get("json") is not None:
+                r = httpx.post(it["url"], json=it["json"], timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+            else:
+                r = httpx.get(it["url"], timeout=20, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
+            out[it["url"]] = {"status": r.status_code, "body": r.text[:1500]}
+        except Exception as e:
+            out[it["url"]] = {"error": str(e)[:200]}
+    return out
+
+
 @app.get("/api/sentiment/probe")
 def sentiment_probe():
     """Vérifie quelles sources de sentiment répondent depuis ce serveur."""
