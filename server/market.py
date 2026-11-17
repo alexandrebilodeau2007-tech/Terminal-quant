@@ -122,6 +122,36 @@ def quote_table(codes):
     return out
 
 
+# ---------- prix en direct (pour le temps réel) ----------
+def live_prices():
+    """Dernier prix de chaque paire majeure (cache 8 s), récupérés en parallèle."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(item):
+        ysym = item[0]
+        try:
+            bars, meta = yahoo(ysym, "1m", "1d", ttl=8)
+            return ysym, meta.get("regularMarketPrice") or (bars[-1]["c"] if bars else None)
+        except Exception:
+            return ysym, None
+    with ThreadPoolExecutor(7) as ex:
+        return dict(ex.map(one, VS_USD))
+
+
+def _prefetch(specs):
+    """Charge en parallèle les historiques Yahoo nécessaires (remplit le cache)."""
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(8) as ex:
+        list(ex.map(lambda a: _safe(yahoo, *a), specs))
+
+
+def _safe(f, *a):
+    try:
+        return f(*a)
+    except Exception:
+        return None
+
+
 # ---------- force des devises (style « Currency Strength ») ----------
 WINDOWS = {"td": ("5m", "1d", 0), "8h": ("5m", "1d", 8 * 3600), "1d": ("5m", "5d", 24 * 3600), "tw": ("15m", "5d", 0),
            "5d": ("15m", "1mo", 5 * 86400), "7d": ("30m", "1mo", 7 * 86400), "1m": ("60m", "3mo", 30 * 86400)}
@@ -129,11 +159,14 @@ WINDOWS = {"td": ("5m", "1d", 0), "8h": ("5m", "1d", 8 * 3600), "1d": ("5m", "5d
 
 def strength(window="1d"):
     yi, rng, span = WINDOWS.get(window, WINDOWS["1d"])
+    _prefetch([(y, yi, rng, 60) for y, _, _ in VS_USD])
+    live = live_prices()
     series = {}
     for ysym, ccy, sign in VS_USD:
         bars, _ = yahoo(ysym, yi, rng, ttl=60)
         series[ccy] = (sign, {b["t"]: b["c"] for b in bars})
     now = time.time()
+    live_t = int(now)
     if window == "td":
         start = datetime.fromtimestamp(now, timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
     elif window == "tw":
@@ -147,6 +180,10 @@ def strength(window="1d"):
         ts = {t for t in m if t >= start}
         common = ts if common is None else common & ts
     ts = sorted(common or [])
+    if ts and all(live.get(y) for y, _, _ in VS_USD) and live_t > ts[-1]:
+        for ysym, ccy, _ in VS_USD:
+            series[ccy][1][live_t] = live[ysym]
+        ts.append(live_t)
     if len(ts) < 2:
         return {"window": window, "times": [], "series": {}, "latest": {}}
     t0 = ts[0]
@@ -157,7 +194,7 @@ def strength(window="1d"):
         mean = sum(logs[c][i] for c in CCYS) / len(CCYS)
         for c in CCYS:
             out.setdefault(c, []).append(round((logs[c][i] - mean) * 10000, 1))  # en points de base
-    return {"window": window, "times": ts, "series": out, "latest": {c: out[c][-1] for c in CCYS}}
+    return {"window": window, "times": ts, "series": out, "latest": {c: out[c][-1] for c in CCYS}, "asof": now}
 
 
 # ---------- performance des paires et matrice (style Koyfin / PMT) ----------
@@ -166,13 +203,15 @@ PERIODS = ["1D", "5D", "MTD", "1M", "3M", "QTD", "YTD", "1Y"]
 
 def _daily_closes():
     out = {}
+    _prefetch([(y, "1d", "2y", 300) for y, _, _ in VS_USD])
+    lp = live_prices()
     for ysym, ccy, sign in VS_USD:
         bars, meta = yahoo(ysym, "1d", "2y", ttl=300)
         closes = {}
         for b in bars:
             d = datetime.fromtimestamp(b["t"], timezone.utc).date().isoformat()
             closes[d] = b["c"]
-        live = meta.get("regularMarketPrice")
+        live = lp.get(ysym) or meta.get("regularMarketPrice")
         if live:
             closes[datetime.now(timezone.utc).date().isoformat()] = live
         out[ccy] = (sign, closes)
@@ -232,7 +271,7 @@ def performance(period="1D"):
         now_ = usd_now[b] / usd_now[q]
         ref_ = usd_ref[b] / usd_ref[q]
         pairs.append({"pair": b + q, "price": round(now_, 5), "chg_pct": round((now_ / ref_ - 1) * 100, 2)})
-    return {"period": period, "ref_date": ref, "date": last, "matrix": matrix, "pairs": pairs, "ccys": CCYS}
+    return {"period": period, "ref_date": ref, "date": last, "matrix": matrix, "pairs": pairs, "ccys": CCYS, "asof": time.time()}
 
 
 def normalized(period="1D"):
@@ -241,7 +280,8 @@ def normalized(period="1D"):
                "YTD": ("1d", "2y"), "1Y": ("1d", "2y"), "MTD": ("60m", "3mo"), "QTD": ("1d", "1y")}.get(period, ("5m", "5d"))
     pairs = {"EURUSD": "EURUSD=X", "GBPUSD": "GBPUSD=X", "USDJPY": "USDJPY=X", "USDCAD": "USDCAD=X",
              "AUDUSD": "AUDUSD=X", "NZDUSD": "NZDUSD=X", "USDCHF": "USDCHF=X"}
-    series = {p: {b["t"]: b["c"] for b in yahoo(y, yi, rng, ttl=120)[0]} for p, y in pairs.items()}
+    _prefetch([(y, yi, rng, 60) for y in pairs.values()])
+    series = {p: {b["t"]: b["c"] for b in yahoo(y, yi, rng, ttl=60)[0]} for p, y in pairs.items()}
     daily = _daily_closes()
     dates = sorted(set.intersection(*[set(c.keys()) for _, c in daily.values()]))
     ref = _ref_date(period, dates)
@@ -253,6 +293,12 @@ def normalized(period="1D"):
         ts = {t for t in m if t >= start}
         common = ts if common is None else common & ts
     ts = sorted(common or [])
+    lp = live_prices()
+    live_t = int(time.time())
+    if ts and all(lp.get(y) for y in pairs.values()) and live_t > ts[-1]:
+        for p, y in pairs.items():
+            series[p][live_t] = lp[y]
+        ts.append(live_t)
     if not ts:
         return {"period": period, "times": [], "series": {}}
     out = {p: [round((m[t] / m[ts[0]] - 1) * 100, 3) for t in ts] for p, m in series.items()}

@@ -73,6 +73,7 @@ function show(v){
   if(v==="force" && window.loadForce) loadForce();
   if(v==="taux" && window.loadRates) loadRates();
   if(v!=="graphiques" && window.stopCharts) stopCharts();
+  if(v!=="force" && window.stopForce) stopForce();
   if(v==="devises") loadCurrencies();
   if(v==="nouvelles") loadNews();
   if(v==="accueil") loadDashboard();

@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="icon" href="/icons/icon-192.png">
 <title>Macro Terminal</title>
-<link rel="stylesheet" href="/styles.css?v=10">
+<link rel="stylesheet" href="/styles.css?v=11">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js" defer></script>
@@ -114,10 +114,10 @@
 
   <!-- FORCE FX -->
   <section class="view" id="v-force">
-    <div class="panel"><div class="ph"><b>Force des devises</b> <span class="mono dim">· en points de base, 0 = moyenne du panier</span>
+    <div class="panel"><div class="ph"><b>Force des devises</b> <span class="livetag" id="stLive"><i></i>…</span> <span class="mono dim hide-m">· en points de base, 0 = moyenne du panier · MAJ toutes les 10 s</span>
       <div class="r chips" id="stWin"></div></div>
       <div class="pb"><div class="stlegend" id="stLegend"></div><div class="stchart"><canvas id="stCanvas"></canvas></div></div></div>
-    <div class="panel"><div class="ph"><b>Performance des devises</b><div class="r chips" id="pfPer"></div></div>
+    <div class="panel"><div class="ph"><b>Performance des devises</b> <span class="livetag" id="pfLive"><i></i>…</span><div class="r chips" id="pfPer"></div></div>
       <div class="pb">
         <div class="pfgrid">
           <div><div class="dh">PAIRES MAJEURES</div><table class="cal pfpairs" id="pfPairs"></table></div>
@@ -158,7 +158,7 @@
   <section class="view" id="v-alertes"></section>
 </main>
 <div class="toast" id="toast"></div>
-<script src="/app.js?v=13"></script>
-<script src="/charts.js?v=3"></script>
+<script src="/app.js?v=14"></script>
+<script src="/charts.js?v=4"></script>
 </body>
 </html>

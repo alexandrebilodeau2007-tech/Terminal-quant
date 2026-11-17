@@ -104,14 +104,34 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape" && chFull) toggleFu
 /* ===================== FORCE FX ===================== */
 const ST_WIN=[["td","TD"],["tw","TW"],["8h","8H"],["1d","1D"],["5d","5D"],["7d","7D"],["1m","1M"]];
 const ST_COL={USD:"#ff7a1a",EUR:"#ff3b3b",JPY:"#3ee6e6",GBP:"#2ecc71",AUD:"#2f6bff",CHF:"#ffd21f",CAD:"#8a5cff",NZD:"#ff3fa4"};
-let ST={win:store.get("stWin","1d"),per:store.get("pfPer","1D")}, stChart=null, pfChart=null;
+let ST={win:store.get("stWin","1d"),per:store.get("pfPer","1D")}, stChart=null, pfChart=null, stTimer=null, stBusy=false;
+const LIVE_MS=10000;
 async function loadForce(){
   $("#stWin").innerHTML=ST_WIN.map(([k,l])=>`<button class="chip ${ST.win===k?"on":""}" data-w="${k}">${l}</button>`).join("");
-  loadStrength(); loadPerf();
+  await Promise.all([loadStrength(), loadPerf()]);
+  startForce();
 }
-$("#stWin").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;ST.win=b.dataset.w;store.set("stWin",ST.win);loadForce();});
-async function loadStrength(){
-  let d; try{ d=await api("/api/strength?window="+ST.win); }catch(e){ $("#stLegend").innerHTML=`<span class="neg">${esc(e.message)}</span>`; return; }
+function startForce(){
+  stopForce();
+  stTimer=setInterval(async()=>{
+    if(document.hidden||stBusy||!$("#v-force").classList.contains("on")) return;
+    stBusy=true; try{ await Promise.all([loadStrength(true), loadPerf(true)]); } finally { stBusy=false; }
+  }, LIVE_MS);
+}
+function stopForce(){ if(stTimer){ clearInterval(stTimer); stTimer=null; } }
+function liveTag(id,ok,asof){
+  const el=$("#"+id); if(!el) return;
+  el.className="livetag "+(ok?"on":"off");
+  el.innerHTML=ok?`<i></i>EN DIRECT · ${(d=>[d.getHours(),d.getMinutes(),d.getSeconds()].map(x=>String(x).padStart(2,"0")).join(":"))(new Date((asof||Date.now()/1000)*1000))}`:"<i></i>HORS LIGNE";
+}
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && $("#v-force").classList.contains("on")){ loadStrength(true); loadPerf(true); } });
+$("#stWin").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;ST.win=b.dataset.w;store.set("stWin",ST.win);
+  $("#stWin").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.w===ST.win)); loadStrength();});
+async function loadStrength(live=false){
+  const win=ST.win;
+  let d; try{ d=await api("/api/strength?window="+win); }catch(e){ liveTag("stLive",false); if(!live) $("#stLegend").innerHTML=`<span class="neg">${esc(e.message)}</span>`; return; }
+  if(win!==ST.win) return;
+  liveTag("stLive",true,d.asof);
   const ccys=Object.keys(d.series).sort((a,b)=>d.latest[b]-d.latest[a]);
   $("#stLegend").innerHTML=ccys.map(c=>`<span class="stl" style="--c:${ST_COL[c]}"><b>${c}</b> ${d.latest[c]>0?"+":""}${d.latest[c].toFixed(1)}</span>`).join("");
   const labels=d.times.map(t=>new Date(t*1000));
@@ -120,11 +140,18 @@ async function loadStrength(){
     options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>` ${x.dataset.label} ${x.parsed.y>0?"+":""}${x.parsed.y.toFixed(1)} pb`}}},
       scales:{x:{ticks:{color:"#7d8896",maxTicksLimit:8,font:{size:10}},grid:{color:"#15181d"}},y:{position:"right",ticks:{color:"#7d8896",font:{size:10}},grid:{color:"#15181d"}}}}};
-  if(stChart) stChart.destroy(); stChart=new Chart($("#stCanvas"),cfg);
+  if(stChart && stChart.$win===win && live){
+    stChart.data.labels=cfg.data.labels;
+    cfg.data.datasets.forEach(ds=>{ const cur=stChart.data.datasets.find(x=>x.label===ds.label); if(cur) cur.data=ds.data; });
+    stChart.update("none");
+  } else { if(stChart) stChart.destroy(); stChart=new Chart($("#stCanvas"),cfg); stChart.$win=win; }
 }
 function heatColor(v){ if(v==null) return "#1a1d22"; const a=Math.min(Math.abs(v)/1.5,1); return v>=0?`rgba(24,160,110,${0.15+0.7*a})`:`rgba(220,60,70,${0.15+0.7*a})`; }
-async function loadPerf(){
-  let d; try{ d=await api("/api/fxperf?period="+ST.per); }catch(e){ $("#pfHeat").innerHTML=`<tr><td class="neg">${esc(e.message)}</td></tr>`; return; }
+async function loadPerf(live=false){
+  const per=ST.per;
+  let d; try{ d=await api("/api/fxperf?period="+per); }catch(e){ liveTag("pfLive",false); if(!live) $("#pfHeat").innerHTML=`<tr><td class="neg">${esc(e.message)}</td></tr>`; return; }
+  if(per!==ST.per) return;
+  liveTag("pfLive",true,d.asof);
   $("#pfPer").innerHTML=d.periods.map(p=>`<button class="chip ${ST.per===p?"on":""}" data-p="${p}">${p}</button>`).join("");
   $("#pfPairs").innerHTML=`<thead><tr><th>Paire</th><th class="n">Prix</th><th class="n">Var.</th></tr></thead><tbody>${d.pairs.map(p=>`<tr><td class="ccy">${p.pair.slice(0,3)}/${p.pair.slice(3)}</td><td class="n mono">${fmtP(p.price,p.pair.includes("JPY")?3:5)}</td><td class="n mono ${p.chg_pct>=0?"pos":"neg"}">${p.chg_pct>=0?"+":""}${p.chg_pct.toFixed(2)}%</td></tr>`).join("")}</tbody>`;
   $("#pfHeat").innerHTML=`<tr><th></th>${d.ccys.map(c=>`<th>${c}</th>`).join("")}<th>MOY.</th></tr>`+d.matrix.map(r=>`<tr><th>${FLAGS[r.ccy]||""} ${r.ccy}</th>${d.ccys.map(c=>{const v=r.cells[c];return `<td style="background:${heatColor(v)}">${v==null?"":(v>0?"+":"")+v.toFixed(2)+"%"}</td>`}).join("")}<td class="mono ${r.avg>=0?"pos":"neg"}"><b>${r.avg>0?"+":""}${r.avg.toFixed(2)}%</b></td></tr>`).join("");
@@ -135,7 +162,11 @@ async function loadPerf(){
     options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},
       plugins:{legend:{labels:{color:"#9aa4b1",boxWidth:10,font:{size:10}}},tooltip:{callbacks:{label:x=>` ${x.dataset.label} ${x.parsed.y>0?"+":""}${x.parsed.y.toFixed(2)}%`}}},
       scales:{x:{ticks:{color:"#7d8896",maxTicksLimit:8,font:{size:10}},grid:{color:"#15181d"}},y:{position:"right",ticks:{color:"#7d8896",font:{size:10},callback:v=>v+"%"},grid:{color:"#15181d"}}}}};
-  if(pfChart) pfChart.destroy(); pfChart=new Chart($("#pfCanvas"),cfg);
+  if(pfChart && pfChart.$per===per && live){
+    pfChart.data.labels=cfg.data.labels;
+    cfg.data.datasets.forEach(ds=>{ const cur=pfChart.data.datasets.find(x=>x.label===ds.label); if(cur) cur.data=ds.data; });
+    pfChart.update("none");
+  } else { if(pfChart) pfChart.destroy(); pfChart=new Chart($("#pfCanvas"),cfg); pfChart.$per=per; }
 }
 $("#pfPer").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;ST.per=b.dataset.p;store.set("pfPer",ST.per);loadPerf();});
 
@@ -180,5 +211,5 @@ function renderRates(){
     plugins:{legend:{labels:{color:"#9aa4b1",boxWidth:10,font:{size:10}}}},
     scales:{x:{ticks:{color:"#7d8896",font:{size:10}},grid:{color:"#15181d"}},y:{position:"right",ticks:{color:"#7d8896",font:{size:10},callback:v=>v.toFixed(2)+"%"},grid:{color:"#15181d"}}}}});
 }
-window.loadForce=loadForce; window.loadRates=loadRates; window.stopCharts=stopCharts;
+window.loadForce=loadForce; window.stopForce=stopForce; window.loadRates=loadRates; window.stopCharts=stopCharts;
 window.renderCharts=renderCharts;
