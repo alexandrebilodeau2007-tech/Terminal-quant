@@ -194,6 +194,27 @@ def test_news_notify():
         push.send = orig
 
 
+def test_flows_live():
+    from server import flows, market, storage
+    snaps = [{"CME:6E1!": [1.10, 800000, 0.2, 1], "COMEX:GC1!": [3800, 200000, -1.0, 1], "CME_MINI:ES1!": [7000, 2000000, 0.5, 1]},
+             {"CME:6E1!": [1.11, 820000, 0.5, 1], "COMEX:GC1!": [3780, 210000, -0.5, 1], "CME_MINI:ES1!": [7050, 1000000, 0.7, 1]}]
+    storage.save("flows_hist.json", {"days": {"2000-01-01": {t: {"close": d[0], "oi": d[1], "chg": d[2]} for t, d in snaps[0].items()}}})
+    flows._scan = lambda: snaps[1]
+    out = flows.refresh()
+    by = {r["ticker"]: r for r in out["rows"]}
+    assert by["CME:6E1!"]["reading"] == "Nouveaux acheteurs", by["CME:6E1!"]
+    assert by["COMEX:GC1!"]["reading"] == "Nouveaux vendeurs"
+    assert by["CME_MINI:ES1!"]["reading"] == "Roulement de contrat"
+    assert flows.reading(1, -2)[0] == "Rachat de shorts" and flows.reading(-1, -2)[0] == "Liquidation de longs"
+    orig = market._get
+    market._get = lambda url, params, ttl: {"EURUSD=X": {"timestamp": [1, 2, 3], "close": [1.1, 1.2, None], "chartPreviousClose": 1.0}}
+    try:
+        q = market.live(["EURUSD"])["quotes"]["EURUSD"]
+        assert q["price"] == 1.2 and q["t"] == 2
+    finally:
+        market._get = orig
+
+
 def test_api():
     from fastapi.testclient import TestClient
     from server.main import app
@@ -247,4 +268,4 @@ def test_api():
 
 
 if __name__ == "__main__":
-    test_pipeline(); test_seasonality(); test_cot(); test_rates(); test_news_notify(); test_api(); print("\nTOUS LES TESTS OK")
+    test_pipeline(); test_seasonality(); test_cot(); test_rates(); test_news_notify(); test_flows_live(); test_api(); print("\nTOUS LES TESTS OK")

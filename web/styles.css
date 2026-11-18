@@ -250,3 +250,6 @@ table.rtt td,table.rtt th{padding:6px 8px;font-size:12px}
 .chartbox.mini{height:100%;min-height:0;border:0;border-radius:0}
 .minitf{gap:3px;flex-wrap:nowrap}.minitf .chip{padding:1px 6px;font-size:10px}
 @media(max-width:760px){.chartbox.mini .chname{display:none}}
+
+.chlive{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3a414b;flex:none}
+.chlive.on{background:#18c787;animation:livepulse 1.6s infinite}

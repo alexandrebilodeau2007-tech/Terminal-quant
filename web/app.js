@@ -71,6 +71,7 @@ function show(v){
   if(location.hash!=="#"+v) history.replaceState(null,"","#"+v);
   if(v==="graphiques"){ if(window.renderCharts) renderCharts(); else setTimeout(()=>window.renderCharts&&renderCharts(),300); }
   if(v==="force" && window.loadForce) loadForce();
+  if(v==="positions") loadPositions();
   if(v==="taux" && window.loadRates) loadRates();
   if(v!=="graphiques" && window.stopCharts) stopCharts();
   if(v!=="force" && window.stopForce) stopForce();
@@ -358,6 +359,43 @@ $("#newsCcy").addEventListener("click",e=>{const b=e.target.closest("button");if
 $("#newsSrc").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;NEWS_F.src=b.dataset.s;store.set("newsFilter",NEWS_F);loadNews()});
 
 
+/* ---------------- positions institutionnelles ---------------- */
+const POS_CLS=[["fx","Devises"],["idx","Indices boursiers"],["rates","Taux"],["cmd","Matières premières"]];
+let POS_C=store.get("posCls","fx"), POS_COT=null, POS_FL=null;
+async function loadPositions(){
+  try{ [POS_COT,POS_FL]=await Promise.all([api("/api/cot"),api("/api/flows")]); }catch(e){ $("#posBody").innerHTML=`<div class="empty">${esc(e.message)}</div>`; return; }
+  renderPositions();
+}
+function oiSpark(v){ if(!v||v.length<2) return ""; const lo=Math.min(...v),hi=Math.max(...v),w=70,h=18;
+  const pts=v.map((x,i)=>`${(i/(v.length-1)*w).toFixed(1)},${(h-(hi>lo?(x-lo)/(hi-lo):.5)*h).toFixed(1)}`).join(" ");
+  return `<svg width="${w}" height="${h}" style="vertical-align:middle"><polyline points="${pts}" fill="none" stroke="#7d8896" stroke-width="1.2"/></svg>`; }
+function renderPositions(){
+  $("#posCls").innerHTML=POS_CLS.map(([k,l])=>`<button class="chip ${POS_C===k?"on":""}" data-k="${k}">${l}</button>`).join("");
+  const fl=(POS_FL?.rows||[]).filter(r=>r.class===POS_C);
+  const cot=(POS_COT?.rows||[]).filter(r=>(r.class||"fx")===POS_C);
+  const hasPrev=!!POS_FL?.prev_day;
+  const fmtOI=n=>n==null?"—":n>=1e6?(n/1e6).toFixed(2)+"M":n>=1e3?(n/1e3).toFixed(1)+"K":String(n);
+  const sg=r=>r.groups?.[r.spec||"lev"];
+  $("#posBody").innerHTML=`
+   <div class="panel"><div class="ph"><b>Flux quotidiens</b> · prix + intérêts ouverts des contrats à terme${POS_FL?.updated?" · MAJ "+fT.format(new Date(POS_FL.updated*1000)):""}</div>
+    ${fl.length?`<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Actif</th><th class="n">Prix</th><th class="n">Var. jour</th><th class="n">Intérêts ouverts</th><th class="n">Δ OI jour</th><th class="hide-m">Tendance OI (20 j)</th><th class="n">Lecture du jour</th></tr></thead><tbody>
+    ${fl.map(r=>`<tr><td><span class="ccy">${POS_C==="fx"?(FLAGS[r.key]||"")+" "+r.key:esc(r.name)}</span><div class="dim mono" style="font-size:9px">${esc(r.ticker)}</div></td>
+      <td class="n mono">${r.price!=null?Number(r.price).toLocaleString("fr-CA",{maximumFractionDigits:r.price<0.1?6:r.price<10?4:2}):"—"}</td>
+      <td class="n mono ${r.chg_pct>=0?"pos":"neg"}">${r.chg_pct!=null?(r.chg_pct>=0?"+":"")+r.chg_pct.toFixed(2)+"%":"—"}</td>
+      <td class="n mono">${fmtOI(r.oi)}</td>
+      <td class="n mono ${r.doi>0?"pos":r.doi<0?"neg":"mute"}">${r.doi_pct!=null?(r.doi_pct>0?"+":"")+r.doi_pct.toFixed(1)+"%":"—"}</td>
+      <td class="hide-m">${oiSpark(r.oi_series)}</td>
+      <td class="n mono ${r.tone==="pos"?"pos":r.tone==="neg"?"neg":"mute"}" style="font-size:11px">${esc(r.reading)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">Chargement…</div>'}
+    <p class="note" style="padding:0 12px 12px">${hasPrev?"":"<b>La comparaison jour sur jour commence demain</b> : le serveur garde une photo par jour des intérêts ouverts. "}Lecture : prix ↑ + OI ↑ = nouveaux acheteurs · prix ↓ + OI ↑ = nouveaux vendeurs · prix ↑ + OI ↓ = rachat de shorts · prix ↓ + OI ↓ = liquidation de longs. Une chute d'OI de plus de 25 % = roulement vers le contrat suivant. C'est un indicateur de flux de tous les participants, pas le détail par catégorie (celui-ci n'existe qu'en hebdomadaire, ci-dessous).</p></div>
+   <div class="panel"><div class="ph"><b>Positionnement par catégorie</b> · rapport COT de la CFTC (hebdomadaire)${cot[0]?" · données au "+esc(cot[0].date):""}</div>
+    ${cot.length?cotTable(cot):'<div class="empty">Chargement du rapport COT…</div>'}
+    <p class="note" style="padding:0 12px 12px">${POS_C==="cmd"
+      ?"<b>Producteurs</b> : producteurs et négociants qui couvrent leur production (souvent vendeurs structurels). <b>Banques (swap dealers)</b> : banques qui couvrent des swaps vendus à leurs clients. <b>Managed money</b> : hedge funds et CTA, l'argent spéculatif le plus suivi."
+      :"<b>Banques (dealers)</b> : grandes banques, souvent en contrepartie de leurs clients. <b>Asset managers</b> : fonds de pension, fonds communs, assureurs. <b>Hedge funds</b> : argent spéculatif, le groupe le plus suivi."}
+      Indice 6 m / 1 an (groupe spéculatif) : 0 = position la plus courte de la période, 100 = la plus longue ; au-delà de 90 ou sous 10 = extrême. Données au mardi, publiées le vendredi 15 h 30.</p></div>`;
+}
+$("#posCls").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;POS_C=b.dataset.k;store.set("posCls",POS_C);renderPositions();});
+
 /* ---------------- accueil (tableau de bord) ---------------- */
 function verdict(e){
   const b=e.surprise?.ccy_bias;
@@ -367,7 +405,7 @@ function countdown(t){const ms=new Date(t).getTime()-Date.now(); if(ms<=0) retur
 function kfmt(n){ if(n==null) return "—"; const a=Math.abs(n), s=n>0?"+":n<0?"−":""; return s+(a>=1000?(a/1000).toFixed(1)+"K":Math.round(a)); }
 function cotCell(g){ if(!g) return '<span class="dim">—</span>';
   return `<div style="min-width:130px">${sentBar({long:g.pct_long,short:100-g.pct_long})}<div class="mono" style="font-size:10px;margin-top:3px"><span class="${g.net>0?"pos":"neg"}">net ${kfmt(g.net)}</span> <span class="mute">· sem. ${kfmt(g.change)}</span></div></div>`; }
-function cotRead(r){ const g=r.groups.lev; if(!g||g.index==null) return '<span class="mute">—</span>';
+function cotRead(r){ const g=r.groups[r.spec||"lev"]; if(!g||g.index==null) return '<span class="mute">—</span>';
   return g.index>=90?'<span class="pos">TRÈS LONG (extrême)</span>':g.index<=10?'<span class="neg">TRÈS COURT (extrême)</span>':g.index>=60?'<span class="pos">acheteur</span>':g.index<=40?'<span class="neg">vendeur</span>':'<span class="mute">neutre</span>'; }
 const VS_PAIRS=[["EURUSD","EUR",1],["GBPUSD","GBP",1],["USDJPY","JPY",-1],["USDCAD","CAD",-1],["AUDUSD","AUD",1],["NZDUSD","NZD",1],["USDCHF","CHF",-1]];
 function vsRows(sentRows=SENT?.data?.rows, cotRows=COT?.rows){
@@ -395,9 +433,12 @@ function vsTable(){
     <td class="n ${x.cls}" style="font-size:11px;white-space:normal;min-width:160px">${x.sig}</td></tr>`).join("")}</tbody></table></div>`;
 }
 function cotTable(rows){
-  return `<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Devise</th><th>Banques (dealers)</th><th>Asset managers</th><th>Hedge funds</th><th class="n">Indice 6 mois</th><th class="n">Lecture</th></tr></thead><tbody>
-  ${rows.map(r=>`<tr><td><span class="ccy">${FLAGS[r.ccy]} ${r.ccy}</span><div class="dim mono" style="font-size:9px">${esc(r.date)}</div></td><td>${cotCell(r.groups.dealer)}</td><td>${cotCell(r.groups.asset)}</td><td>${cotCell(r.groups.lev)}</td>
-    <td class="n mono">${r.groups.lev?.index??"—"}</td><td class="n mono" style="font-size:10px">${cotRead(r)}</td></tr>`).join("")}</tbody></table></div>`;
+  if(!rows.length) return '<div class="empty">Aucune donnée.</div>';
+  const gk=Object.keys(rows[0].groups), spec=rows[0].spec||"lev";
+  const fx=rows[0].class==="fx";
+  return `<div style="overflow-x:auto"><table class="cal"><thead><tr><th>${fx?"Devise":"Actif"}</th>${gk.map(k=>`<th>${esc(rows[0].groups[k].label)}</th>`).join("")}<th class="n">Indice 6 m</th><th class="n">Indice 1 an</th><th class="n">Lecture</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr><td><span class="ccy">${fx?(FLAGS[r.key]||"")+" "+r.key:esc(r.name)}</span><div class="dim mono" style="font-size:9px">${fx?"":esc(r.key)+" · "}${esc(r.date)}</div></td>${gk.map(k=>`<td>${cotCell(r.groups[k])}</td>`).join("")}
+    <td class="n mono">${r.groups[spec]?.index??"—"}</td><td class="n mono mute">${r.groups[spec]?.index_1y??"—"}</td><td class="n mono" style="font-size:10px">${cotRead(r)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 function sentBar(r){return `<div class="sbar"><div class="l" style="width:${r.long}%">${r.long>14?r.long+"%":""}</div><div class="s" style="width:${r.short}%">${r.short>14?r.short+"%":""}</div></div>`}
 async function loadDashboard(){
@@ -452,9 +493,8 @@ function renderMacro(){
    <div class="panel"><div class="ph"><b>Retail vs institutionnels</b> · % long / short sur la paire</div>
     ${vsTable()}
     <p class="note" style="padding:0 12px 12px">Retail = traders particuliers (Myfxbook, en direct). Institutionnels = hedge funds et asset managers du rapport COT (hebdomadaire), convertis dans le sens de la paire (ex. USDJPY : position courte sur le yen = longue sur la paire). Les banques (dealers) ne sont pas comparées ici parce qu'elles sont surtout en contrepartie de leurs clients. Une divergence (retail ≥ 60 % d'un côté, hedge funds de l'autre) est un signal contrarien ; à confirmer avec ton analyse technique.</p></div>
-   <div class="panel"><div class="ph"><b>Positionnement institutionnel</b> · rapport COT de la CFTC${COT?.updated?" · MAJ "+fDs.format(new Date(COT.updated*1000)):""}</div>
-    ${COT?.rows?.length?cotTable(COT.rows):'<div class="empty">Chargement du rapport COT…</div>'}
-    <p class="note" style="padding:0 12px 12px"><b>Banques (dealers)</b> : grandes banques et intermédiaires, souvent en contrepartie de leurs clients (couverture). <b>Asset managers</b> : fonds de pension, fonds communs, assureurs. <b>Hedge funds</b> : argent spéculatif, le groupe le plus suivi pour le sentiment. Barre = % long vs short, « sem. » = variation de la position nette sur la semaine. Indice 6 mois : 0 = position la plus courte des 26 dernières semaines, 100 = la plus longue (au-dessus de 90 ou sous 10 = positionnement extrême, risque de retournement). Données au mardi, publiées le vendredi 15 h 30.</p></div>`;
+   <div class="panel"><div class="ph"><b>Positionnement institutionnel</b> · COT hebdo + flux quotidiens<div class="r"><button class="chip" onclick="show('positions')">OUVRIR POSITIONS →</button></div></div>
+    <div class="pb mute" style="font-size:12px">Devises, indices, taux et matières premières : voir l'onglet POSITIONS.</div></div>`;
   el.querySelector("thead").onclick=e=>{const th=e.target.closest("th");if(!th)return;const k=th.dataset.k;if(k==="code")return;
     MX_SORT=MX_SORT.key===k?{key:k,dir:-MX_SORT.dir}:{key:k,dir:-1};store.set("mxSort",MX_SORT);renderMacro();};
   el.querySelector("tbody").onclick=e=>{const tr=e.target.closest("tr");if(tr){show("devises");openCurrency(tr.dataset.c)}};
@@ -659,7 +699,7 @@ async function renderAlerts(){
 if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js",{scope:"/"}).catch(console.warn);
 renderFilters(); initTape(); health(); tick();
 loadCal().then(loadWeekly);
-const startView=(location.hash||"#accueil").slice(1); show(["accueil","semaine","calendrier","fiches","nouvelles","macro","devises","graphiques","force","taux","saison","alertes"].includes(startView)?startView:"accueil");
+const startView=(location.hash||"#accueil").slice(1); show(["accueil","semaine","calendrier","fiches","nouvelles","macro","devises","graphiques","force","taux","positions","saison","alertes"].includes(startView)?startView:"accueil");
 setInterval(()=>{ if(!document.hidden&&$("#v-calendrier").classList.contains("on")) loadCalView(); }, 60000);
 setInterval(()=>{ if(!document.hidden){ loadCal(); if($("#v-nouvelles").classList.contains("on")) loadNews(); if($("#v-accueil").classList.contains("on")) loadDashboard(); } }, 20000);
 setInterval(()=>{ if(!document.hidden){ health(); } }, 60000);

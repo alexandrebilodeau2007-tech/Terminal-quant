@@ -35,7 +35,7 @@ async function renderCharts(){
   const box=$("#charts"); box.className="charts l"+n;
   box.innerHTML = Array.from({length:n},(_,i)=>`<div class="chartbox" id="ch${i}">
       <div class="chhead"><input class="chsym" list="symlist" value="${esc(CH.syms[i])}" data-i="${i}" spellcheck="false">
-        <span class="chname" id="chn${i}"></span><span class="chlast mono" id="chl${i}"></span>
+        <span class="chname" id="chn${i}"></span><i class="chlive"></i><span class="chlast mono" id="chl${i}"></span>
         <span class="chlegend mono"><i style="background:${C50}"></i>SMMA 50 <i style="background:${C200}"></i>SMMA 200</span>
         <button class="chip chmax" data-i="${i}" title="Agrandir">⤢</button></div>
       <div class="chplot" id="chp${i}"></div></div>`).join("")
@@ -56,8 +56,31 @@ function createLC(el, opts){
   const s50=chart.addLineSeries({color:C50,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
   const s200=chart.addLineSeries({color:C200,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
   const ro=new ResizeObserver(()=>{ if(el.clientWidth) chart.applyOptions({width:el.clientWidth,height:el.clientHeight}); }); ro.observe(el);
-  const obj={chart,sym:opts.sym,candles,s50,s200,ro,first:true,dead:false,timer:null,
-    destroy(){ if(this.dead) return; this.dead=true; clearInterval(this.timer); try{ro.disconnect();chart.remove()}catch{} },
+  const obj={chart,sym:opts.sym,candles,s50,s200,ro,first:true,dead:false,timer:null,bars:[],closes:[],m50:[],m200:[],off:0,dec:2,prev:null,tfOf,opts,
+    destroy(){ if(this.dead) return; this.dead=true; LIVE_SET.delete(this); clearInterval(this.timer); try{ro.disconnect();chart.remove()}catch{} },
+    tick(q){
+      // met à jour la dernière chandelle (ou en ouvre une nouvelle) avec le dernier prix
+      if(this.dead||!this.bars.length||!q||q.price==null) return;
+      const tf=tfOf(), p=q.price;
+      const sec={"1":60,"5":300,"15":900,"60":3600,"240":14400}[tf];
+      let last=this.bars[this.bars.length-1];
+      if(sec){
+        const lastT=last.time-this.off, n=Math.floor((q.t-lastT)/sec);
+        const bucket=last.time+n*sec;
+        if(q.t<lastT) return;
+        if(n>=1){ last={time:bucket,open:last.close,high:Math.max(last.close,p),low:Math.min(last.close,p),close:p}; this.bars.push(last); this.closes.push(p); this.m50.push(null); this.m200.push(null); }
+      }
+      last.close=p; last.high=Math.max(last.high,p); last.low=Math.min(last.low,p);
+      this.closes[this.closes.length-1]=p;
+      candles.update(last);
+      const k=this.closes.length-1;
+      for(const [n,arr,ser] of [[50,this.m50,s50],[200,this.m200,s200]]){
+        if(k>=n && arr[k-1]!=null){ arr[k]=(arr[k-1]*(n-1)+p)/n; ser.update({time:last.time,value:arr[k]}); }
+      }
+      const prev=this.prev||this.closes[this.closes.length-2];
+      const chg=prev?((p/prev-1)*100):null;
+      opts.onInfo&&opts.onInfo({name:this.name||this.sym,html:`${fmtP(p,this.dec)} <span class="${chg>=0?"pos":"neg"}">${chg==null?"":(chg>=0?"+":"")+chg.toFixed(2)+"%"}</span>`,live:true});
+    },
     setTf(){ chart.applyOptions({timeScale:{timeVisible:!["D","W"].includes(tfOf())}}); this.first=true; this.refresh(); },
     async refresh(){
       if(this.dead) return;
@@ -71,6 +94,8 @@ function createLC(el, opts){
         candles.setData(bars);
         const closes=d.bars.map(b=>b.c);
         const m50=smma(closes,50), m200=smma(closes,200);
+        this.bars=bars.map(b=>({...b})); this.closes=closes.slice(); this.m50=m50; this.m200=m200; this.off=off;
+        this.dec=d.decimals??2; this.prev=d.prev_close; this.name=d.name;
         s50.setData(bars.map((b,k)=>m50[k]==null?null:{time:b.time,value:m50[k]}).filter(Boolean));
         s200.setData(bars.map((b,k)=>m200[k]==null?null:{time:b.time,value:m200[k]}).filter(Boolean));
         const dec=d.decimals??2; candles.applyOptions({priceFormat:{type:"price",precision:dec,minMove:Math.pow(10,-dec)}});
@@ -82,7 +107,27 @@ function createLC(el, opts){
     }};
   obj.refresh();
   if(opts.every) obj.timer=setInterval(()=>{ if(!document.hidden) obj.refresh(); }, opts.every);
+  LIVE_SET.add(obj); startLive();
   return obj;
+}
+
+/* Boucle temps réel : une requête groupée pour tous les graphiques visibles, toutes les 4 s. */
+const LIVE_SET=new Set(); let liveTimer=null, liveBusy=false;
+function startLive(){
+  if(liveTimer) return;
+  liveTimer=setInterval(async()=>{
+    for(const o of [...LIVE_SET]) if(o.dead||!o.chart) LIVE_SET.delete(o);
+    if(!LIVE_SET.size){ clearInterval(liveTimer); liveTimer=null; return; }
+    if(document.hidden||liveBusy) return;
+    const syms=[...new Set([...LIVE_SET].map(o=>o.sym))];
+    liveBusy=true;
+    try{
+      const d=await api("/api/live?symbols="+encodeURIComponent(syms.join(",")));
+      for(const o of LIVE_SET) o.tick(d.quotes[o.sym]);
+      document.querySelectorAll(".chlive").forEach(e=>{e.classList.add("on");e.title="En direct · "+new Date().toLocaleTimeString("fr-CA")});
+    }catch{ document.querySelectorAll(".chlive").forEach(e=>e.classList.remove("on")); }
+    finally{ liveBusy=false; }
+  }, 4000);
 }
 function buildChart(i,sym){
   const el=$("#chp"+i); if(!el) return null;
@@ -97,7 +142,7 @@ function mountChart(box, sym, tf){
   if(box._lc) box._lc.destroy();
   tf=tf||store.get("miniTf","240");
   box.innerHTML=`<div class="chartbox mini"><div class="chhead"><b class="mono" style="font-size:12px">${esc(sym)}</b>
-      <span class="chname"></span><span class="chlast mono"></span>
+      <span class="chname"></span><i class="chlive"></i><span class="chlast mono"></span>
       <span class="chlegend mono"><i style="background:${C50}"></i>SMMA 50 <i style="background:${C200}"></i>SMMA 200</span>
       <span class="chips minitf">${MINI_TF.map(([k,l])=>`<button class="chip ${k===tf?"on":""}" data-tf="${k}">${l}</button>`).join("")}</span>
       <button class="chip" data-open title="Ouvrir dans GRAPHIQUES">⤢</button></div><div class="chplot"></div></div>`;

@@ -1,13 +1,14 @@
-"""Positionnement institutionnel : rapport COT « Traders in Financial Futures » de la CFTC.
+"""Positionnement institutionnel : rapports COT de la CFTC (hebdomadaires).
 
-Catégories :
-  - dealers        : banques / intermédiaires (souvent en contrepartie de leurs clients)
-  - asset managers : fonds de pension, fonds communs, assureurs (investisseurs institutionnels)
-  - leveraged      : hedge funds et CTA (argent spéculatif)
+- « Traders in Financial Futures » (devises, indices, taux) :
+    dealers (banques), asset managers (fonds de pension, assureurs), leveraged (hedge funds / CTA)
+- « Disaggregated » (matières premières) :
+    producteurs / négociants (couverture), swap dealers (banques), managed money (fonds spéculatifs)
 Données au mardi, publiées le vendredi 15 h 30 (heure de l'Est).
 """
 import logging
 import time
+from datetime import date, timedelta
 
 import httpx
 
@@ -15,12 +16,42 @@ from . import storage
 
 log = logging.getLogger("cot")
 
-CONTRACTS = {"099741": "EUR", "096742": "GBP", "097741": "JPY", "090741": "CAD", "232741": "AUD",
-             "112741": "NZD", "092741": "CHF", "098662": "USD"}
-SOCRATA = "https://publicreporting.cftc.gov/resource/gpe5-46if.json"
-WEEKLY_TXT = "https://www.cftc.gov/dea/newcot/FinFutWk.txt"
-GROUPS = {"dealer": "dealer_positions", "asset": "asset_mgr_positions", "lev": "lev_money_positions"}
-LABELS = {"dealer": "Banques (dealers)", "asset": "Asset managers", "lev": "Hedge funds"}
+TFF = "https://publicreporting.cftc.gov/resource/gpe5-46if.json"
+DISAGG = "https://publicreporting.cftc.gov/resource/72hh-3qpy.json"
+
+# code CFTC : (clé, nom affiché, classe, rapport)
+ASSETS = {
+    # devises (clé = code devise, gardée pour la compatibilité)
+    "098662": ("USD", "Dollar US (DXY)", "fx", "tff"), "099741": ("EUR", "Euro", "fx", "tff"),
+    "096742": ("GBP", "Livre sterling", "fx", "tff"), "097741": ("JPY", "Yen", "fx", "tff"),
+    "090741": ("CAD", "Dollar canadien", "fx", "tff"), "232741": ("AUD", "Dollar australien", "fx", "tff"),
+    "112741": ("NZD", "Dollar néo-zélandais", "fx", "tff"), "092741": ("CHF", "Franc suisse", "fx", "tff"),
+    # indices boursiers
+    "13874A": ("SPX", "S&P 500 (E-mini)", "idx", "tff"), "209742": ("NDX", "Nasdaq 100 (E-mini)", "idx", "tff"),
+    "124603": ("DJI", "Dow Jones (E-mini)", "idx", "tff"), "239742": ("RUT", "Russell 2000 (E-mini)", "idx", "tff"),
+    "1170E1": ("VIX", "VIX", "idx", "tff"),
+    # taux
+    "042601": ("US2Y", "Note US 2 ans", "rates", "tff"), "044601": ("US5Y", "Note US 5 ans", "rates", "tff"),
+    "043602": ("US10Y", "Note US 10 ans", "rates", "tff"), "020601": ("US30Y", "Obligation US 30 ans", "rates", "tff"),
+    # matières premières
+    "088691": ("GOLD", "Or", "cmd", "dis"), "084691": ("SILVER", "Argent", "cmd", "dis"),
+    "076651": ("PLATINUM", "Platine", "cmd", "dis"), "085692": ("COPPER", "Cuivre", "cmd", "dis"),
+    "067651": ("WTI", "Pétrole WTI", "cmd", "dis"), "06765T": ("BRENT", "Pétrole Brent", "cmd", "dis"),
+    "023651": ("NATGAS", "Gaz naturel", "cmd", "dis"), "111659": ("RBOB", "Essence RBOB", "cmd", "dis"),
+    "001602": ("WHEAT", "Blé", "cmd", "dis"), "002602": ("CORN", "Maïs", "cmd", "dis"),
+    "005602": ("SOYBEAN", "Soja", "cmd", "dis"), "083731": ("COFFEE", "Café", "cmd", "dis"),
+    "080732": ("SUGAR", "Sucre", "cmd", "dis"), "073732": ("COCOA", "Cacao", "cmd", "dis"),
+}
+CLASSES = {"fx": "Devises", "idx": "Indices boursiers", "rates": "Taux", "cmd": "Matières premières"}
+# groupe : (préfixe CFTC, libellé)
+GROUPS_TFF = {"dealer": ("dealer_positions", "Banques (dealers)"), "asset": ("asset_mgr_positions", "Asset managers"),
+              "lev": ("lev_money_positions", "Hedge funds")}
+GROUPS_DIS = {"prod": ("prod_merc_positions", "Producteurs"), "swap": ("swap_positions", "Banques (swap dealers)"),
+              "mm": ("m_money_positions", "Managed money (fonds)")}
+SPEC = {"tff": "lev", "dis": "mm"}  # groupe spéculatif suivi pour la lecture
+# compatibilité avec l'ancien format (devises)
+CONTRACTS = {c: a[0] for c, a in ASSETS.items() if a[2] == "fx"}
+LABELS = {k: v[1] for k, v in GROUPS_TFF.items()}
 
 
 def _num(v):
@@ -31,65 +62,57 @@ def _num(v):
 
 
 def _pick(row, prefix, side):
-    """Trouve la colonne long/short d'une catégorie, quel que soit le suffixe (_all, etc.)."""
-    for k, v in row.items():
-        kl = k.lower()
-        if kl.startswith(prefix) and f"_{side}" in kl and "spread" not in kl and "change" not in kl and "pct" not in kl:
-            return _num(v)
+    """Colonne « tous contrats » d'une catégorie (gère swap__positions_short_all, etc.)."""
+    norm = {k.lower().replace("__", "_"): v for k, v in row.items()}
+    for k in (f"{prefix}_{side}_all", f"{prefix}_{side}"):
+        if k in norm:
+            return _num(norm[k])
     return None
 
 
-def _from_socrata():
-    codes = ",".join(f"'{c}'" for c in CONTRACTS)
-    params = {"$where": f"cftc_contract_market_code in({codes})",
-              "$order": "report_date_as_yyyy_mm_dd DESC", "$limit": "500"}
-    r = httpx.get(SOCRATA, params=params, timeout=30)
+def _fetch(url, codes, groups, report):
+    since = (date.today() - timedelta(days=400)).isoformat()
+    q = ",".join(f"'{c}'" for c in codes)
+    params = {"$where": f"cftc_contract_market_code in({q}) AND report_date_as_yyyy_mm_dd >= '{since}'",
+              "$order": "report_date_as_yyyy_mm_dd DESC", "$limit": "5000"}
+    r = httpx.get(url, params=params, timeout=40)
     r.raise_for_status()
     out = []
     for row in r.json():
         code = str(row.get("cftc_contract_market_code", "")).strip()
-        if code not in CONTRACTS:
+        if code not in ASSETS or ASSETS[code][3] != report:
             continue
-        rec = {"ccy": CONTRACTS[code], "date": str(row.get("report_date_as_yyyy_mm_dd", ""))[:10],
-               "oi": _num(row.get("open_interest_all"))}
-        for g, p in GROUPS.items():
+        key, name, cls, rep = ASSETS[code]
+        rec = {"key": key, "ccy": key, "name": name, "class": cls, "report": rep,
+               "date": str(row.get("report_date_as_yyyy_mm_dd", ""))[:10], "oi": _num(row.get("open_interest_all"))}
+        for g, (p, _) in groups.items():
             rec[g + "_long"], rec[g + "_short"] = _pick(row, p, "long"), _pick(row, p, "short")
         out.append(rec)
     return out
 
 
-def _from_weekly_txt():
-    """Secours : fichier texte de la semaine (colonnes fixes de la CFTC)."""
-    import csv
-    import io
-    r = httpx.get(WEEKLY_TXT, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
-    r.raise_for_status()
-    out = []
-    for c in csv.reader(io.StringIO(r.text)):
-        if len(c) < 24:
-            continue
-        code = c[3].strip()
-        if code not in CONTRACTS:
-            continue
-        n = [_num(x) for x in c]
-        out.append({"ccy": CONTRACTS[code], "date": c[2].strip()[:10], "oi": n[7],
-                    "dealer_long": n[8], "dealer_short": n[9], "asset_long": n[11], "asset_short": n[12],
-                    "lev_long": n[14], "lev_short": n[15]})
-    return out
+def _from_socrata():
+    tff = [c for c, a in ASSETS.items() if a[3] == "tff"]
+    dis = [c for c, a in ASSETS.items() if a[3] == "dis"]
+    return _fetch(TFF, tff, GROUPS_TFF, "tff") + _fetch(DISAGG, dis, GROUPS_DIS, "dis")
 
 
 def summarize(records):
     by = {}
     for r in records:
-        by.setdefault(r["ccy"], []).append(r)
+        by.setdefault(r["key"], []).append(r)
     rows = []
-    for ccy in ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "NZD", "CHF"]:
-        hist = sorted(by.get(ccy, []), key=lambda r: r["date"])
+    order = [a[0] for a in ASSETS.values()]
+    for key in order:
+        hist = sorted(by.get(key, []), key=lambda r: r["date"])
         if not hist:
             continue
         last = hist[-1]
-        row = {"ccy": ccy, "date": last["date"], "oi": last.get("oi"), "groups": {}}
-        for g in GROUPS:
+        rep = last.get("report", "tff")
+        groups = GROUPS_TFF if rep == "tff" else GROUPS_DIS
+        row = {"key": key, "ccy": key, "name": last.get("name", key), "class": last.get("class", "fx"), "report": rep,
+               "spec": SPEC[rep], "date": last["date"], "oi": last.get("oi"), "groups": {}}
+        for g, (_, label) in groups.items():
             nets = [(h[g + "_long"] or 0) - (h[g + "_short"] or 0) for h in hist
                     if h.get(g + "_long") is not None and h.get(g + "_short") is not None]
             if not nets:
@@ -98,10 +121,11 @@ def summarize(records):
             window = nets[-26:]
             lo, hi = min(window), max(window)
             row["groups"][g] = {
-                "label": LABELS[g], "long": L, "short": S, "net": nets[-1],
+                "label": label, "long": L, "short": S, "net": nets[-1],
                 "pct_long": round(100 * L / (L + S)) if L + S else None,
                 "change": nets[-1] - nets[-2] if len(nets) > 1 else None,
                 "index": round(100 * (nets[-1] - lo) / (hi - lo)) if hi > lo else None,  # 0 = plus court en 6 mois, 100 = plus long
+                "index_1y": (lambda w: round(100 * (nets[-1] - min(w)) / (max(w) - min(w))) if max(w) > min(w) else None)(nets[-52:]),
                 "history": window,
             }
         rows.append(row)
@@ -109,19 +133,11 @@ def summarize(records):
 
 
 def refresh():
-    err = None
-    try:
-        recs = _from_socrata()
-        src = "CFTC (API publique)"
-    except Exception as e:
-        err, recs = e, []
-    if not recs:
-        recs = _from_weekly_txt()
-        src = "CFTC (fichier hebdomadaire)"
+    recs = _from_socrata()
     rows = summarize(recs)
     if not rows:
-        raise RuntimeError(f"COT indisponible: {err}")
-    out = {"updated": time.time(), "source": src, "rows": rows}
+        raise RuntimeError("COT indisponible")
+    out = {"updated": time.time(), "source": "CFTC (API publique)", "classes": CLASSES, "rows": rows}
     storage.save("cot.json", out)
     return out
 

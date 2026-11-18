@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="icon" href="/icons/icon-192.png">
 <title>Macro Terminal</title>
-<link rel="stylesheet" href="/styles.css?v=12">
+<link rel="stylesheet" href="/styles.css?v=13">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js" defer></script>
@@ -38,6 +38,7 @@
     <button data-v="graphiques"><span class="ic">◩</span>GRAPHIQUES</button>
     <button data-v="force"><span class="ic">⇅</span>FORCE FX</button>
     <button data-v="taux"><span class="ic">%</span>TAUX BC</button>
+    <button data-v="positions"><span class="ic">⚖</span>POSITIONS</button>
     <button data-v="saison"><span class="ic">∿</span>SAISONNALITÉ</button>
     <button data-v="alertes"><span class="ic">◉</span>ALERTES</button>
   </nav>
@@ -128,6 +129,12 @@
       </div></div>
   </section>
 
+  <!-- POSITIONS -->
+  <section class="view" id="v-positions">
+    <div class="panel"><div class="ph"><b>Positions institutionnelles</b><div class="r chips" id="posCls"></div></div></div>
+    <div id="posBody"><div class="empty">Chargement…</div></div>
+  </section>
+
   <!-- TAUX BC -->
   <section class="view" id="v-taux">
     <div class="panel"><div class="ph"><b>Probabilités de taux</b> <span class="mono dim hide-m">· estimées à partir des futures de taux</span>
@@ -158,7 +165,7 @@
   <section class="view" id="v-alertes"></section>
 </main>
 <div class="toast" id="toast"></div>
-<script src="/app.js?v=15"></script>
-<script src="/charts.js?v=6"></script>
+<script src="/app.js?v=16"></script>
+<script src="/charts.js?v=7"></script>
 </body>
 </html>

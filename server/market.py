@@ -303,3 +303,25 @@ def normalized(period="1D"):
         return {"period": period, "times": [], "series": {}}
     out = {p: [round((m[t] / m[ts[0]] - 1) * 100, 3) for t in ts] for p, m in series.items()}
     return {"period": period, "times": ts, "series": out}
+
+
+# ---------- prix en direct pour les graphiques (une seule requête groupée) ----------
+SPARK = "https://query1.finance.yahoo.com/v8/finance/spark"
+
+
+def live(codes):
+    ymap = {c: SYMBOLS.get(c, (c, c))[0] for c in codes}
+    ysyms = sorted(set(ymap.values()))
+    out = {}
+    for i in range(0, len(ysyms), 20):
+        chunk = ysyms[i:i + 20]
+        d = _get(SPARK, {"symbols": ",".join(chunk), "range": "1d", "interval": "1m"}, 3)
+        for ys in chunk:
+            r = d.get(ys) or {}
+            ts, cl = r.get("timestamp") or [], r.get("close") or []
+            last = next(((t, c) for t, c in zip(reversed(ts), reversed(cl)) if c is not None), None)
+            if last:
+                for c, y in ymap.items():
+                    if y == ys:
+                        out[c] = {"t": last[0], "price": last[1], "prev_close": r.get("chartPreviousClose") or r.get("previousClose")}
+    return {"asof": time.time(), "quotes": out}
