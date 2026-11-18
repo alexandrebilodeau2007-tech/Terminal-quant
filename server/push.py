@@ -14,7 +14,8 @@ _lock = threading.RLock()
 KEY_FILE = "vapid_private.pem"
 
 DEFAULT_PREFS = {"currencies": ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "NZD", "CHF", "CNY"],
-                 "impacts": ["high", "medium"], "reminder": True, "release": True, "weekly": True, "live": True}
+                 "impacts": ["high", "medium"], "reminder": True, "release": True, "weekly": True, "live": True,
+                 "news_il": True, "news_fj": True, "news_inv": False}
 
 
 def _ensure_keys():
@@ -82,14 +83,16 @@ def send(title: str, body: str, *, tag: str | None = None, url: str = "/", kind:
         p = s["prefs"]
         if kind in ("reminder", "release", "weekly", "live") and not p.get(kind, True):
             continue
+        if kind.startswith("news_") and not p.get(kind, DEFAULT_PREFS.get(kind, False)):
+            continue
         if currency and currency not in p.get("currencies", []):
             continue
         if impact and impact not in p.get("impacts", []):
             continue
         try:
             webpush(s["sub"], data=payload, vapid_private_key=key_path,
-                    vapid_claims={"sub": VAPID_SUB}, ttl=3600,
-                    headers={"Urgency": "high"})
+                    vapid_claims={"sub": VAPID_SUB}, ttl=900 if kind.startswith("news_") else 3600,
+                    headers={"Urgency": "normal" if kind.startswith("news_") else "high"})
             sent += 1
         except WebPushException as e:
             code = getattr(getattr(e, "response", None), "status_code", None)

@@ -112,11 +112,58 @@ def refresh_week():
     return evs
 
 
+NEWS_KIND = {"InvestingLive": "news_il", "FinancialJuice": "news_fj", "Investing.com": "news_inv"}
+NEWS_ICON = {"InvestingLive": "📰", "FinancialJuice": "⚡", "Investing.com": "🗞️"}
+
+
+def _news_key(n):
+    return (n.get("link") or n.get("title", "")).strip().lower()[:200]
+
+
+def _merge_news(fname, new, keep_hours=72, cap=600):
+    """Ajoute les nouvelles au fichier sans effacer les anciennes (le flux RSS ne garde que ~25 articles)."""
+    old = storage.load(fname, {"items": []})["items"]
+    by = {_news_key(n): n for n in old}
+    for n in new:
+        by[_news_key(n)] = {**by.get(_news_key(n), {}), **n}
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=keep_hours)).isoformat()
+    items = [n for n in by.values() if (n.get("time") or "9") >= cutoff]
+    items = sorted(items, key=lambda n: n.get("time") or "", reverse=True)[:cap]
+    storage.save(fname, {"updated": datetime.now(timezone.utc).isoformat(), "items": items})
+    return items
+
+
+def notify_news(items):
+    """Une notification par nouvelle jamais vue (les plus anciennes d'abord)."""
+    sent = storage.load("news_sent.json", {"keys": [], "seeded": False})
+    known = set(sent["keys"])
+    fresh_cut = (datetime.now(timezone.utc) - timedelta(minutes=45)).isoformat()
+    todo = [n for n in items if _news_key(n) not in known]
+    if not sent.get("seeded"):  # premier passage : on ne bombarde pas avec l'historique
+        todo = []
+        sent["seeded"] = True
+    todo = [n for n in todo if (n.get("time") or "") >= fresh_cut]
+    for n in sorted(todo, key=lambda n: n.get("time") or "")[-12:]:
+        src = n.get("source", "")
+        title = f"{NEWS_ICON.get(src, '📰')} {src}"
+        body = n.get("title", "")
+        if n.get("summary") and src != "FinancialJuice":
+            body += "\n" + re.sub(r"\s+", " ", n["summary"])[:140]
+        try:
+            push.send(title, body, tag="news-" + str(abs(hash(_news_key(n))))[:10], url=n.get("link") or "/#nouvelles",
+                      kind=NEWS_KIND.get(src, "news_inv"))
+        except Exception as e:
+            log.info("Push nouvelle: %s", e)
+    sent["keys"] = (sent["keys"] + [_news_key(n) for n in items if _news_key(n) not in known])[-3000:]
+    storage.save("news_sent.json", sent)
+
+
 def refresh_news():
     try:
         items = sources.fetch_news()
         if items:
-            storage.save("news.json", {"updated": datetime.now(timezone.utc).isoformat(), "items": items})
+            notify_news(items)
+            _merge_news("news.json", items)
     except Exception as e:
         log.warning("Nouvelles: %s", e)
     STATE["last_news"] = time.time()
@@ -129,10 +176,8 @@ def refresh_fj():
     except Exception as e:
         log.info("FinancialJuice: %s", e)
         return
-    old = storage.load("fj.json", {"items": []})["items"]
-    keep = {n["title"]: n for n in old + new}  # on garde l'historique récent
-    items = sorted(keep.values(), key=lambda n: n.get("time") or "", reverse=True)[:300]
-    storage.save("fj.json", {"updated": datetime.now(timezone.utc).isoformat(), "items": items})
+    notify_news(new)
+    _merge_news("fj.json", new, keep_hours=72, cap=800)
 
 
 def generate_weekly(notify=True):
@@ -233,8 +278,7 @@ async def loop():
             if time.time() - STATE["last_rates"] > 1800:
                 STATE["last_rates"] = time.time()
                 try:
-                    cur = {r["code"]: (r.get("rate") or {}).get("value") for r in macro.table()["rows"]}
-                    await asyncio.to_thread(rates.refresh, cur)
+                    await asyncio.to_thread(rates.refresh, current_rates())
                 except Exception as ex:
                     log.info("Taux: %s", ex)
             if time.time() - STATE["last_cot"] > 6 * 3600:
@@ -243,7 +287,7 @@ async def loop():
                     await asyncio.to_thread(cot.refresh)
                 except Exception as ex:
                     log.info("COT: %s", ex)
-            if time.time() - STATE["last_news"] > NEWS_REFRESH_MINUTES * 60:
+            if time.time() - STATE["last_news"] > 60:
                 await asyncio.to_thread(refresh_news)
             if time.time() - STATE["last_history"] > 12 * 3600:
                 STATE["last_history"] = time.time()
@@ -256,3 +300,12 @@ async def loop():
             STATE["last_error"] = str(e)
             log.exception("Erreur moteur: %s", e)
         await asyncio.sleep(2)
+
+
+def current_rates() -> dict:
+    """Taux directeur actuel de chaque devise (même source que l'onglet MACRO)."""
+    hist = cal.load_history()
+    by_id = {e["id"]: e for e in hist}
+    by_id.update({e["id"]: e for e in cal.load_week()["events"]})
+    evs = sorted(by_id.values(), key=lambda e: e["time"])
+    return {r["code"]: (r.get("rate") or {}).get("value") for r in macro.table(evs, overviews())["rows"]}

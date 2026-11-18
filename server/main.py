@@ -238,8 +238,7 @@ def get_rates():
 @app.post("/api/rates/refresh")
 async def rates_refresh():
     try:
-        cur = {r["code"]: (r.get("rate") or {}).get("value") for r in macro.table()["rows"]}
-        return await asyncio.to_thread(rates.refresh, cur)
+        return await asyncio.to_thread(rates.refresh, engine.current_rates())
     except Exception as e:
         raise HTTPException(400, str(e)[:200])
 

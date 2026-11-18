@@ -43,42 +43,75 @@ async function renderCharts(){
   LC = CH.syms.slice(0,n).map((s,i)=>buildChart(i,s));
   chTimer=setInterval(()=>LC.forEach(c=>c&&c.refresh()), ["5","15"].includes(CH.tf)?20000:60000);
 }
-function stopCharts(){ if(chTimer){clearInterval(chTimer);chTimer=null;} LC.forEach(c=>{try{c.dead=true;c.ro.disconnect();c.chart.remove()}catch{}}); LC=[]; }
-function buildChart(i,sym){
-  const el=$("#chp"+i); if(!el) return null;
+function stopCharts(){ if(chTimer){clearInterval(chTimer);chTimer=null;} LC.forEach(c=>c&&c.destroy()); LC=[]; }
+/* Moteur commun : même template partout (fond noir, gris/orange, SMMA 50/200). */
+function createLC(el, opts){
+  const tfOf=()=>typeof opts.tf==="function"?opts.tf():opts.tf;
   const chart=LightweightCharts.createChart(el,{layout:{background:{type:"solid",color:"#000"},textColor:"#9aa4b1",fontFamily:"'IBM Plex Mono',monospace",fontSize:11},
     grid:{vertLines:{color:"#15181d"},horzLines:{color:"#15181d"}},rightPriceScale:{borderColor:"#262a30",scaleMargins:{top:0.08,bottom:0.08}},
-    timeScale:{borderColor:"#262a30",timeVisible:!["D","W"].includes(CH.tf),secondsVisible:false,rightOffset:4},
+    timeScale:{borderColor:"#262a30",timeVisible:!["D","W"].includes(tfOf()),secondsVisible:false,rightOffset:4},
     crosshair:{mode:0,vertLine:{color:"#555",labelBackgroundColor:"#2a2e39"},horzLine:{color:"#555",labelBackgroundColor:"#2a2e39"}},
     localization:{locale:"fr-CA"},handleScroll:true,handleScale:true});
   const candles=chart.addCandlestickSeries({upColor:UP,downColor:DOWN,borderUpColor:UP,borderDownColor:DOWN,wickUpColor:UP,wickDownColor:DOWN});
   const s50=chart.addLineSeries({color:C50,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
   const s200=chart.addLineSeries({color:C200,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
-  const ro=new ResizeObserver(()=>chart.applyOptions({width:el.clientWidth,height:el.clientHeight})); ro.observe(el);
-  const obj={chart,sym,candles,s50,s200,ro,first:true,dead:false,async refresh(){
-    if(this.dead) return;
-    try{
-      const d=await api(`/api/ohlc?symbol=${encodeURIComponent(this.sym)}&interval=${CH.tf}`);
-      const off=-new Date().getTimezoneOffset()*60; // heure locale pour l'axe
-      const bars=d.bars.map(b=>({time:b.t+off,open:b.o,high:b.h,low:b.l,close:b.c}));
-      if(["D","W"].includes(CH.tf)) bars.forEach(b=>b.time=b.time-off);
+  const ro=new ResizeObserver(()=>{ if(el.clientWidth) chart.applyOptions({width:el.clientWidth,height:el.clientHeight}); }); ro.observe(el);
+  const obj={chart,sym:opts.sym,candles,s50,s200,ro,first:true,dead:false,timer:null,
+    destroy(){ if(this.dead) return; this.dead=true; clearInterval(this.timer); try{ro.disconnect();chart.remove()}catch{} },
+    setTf(){ chart.applyOptions({timeScale:{timeVisible:!["D","W"].includes(tfOf())}}); this.first=true; this.refresh(); },
+    async refresh(){
       if(this.dead) return;
-      candles.setData(bars);
-      const closes=d.bars.map(b=>b.c);
-      const m50=smma(closes,50), m200=smma(closes,200);
-      s50.setData(bars.map((b,k)=>m50[k]==null?null:{time:b.time,value:m50[k]}).filter(Boolean));
-      s200.setData(bars.map((b,k)=>m200[k]==null?null:{time:b.time,value:m200[k]}).filter(Boolean));
-      const dec=d.decimals??2; candles.applyOptions({priceFormat:{type:"price",precision:dec,minMove:Math.pow(10,-dec)}});
-      const last=closes[closes.length-1], prev=d.prev_close||closes[closes.length-2];
-      const chg=prev?((last/prev-1)*100):null;
-      $("#chn"+i).textContent=d.name||this.sym;
-      $("#chl"+i).innerHTML=`${fmtP(last,dec)} <span class="${chg>=0?"pos":"neg"}">${chg==null?"":(chg>=0?"+":"")+chg.toFixed(2)+"%"}</span>`;
-      if(this.first){ chart.timeScale().setVisibleLogicalRange({from:Math.max(0,bars.length-160),to:bars.length+4}); this.first=false; }
-    }catch(e){ $("#chn"+i).textContent=this.sym; $("#chl"+i).innerHTML=`<span class="neg">${esc(e.message.slice(0,70))}</span>`; }
-  }};
+      if(!el.isConnected){ this.destroy(); return; }
+      const tf=tfOf();
+      try{
+        const d=await api(`/api/ohlc?symbol=${encodeURIComponent(this.sym)}&interval=${tf}`);
+        const off=["D","W"].includes(tf)?0:-new Date().getTimezoneOffset()*60; // heure locale pour l'axe
+        const bars=d.bars.map(b=>({time:b.t+off,open:b.o,high:b.h,low:b.l,close:b.c}));
+        if(this.dead) return;
+        candles.setData(bars);
+        const closes=d.bars.map(b=>b.c);
+        const m50=smma(closes,50), m200=smma(closes,200);
+        s50.setData(bars.map((b,k)=>m50[k]==null?null:{time:b.time,value:m50[k]}).filter(Boolean));
+        s200.setData(bars.map((b,k)=>m200[k]==null?null:{time:b.time,value:m200[k]}).filter(Boolean));
+        const dec=d.decimals??2; candles.applyOptions({priceFormat:{type:"price",precision:dec,minMove:Math.pow(10,-dec)}});
+        const last=closes[closes.length-1], prev=d.prev_close||closes[closes.length-2];
+        const chg=prev?((last/prev-1)*100):null;
+        opts.onInfo&&opts.onInfo({name:d.name||this.sym,html:`${fmtP(last,dec)} <span class="${chg>=0?"pos":"neg"}">${chg==null?"":(chg>=0?"+":"")+chg.toFixed(2)+"%"}</span>`});
+        if(this.first){ chart.timeScale().setVisibleLogicalRange({from:Math.max(0,bars.length-160),to:bars.length+4}); this.first=false; }
+      }catch(e){ opts.onInfo&&opts.onInfo({name:this.sym,html:`<span class="neg">${esc(e.message.slice(0,70))}</span>`}); }
+    }};
   obj.refresh();
+  if(opts.every) obj.timer=setInterval(()=>{ if(!document.hidden) obj.refresh(); }, opts.every);
   return obj;
 }
+function buildChart(i,sym){
+  const el=$("#chp"+i); if(!el) return null;
+  return createLC(el,{sym,tf:()=>CH.tf,onInfo:({name,html})=>{ const n=$("#chn"+i), l=$("#chl"+i); if(n) n.textContent=name; if(l) l.innerHTML=html; }});
+}
+
+/* Graphique autonome (onglet DEVISES, etc.) : même template, avec choix de l'unité de temps. */
+const MINI_TF=[["15","15m"],["60","1h"],["240","4h"],["D","J"],["W","S"]];
+function mountChart(box, sym, tf){
+  if(!box) return null;
+  if(!window.LightweightCharts){ setTimeout(()=>mountChart(box,sym,tf),300); return null; }
+  if(box._lc) box._lc.destroy();
+  tf=tf||store.get("miniTf","240");
+  box.innerHTML=`<div class="chartbox mini"><div class="chhead"><b class="mono" style="font-size:12px">${esc(sym)}</b>
+      <span class="chname"></span><span class="chlast mono"></span>
+      <span class="chlegend mono"><i style="background:${C50}"></i>SMMA 50 <i style="background:${C200}"></i>SMMA 200</span>
+      <span class="chips minitf">${MINI_TF.map(([k,l])=>`<button class="chip ${k===tf?"on":""}" data-tf="${k}">${l}</button>`).join("")}</span>
+      <button class="chip" data-open title="Ouvrir dans GRAPHIQUES">⤢</button></div><div class="chplot"></div></div>`;
+  let cur=tf;
+  const lc=createLC(box.querySelector(".chplot"),{sym,tf:()=>cur,every:60000,
+    onInfo:({name,html})=>{ box.querySelector(".chname").textContent=name; box.querySelector(".chlast").innerHTML=html; }});
+  box._lc=lc;
+  box.querySelector(".minitf").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; cur=b.dataset.tf; store.set("miniTf",cur);
+    box.querySelectorAll(".minitf button").forEach(x=>x.classList.toggle("on",x===b)); lc.setTf(); };
+  box.querySelector("[data-open]").onclick=()=>{ CH.syms[0]=sym; CH.tf=cur; CH.layout=1; CH.tpl="__custom"; saveCH(); show("graphiques"); };
+  return lc;
+}
+window.mountChart=mountChart;
+
 $("#v-graphiques").addEventListener("change",e=>{
   const t=e.target;
   if(t.classList.contains("chsym")){ const i=+t.dataset.i; const v=t.value.trim().toUpperCase().replace("/",""); if(!v) return; CH.syms[i]=v; CH.tpl="__custom"; saveCH(); tplOptions(); const c=LC[i]; if(c){c.sym=v;c.first=true;c.refresh();} }

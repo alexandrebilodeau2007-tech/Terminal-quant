@@ -167,6 +167,33 @@ def test_rates():
     assert out["banks"]["EUR"]["ok"] is False  # pas de prix Euribor fournis
 
 
+def test_news_notify():
+    from server import engine, push, storage
+    sent = []
+    orig = push.send
+    push.send = lambda *a, **k: sent.append((a, k)) or 1
+    try:
+        storage.save("news_sent.json", {"keys": [], "seeded": False})
+        from datetime import datetime, timezone, timedelta
+        now = datetime.now(timezone.utc)
+        old = [{"title": f"Vieux {i}", "link": f"https://x/{i}", "time": (now - timedelta(minutes=i)).isoformat(), "source": "InvestingLive"} for i in range(5)]
+        engine.notify_news(old)  # premier passage : rien n'est envoyé
+        assert sent == []
+        new = [{"title": "Nouveau", "link": "https://x/new", "time": now.isoformat(), "source": "InvestingLive", "summary": "Résumé"},
+               {"title": "FJ flash", "link": "https://fj/1", "time": now.isoformat(), "source": "FinancialJuice"}]
+        engine.notify_news(old + new)
+        assert len(sent) == 2 and sent[0][1]["kind"] in ("news_il", "news_fj"), sent
+        engine.notify_news(old + new)  # pas de doublon
+        assert len(sent) == 2
+        # accumulation : les anciennes ne disparaissent pas quand le flux change
+        storage.save("news.json", {"items": []})
+        engine._merge_news("news.json", old)
+        engine._merge_news("news.json", new)
+        assert len(storage.load("news.json")["items"]) == 7
+    finally:
+        push.send = orig
+
+
 def test_api():
     from fastapi.testclient import TestClient
     from server.main import app
@@ -211,9 +238,13 @@ def test_api():
     assert j["usual_effect"].startswith("Réel <")
     assert c.get("/api/fiches").json()["items"][0]["id"] == "nfp"
     assert c.get("/api/fiches/img/nfp.png").content == b"PNG"
+    from server import rates as _r
+    _r._scan = lambda t: {}
+    rr = c.post("/api/rates/refresh")
+    assert rr.status_code == 200 and "USD" in rr.json()["banks"], rr.text[:300]
     assert c.get("/").status_code == 200 and c.get("/sw.js").status_code == 200
     assert c.get("/manifest.webmanifest").status_code == 200
 
 
 if __name__ == "__main__":
-    test_pipeline(); test_seasonality(); test_cot(); test_rates(); test_api(); print("\nTOUS LES TESTS OK")
+    test_pipeline(); test_seasonality(); test_cot(); test_rates(); test_news_notify(); test_api(); print("\nTOUS LES TESTS OK")

@@ -339,13 +339,13 @@ const HAWK_W=/\b(hawkish|hike|hikes|hiking|tighten\w*|raise rates|rate rise|high
 const DOVE_W=/\b(dovish|cut|cuts|cutting|easing|ease|lower rates|stimulus)\b/i;
 let NEWS_F = store.get("newsFilter",{ccy:"ALL",src:"ALL"}), NEWS=[];
 async function loadNews(){
-  try{ NEWS = await api("/api/news?limit=200"); }catch{ return }
+  try{ NEWS = await api("/api/news?limit=400"+(NEWS_F.src!=="ALL"?"&source="+encodeURIComponent(NEWS_F.src):"")); }catch{ return }
   $("#newsCcy").innerHTML = ["ALL",...CCYS].map(c=>`<button class="chip ${NEWS_F.ccy===c?"on":""}" data-c="${c}">${c==="ALL"?"TOUT":FLAGS[c]+" "+c}</button>`).join("");
   $("#newsSrc").innerHTML = [["ALL","TOUTES SOURCES"],["FinancialJuice","FINANCIALJUICE"],["InvestingLive","INVESTINGLIVE"],["Investing.com","INVESTING.COM"]]
     .map(([k,l])=>`<button class="chip ${NEWS_F.src===k?"on":""}" data-s="${k}">${l}</button>`).join("");
   const now=Date.now();
   const list = NEWS.filter(n=>(NEWS_F.src==="ALL"||n.source===NEWS_F.src) &&
-    (NEWS_F.ccy==="ALL"||NEWS_KW[NEWS_F.ccy].some(k=>(" "+n.title+" ").toLowerCase().includes(k)))).slice(0,120);
+    (NEWS_F.ccy==="ALL"||NEWS_KW[NEWS_F.ccy].some(k=>(" "+n.title+" ").toLowerCase().includes(k)))).slice(0,300);
   $("#newsList").innerHTML = list.map(n=>{
     const t=n.time?new Date(n.time):null, fresh=t&&now-t<15*60000;
     const cb=CB_W.test(n.title);
@@ -508,7 +508,7 @@ async function openCurrency(code){
       ${d.key_data.map(k=>`<tr><td><div class="evt"><i class="imp ${k.impact}"></i><div>${esc(k.title)} <small>${esc(k.period||"")}${k.country!==d.countries[0]?" · "+k.country:""}</small></div></div></td>
         <td class="n act ${k.surprise?.ccy_bias==="positif"?"pos":k.surprise?.ccy_bias==="négatif"?"neg":""}">${esc(k.actual)}</td><td class="n">${esc(k.forecast)}</td><td class="n mute">${esc(k.previous)}</td></tr>`).join("")||'<tr><td class="empty">Historique en cours de chargement.</td></tr>'}
       </tbody></table></div></div>
-    <div class="panel"><div class="ph"><b>Graphique</b> · ${esc(d.index_symbol)}</div><div id="ccyChart" style="height:380px"></div></div>
+    <div class="panel" style="padding:0;overflow:hidden"><div id="ccyChart" style="height:420px"></div></div>
   </div>
   <div class="panel"><div class="ph"><b>À venir</b> · 🔴 / 🟠</div><div style="overflow-x:auto"><table class="cal">${d.upcoming.length?calRows(d.upcoming):'<tr><td class="empty">Rien cette semaine.</td></tr>'}</table></div></div>
   <div class="grid g2">
@@ -516,7 +516,8 @@ async function openCurrency(code){
     <div class="panel"><div class="ph"><b>Nouvelles</b> · FinancialJuice / InvestingLive / Investing.com</div><div class="pb news">${d.news.map(n=>`<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}<small>${esc(n.source||"")} ${n.time?"· "+fDs.format(new Date(n.time))+" "+fT.format(new Date(n.time)):""}</small></a>`).join("")||'<div class="dim mono">Aucune nouvelle.</div>'}</div></div>
   </div>`;
   $("#back").onclick=()=>{el.style.display="none";$("#ccyGrid").style.display="";loadCurrencies()};
-  tvWidget($("#ccyChart"),"embed-widget-advanced-chart.js",chartCfg(d.index_symbol,"240"));
+  const csym=String(d.index_symbol||"").split(":").pop().replace("/","");
+  if(window.mountChart) mountChart($("#ccyChart"), csym);
 }
 
 /* ---------------- graphiques ---------------- */
@@ -580,6 +581,9 @@ async function renderAlerts(){
   let prefs=null; if(sub){ try{ prefs=(await api("/api/push/get",{method:"POST",body:JSON.stringify({endpoint:sub.endpoint})})).prefs }catch{} }
   prefs = prefs || {currencies:[...CCYS],impacts:["high","medium"],reminder:true,release:true,weekly:true,live:true};
   if(prefs.live===undefined) prefs.live=true;
+  if(prefs.news_il===undefined) prefs.news_il=true;
+  if(prefs.news_fj===undefined) prefs.news_fj=true;
+  if(prefs.news_inv===undefined) prefs.news_inv=false;
   let st={}; try{ st=await api("/api/settings"); }catch{}
   el.innerHTML=`
    ${isIOS&&!standalone?`<div class="ios"><b>📱 Sur iPhone :</b> les notifications fonctionnent seulement si le site est installé.<br>
@@ -604,6 +608,9 @@ async function renderAlerts(){
      <div class="chips" id="pImp">${[["high","🔴 ROUGE"],["medium","🟠 ORANGE"]].map(([k,l])=>`<button class="chip ${prefs.impacts.includes(k)?"on":""}" data-i="${k}">${l}</button>`).join("")}</div>
      <div class="mono mute" style="font-size:11px;margin:12px 0 6px">TYPES</div>
      <div class="chips" id="pType">${[["reminder","⏰ RAPPEL AVANT"],["release","🟢🔴 CHIFFRE RÉEL"],["live","🎙️ BANQUIERS EN DIRECT"],["weekly","📊 ANALYSE DIMANCHE"]].map(([k,l])=>`<button class="chip ${prefs[k]?"on":""}" data-t="${k}">${l}</button>`).join("")}</div>
+     <div class="mono mute" style="font-size:11px;margin:12px 0 6px">NOUVELLES (UNE NOTIFICATION PAR NOUVELLE)</div>
+     <div class="chips" id="pNews">${[["news_il","📰 INVESTINGLIVE"],["news_fj","⚡ FINANCIALJUICE"],["news_inv","🗞️ INVESTING.COM"]].map(([k,l])=>`<button class="chip ${prefs[k]?"on":""}" data-t="${k}">${l}</button>`).join("")}</div>
+     <p class="note" style="margin-top:6px">FinancialJuice publie beaucoup (souvent 100+ manchettes par jour). Désactive-le ici si c'est trop.</p>
      <div style="margin-top:14px"><button class="btn" id="pSave" ${!sub?"disabled":""}>ENREGISTRER</button></div>
    </div></div>
    <div class="panel"><div class="ph"><b>Sentiment retail</b> · compte Myfxbook (optionnel) ${st.myfxbook_configured?'<span class="badge dovish">CONNECTÉ</span>':''}</div><div class="pb">
@@ -628,7 +635,7 @@ async function renderAlerts(){
   const P={...prefs};
   $("#pCcy").onclick=e=>{const b=e.target.closest("button");if(!b)return;const c=b.dataset.c;P.currencies=P.currencies.includes(c)?P.currencies.filter(x=>x!==c):[...P.currencies,c];b.classList.toggle("on")};
   $("#pImp").onclick=e=>{const b=e.target.closest("button");if(!b)return;const i=b.dataset.i;P.impacts=P.impacts.includes(i)?P.impacts.filter(x=>x!==i):[...P.impacts,i];b.classList.toggle("on")};
-  $("#pType").onclick=e=>{const b=e.target.closest("button");if(!b)return;const t=b.dataset.t;P[t]=!P[t];b.classList.toggle("on")};
+  $("#pType").onclick=$("#pNews").onclick=e=>{const b=e.target.closest("button");if(!b)return;const t=b.dataset.t;P[t]=!P[t];b.classList.toggle("on")};
   $("#pSave").onclick=async()=>{const s=await currentSub();if(!s)return;await api("/api/push/prefs",{method:"POST",body:JSON.stringify({endpoint:s.endpoint,prefs:P})});toast("Préférences enregistrées")};
   $("#mfxSave").onclick=async()=>{
     await api("/api/settings",{method:"POST",body:JSON.stringify({myfxbook_email:$("#mfxE").value,myfxbook_password:$("#mfxP").value})});

@@ -247,3 +247,6 @@ table.rtt td,table.rtt th{padding:6px 8px;font-size:12px}
 .livetag.on{color:#18c787}.livetag.on i{background:#18c787;animation:livepulse 1.6s infinite}
 .livetag.off{color:#ef4454}.livetag.off i{background:#ef4454}
 @keyframes livepulse{0%{box-shadow:0 0 0 0 rgba(24,199,135,.6)}70%{box-shadow:0 0 0 6px rgba(24,199,135,0)}100%{box-shadow:0 0 0 0 rgba(24,199,135,0)}}
+.chartbox.mini{height:100%;min-height:0;border:0;border-radius:0}
+.minitf{gap:3px;flex-wrap:nowrap}.minitf .chip{padding:1px 6px;font-size:10px}
+@media(max-width:760px){.chartbox.mini .chname{display:none}}
