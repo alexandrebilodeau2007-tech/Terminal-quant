@@ -29,7 +29,7 @@ MEETINGS = {
 BANKS = {"USD": "Federal Reserve", "CAD": "Banque du Canada", "EUR": "Banque centrale européenne", "GBP": "Bank of England",
          "CHF": "Banque nationale suisse", "AUD": "Reserve Bank of Australia", "NZD": "Reserve Bank of New Zealand", "JPY": "Bank of Japan"}
 # futures 3 mois : (préfixe, écart habituel fixing 3M − taux directeur, en %)
-QUARTERLY = {"CAD": ("TMX:CRA", -0.07), "EUR": ("EUREX:FEU3", 0.12), "GBP": ("ICEEUR:SO3", -0.05), "CHF": ("EUREX:FSR3", -0.02)}
+QUARTERLY = {"CAD": ("TMX:CRA", 0.02), "EUR": ("EUREX:FEU3", 0.12), "GBP": ("ICEEUR:SO3", -0.03), "CHF": ("EUREX:FSR3", -0.02)}
 STEP = 0.25
 
 
