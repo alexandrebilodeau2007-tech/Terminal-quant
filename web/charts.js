@@ -246,3 +246,6 @@ function renderRates(){
 }
 window.loadForce=loadForce; window.stopForce=stopForce; window.loadRates=loadRates; window.stopCharts=stopCharts;
 window.renderCharts=renderCharts;
+/* Si l'app s'ouvre directement sur un de ces onglets, charger maintenant (ce fichier arrive après app.js). */
+(function(){ const on=id=>document.querySelector("#v-"+id)?.classList.contains("on");
+  if(on("taux")) loadRates(); if(on("force")) loadForce(); if(on("graphiques")) renderCharts(); })();
