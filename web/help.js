@@ -66,7 +66,7 @@ const HELP = {
       ["Sources", "Toutes ou une seule source."],
       ["HAWK / DOVE", "Étiquette automatique sur les titres liés aux banques centrales ou à l'inflation. Elle repose sur des mots-clés : vérifie toujours le titre."],
       ["Trait orange à gauche", "Nouvelle de moins de 15 minutes."],
-      ["Un titre", "Ouvre l'article."],
+      ["Un titre", "Ouvre l'article. Pour FinancialJuice, la manchette s'ouvre dans le terminal (leur site demande un compte), avec des liens de contexte Google Actualités."],
     ],
     these: ["Cherche ce qui peut changer le pricé d'une banque centrale : discours, fuites, données surprises."],
   },

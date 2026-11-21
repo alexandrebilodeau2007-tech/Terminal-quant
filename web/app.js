@@ -352,13 +352,36 @@ async function loadNews(){
     const t=n.time?new Date(n.time):null, fresh=t&&now-t<15*60000;
     const cb=CB_W.test(n.title);
     const tone=!cb?"":(HAWK_P.test(n.title)||HAWK_W.test(n.title))?'<span class="tone hawkish">HAWK</span>':DOVE_W.test(n.title)?'<span class="tone dovish">DOVE</span>':"";
-    return `<a href="${esc(n.link)}" target="_blank" rel="noopener" style="${fresh?"border-left:2px solid var(--acc);padding-left:8px":""}">${tone}${esc(n.title)}
+    return `<a ${newsAttrs(n)} style="${fresh?"border-left:2px solid var(--acc);padding-left:8px":""}">${tone}${esc(n.title)}
       <small>${t?fDs.format(t)+" "+fT.format(t):""} · ${esc(n.source||"")}</small></a>`}).join("") || '<div class="empty">Aucune nouvelle pour ce filtre.</div>';
   $("#newsUpd").textContent = "MAJ "+fT.format(new Date());
 }
 $("#newsCcy").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;NEWS_F.ccy=b.dataset.c;store.set("newsFilter",NEWS_F);loadNews()});
 $("#newsSrc").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;NEWS_F.src=b.dataset.s;store.set("newsFilter",NEWS_F);loadNews()});
 
+
+
+/* FinancialJuice : la page de chaque nouvelle demande un compte. La manchette EST la nouvelle :
+   on l'affiche dans le terminal, avec des liens de contexte publics (aucun compte requis). */
+function newsAttrs(n){
+  if(n.source==="FinancialJuice") return `href="#" data-fj="${esc(n.title)}" data-fjt="${esc(n.time||"")}"`;
+  return `href="${esc(n.link)}" target="_blank" rel="noopener"`;
+}
+function openFJ(title,time){
+  const q=encodeURIComponent(title.replace(/^[^:]{0,60}:\s*/,"").slice(0,160));
+  const t=time?new Date(time):null;
+  const ccys=CCYS.filter(c=>NEWS_KW[c].some(k=>(" "+title+" ").toLowerCase().includes(k)));
+  const d=document.createElement("div"); d.className="modal";
+  d.innerHTML=`<div class="panel mbox"><div class="ph"><b>⚡ FinancialJuice</b>${t?` · ${fDs.format(t)} ${fT.format(t)}`:""}<div class="r"><button class="chip" data-x>✕</button></div></div>
+    <div class="pb"><div style="font-size:17px;line-height:1.45;font-weight:600">${esc(title)}</div>
+    ${ccys.length?`<div class="chips" style="margin-top:10px">${ccys.map(c=>`<span class="chip">${FLAGS[c]} ${c}</span>`).join("")}</div>`:""}
+    <p class="note">Sur FinancialJuice, la manchette est la nouvelle complète (fil « squawk ») : il n'y a pas d'article derrière. Pour le contexte, ces recherches publiques ne demandent aucun compte :</p>
+    <div class="chips"><a class="btn" href="https://news.google.com/search?q=${q}&hl=fr-CA" target="_blank" rel="noopener">GOOGLE ACTUALITÉS</a>
+    <a class="btn ghost" href="https://www.google.com/search?q=${q}&tbm=nws" target="_blank" rel="noopener">RECHERCHE GOOGLE</a></div></div></div>`;
+  d.onclick=e=>{ if(e.target===d||e.target.closest("[data-x]")) d.remove(); };
+  document.body.appendChild(d);
+}
+document.addEventListener("click",e=>{const a=e.target.closest("a[data-fj]"); if(!a) return; e.preventDefault(); e.stopPropagation(); openFJ(a.dataset.fj,a.dataset.fjt);},true);
 
 /* ---------------- positionnement : retail · institutionnel · comparatif ---------------- */
 const POS_TABS=[["retail","👥 RETAIL"],["inst","🏦 INSTITUTIONNEL"],["vs","⚖ COMPARATIF"]];
@@ -504,7 +527,7 @@ async function loadDashboard(){
    <div class="panel c6"><div class="ph"><b>Positionnement institutionnel</b> · COT hedge funds<div class="r"><button class="chip" onclick="openPositions('inst')">DÉTAIL →</button></div></div>
      ${(d.cot||[]).map(r=>{const g=r.groups.lev; return g?`<div class="li"><span class="ccy" style="min-width:64px">${FLAGS[r.ccy]} ${r.ccy}</span><span class="grow">${sentBar({long:g.pct_long,short:100-g.pct_long})}</span><span class="v mono ${g.net>0?"pos":"neg"}" style="font-size:10px">${kfmt(g.net)}</span><span class="v mono" style="font-size:10px">${cotRead(r)}</span></div>`:""}).join("")||'<div class="empty">Chargement du rapport COT…</div>'}</div>
    <div class="panel c6"><div class="ph"><b>Fil de nouvelles</b><div class="r"><button class="chip" onclick="show('nouvelles')">TOUT →</button></div></div>
-     <div class="pb news" style="padding-top:0">${d.news.map(n=>`<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}<small>${n.time?fT.format(new Date(n.time)):""} · ${esc(n.source||"")}</small></a>`).join("")}</div></div>
+     <div class="pb news" style="padding-top:0">${d.news.map(n=>`<a ${newsAttrs(n)}>${esc(n.title)}<small>${n.time?fT.format(new Date(n.time)):""} · ${esc(n.source||"")}</small></a>`).join("")}</div></div>
   </div>`;
 }
 function stanceBadgeLbl(l){return `<span class="badge ${String(l).toLowerCase()}">${esc(l)}</span>`}
@@ -589,8 +612,8 @@ async function openCurrency(code){
   </div>
   <div class="panel"><div class="ph"><b>À venir</b> · 🔴 / 🟠</div><div style="overflow-x:auto"><table class="cal">${d.upcoming.length?calRows(d.upcoming):'<tr><td class="empty">Rien cette semaine.</td></tr>'}</table></div></div>
   <div class="grid g2">
-    <div class="panel"><div class="ph"><b>Signaux de ton</b> · nouvelles 14 j</div><div class="pb news">${d.tone_news.map(n=>`<a href="${esc(n.link)}" target="_blank" rel="noopener"><span class="tone ${n.tone}">${n.tone.toUpperCase()}</span>${esc(n.title)}<small>${esc(n.source||"")} ${n.time?"· "+fDs.format(new Date(n.time)):""}</small></a>`).join("")||'<div class="dim mono">Aucun signal récent.</div>'}</div></div>
-    <div class="panel"><div class="ph"><b>Nouvelles</b> · FinancialJuice / InvestingLive / Investing.com</div><div class="pb news">${d.news.map(n=>`<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}<small>${esc(n.source||"")} ${n.time?"· "+fDs.format(new Date(n.time))+" "+fT.format(new Date(n.time)):""}</small></a>`).join("")||'<div class="dim mono">Aucune nouvelle.</div>'}</div></div>
+    <div class="panel"><div class="ph"><b>Signaux de ton</b> · nouvelles 14 j</div><div class="pb news">${d.tone_news.map(n=>`<a ${newsAttrs(n)}><span class="tone ${n.tone}">${n.tone.toUpperCase()}</span>${esc(n.title)}<small>${esc(n.source||"")} ${n.time?"· "+fDs.format(new Date(n.time)):""}</small></a>`).join("")||'<div class="dim mono">Aucun signal récent.</div>'}</div></div>
+    <div class="panel"><div class="ph"><b>Nouvelles</b> · FinancialJuice / InvestingLive / Investing.com</div><div class="pb news">${d.news.map(n=>`<a ${newsAttrs(n)}>${esc(n.title)}<small>${esc(n.source||"")} ${n.time?"· "+fDs.format(new Date(n.time))+" "+fT.format(new Date(n.time)):""}</small></a>`).join("")||'<div class="dim mono">Aucune nouvelle.</div>'}</div></div>
   </div>`;
   $("#back").onclick=()=>{el.style.display="none";$("#ccyGrid").style.display="";loadCurrencies()};
   const csym=String(d.index_symbol||"").split(":").pop().replace("/","");

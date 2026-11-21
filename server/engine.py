@@ -150,7 +150,7 @@ def notify_news(items):
         if n.get("summary") and src != "FinancialJuice":
             body += "\n" + re.sub(r"\s+", " ", n["summary"])[:140]
         try:
-            push.send(title, body, tag="news-" + str(abs(hash(_news_key(n))))[:10], url=n.get("link") or "/#nouvelles",
+            push.send(title, body, tag="news-" + str(abs(hash(_news_key(n))))[:10], url=("/#nouvelles" if src == "FinancialJuice" else n.get("link")) or "/#nouvelles",
                       kind=NEWS_KIND.get(src, "news_inv"))
         except Exception as e:
             log.info("Push nouvelle: %s", e)

@@ -49,7 +49,7 @@ def test_flows_one_snapshot_per_session():
     hist["days"] = {"2026-11-19": hist["days"][first_day]}
     storage.save("flows_hist.json", hist)
     out = flows.refresh()
-    assert out["prev_day"] is None, "OI inchangé : pas de nouvelle séance"
+    assert out["prev_day"] is None and out["rows"][0]["doi_pct"] is None, "OI inchangé : pas de nouvelle séance"
     assert out["rows"][0]["price"] == 0.0064, "prix mis à jour quand même"
     out = flows.refresh()
     r = out["rows"][0]
@@ -75,6 +75,20 @@ def test_capflows_build():
     assert jpy["net"] == 650 and jpy["reading"] == "entrées nettes"
     usd = next(x for x in out["summary"] if x["ccy"] == "USD")
     assert usd["reading"] == "sorties nettes"
+
+
+def test_flows_per_contract_timing():
+    """CME et ICE publient l'OI à des heures différentes : on compare chaque contrat à sa dernière valeur différente."""
+    snaps = iter([{"CME:6E1!": [1.1, 500, 0.1, 1], "ICEUS:DX1!": [100, 50, 0.1, 1]},
+                  {"CME:6E1!": [1.1, 500, 0.2, 1], "ICEUS:DX1!": [100, 55, 0.2, 1]}])
+    flows._scan = lambda: next(snaps)
+    storage.save("flows_hist.json", {"days": {"2026-11-18": {"CME:6E1!": {"close": 1.1, "oi": 450, "chg": 0}, "ICEUS:DX1!": {"close": 100, "oi": 49, "chg": 0}},
+                                              "2026-11-19": {"CME:6E1!": {"close": 1.1, "oi": 500, "chg": 0}, "ICEUS:DX1!": {"close": 100, "oi": 50, "chg": 0}}}})
+    flows.refresh()
+    out = flows.refresh()
+    r = {x["key"]: x for x in out["rows"]}
+    assert r["EUR"]["doi_pct"] == round(50 / 450 * 100, 2), "EUR comparé au 18 (OI pas encore mis à jour)"
+    assert r["USD"]["doi_pct"] == 10.0
 
 
 if __name__ == "__main__":

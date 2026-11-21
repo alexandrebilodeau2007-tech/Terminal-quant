@@ -110,7 +110,13 @@ def refresh():
         cur = hist["days"][day].get(t)
         if not cur:
             continue
-        p = prev.get(t) or {}
+        # chaque bourse publie son OI à son heure : on compare avec la dernière valeur DIFFÉRENTE de ce contrat
+        p = {}
+        for d in reversed(days[:-1]):
+            o = (hist["days"][d].get(t) or {}).get("oi")
+            if o and o != cur.get("oi"):
+                p = hist["days"][d][t]
+                break
         doi = (cur["oi"] - p["oi"]) if p.get("oi") and cur.get("oi") else None
         doi_pct = (doi / p["oi"] * 100) if doi is not None and p["oi"] else None
         dp = cur.get("chg")
