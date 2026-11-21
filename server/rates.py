@@ -158,6 +158,38 @@ def quarterly(ccy, prices, current_rate):
     return rows, curve
 
 
+def scenario_tree(current, rows):
+    """Arbre de scénarios façon CME FedWatch : à chaque réunion, le mouvement attendu est réparti entre les deux
+    paliers de 25 pb qui l'encadrent (ex. +13 pb attendus = 48 % statu quo, 52 % +25 pb), puis combiné avec
+    les réunions précédentes. Résultat : pour chaque réunion, la probabilité de chaque niveau de taux rond."""
+    dist = {0: 1.0}  # écart en paliers de 25 pb par rapport au taux actuel → probabilité
+    before = current
+    for r in rows:
+        steps = (r["rate"] - before) / STEP
+        k = int(steps // 1)
+        frac = steps - k
+        if frac < 0.02:      # bruit de prix : mouvement entier
+            frac = 0.0
+        elif frac > 0.98:
+            k, frac = k + 1, 0.0
+        new = {}
+        for lvl, pr in dist.items():
+            new[lvl + k] = new.get(lvl + k, 0) + pr * (1 - frac)
+            if frac:
+                new[lvl + k + 1] = new.get(lvl + k + 1, 0) + pr * frac
+        dist = {l: p for l, p in new.items() if p >= 0.001}
+        tot = sum(dist.values())
+        dist = {l: p / tot for l, p in dist.items()}
+        r["dist"] = [{"bps": l * 25, "rate": round(current + l * STEP, 2), "prob": round(100 * p, 1)}
+                     for l, p in sorted(dist.items())]
+        # probabilités cumulées par rapport au taux actuel (d'ici cette réunion)
+        r["hike"] = round(100 * sum(p for l, p in dist.items() if l > 0))
+        r["cut"] = round(100 * sum(p for l, p in dist.items() if l < 0))
+        r["hold"] = 100 - r["hike"] - r["cut"]
+        before = r["rate"]
+    return rows
+
+
 def refresh(current_rates: dict):
     tickers = [t for t, _ in _contracts_monthly("CBOT:ZQ")]
     for ccy in QUARTERLY:
@@ -179,13 +211,15 @@ def refresh(current_rates: dict):
                 rows, curve = quarterly(ccy, prices, cur)
             else:
                 raise RuntimeError("pas de futures accessibles pour cette banque")
+            rows = scenario_tree(cur, rows)
             nxt = rows[0] if rows else None
             entry.update({"ok": True, "rows": rows, "curve": curve, "next": nxt,
                           "last_week_curve": (week_ago or {}).get("banks", {}).get(ccy)})
             if nxt:
-                entry["next_move"] = "Hausse" if nxt["hike"] > nxt["cut"] and nxt["hike"] > nxt["hold"] else \
-                    "Baisse" if nxt["cut"] > nxt["hold"] else "Statu quo"
-                entry["probability"] = max(nxt["hike"], nxt["cut"], nxt["hold"])
+                top = max(nxt["dist"], key=lambda d: d["prob"])
+                entry["next_move"] = "Hausse" if top["bps"] > 0 else "Baisse" if top["bps"] < 0 else "Statu quo"
+                entry["probability"] = round(top["prob"])
+                entry["top"] = top
         except Exception as e:
             entry.update({"ok": False, "error": str(e)[:120]})
         out["banks"][ccy] = entry

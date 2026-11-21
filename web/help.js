@@ -122,16 +122,17 @@ const HELP = {
     these: ["Une thèse est plus solide quand la devise que tu achètes est déjà parmi les plus fortes et celle que tu vends parmi les plus faibles."],
   },
   taux: {
-    but: "Ce que le marché pricé pour chaque banque centrale : probabilité de hausse, de statu quo ou de baisse à chaque réunion, déduite des contrats à terme sur taux.",
+    but: "Ce que le marché price pour chaque banque centrale : la probabilité de chaque scénario rond (statu quo, hausse ou baisse de 25, 50 pb…) à chaque réunion, déduite des contrats à terme sur taux, comme le CME FedWatch.",
     touches: [
       ["Une devise", "Choisit la banque centrale."],
-      ["Cartes du haut", "Prochain mouvement le plus probable, sa probabilité, la variation attendue en points de base, le taux actuel et la date de la réunion."],
-      ["Distribution des scénarios", "Hausse, statu quo, baisse pour la prochaine réunion."],
-      ["Tableau Réunions", "Taux implicite et probabilités à chaque réunion à venir."],
-      ["Courbe à terme", "Trajectoire de taux attendue (vert) comparée à celle d'il y a une semaine (rouge pointillé)."],
+      ["Cartes du haut", "Date de la prochaine réunion, scénario le plus probable, sa probabilité, le taux actuel et le taux si ce scénario se réalise."],
+      ["Scénarios de la prochaine réunion", "Chaque issue possible en paliers de 25 pb, avec sa probabilité. Le total fait 100 %."],
+      ["Tableau réunion par réunion", "Probabilité que le taux soit à chaque niveau après chaque réunion, par rapport au taux actuel. En gras : le niveau le plus probable."],
+      ["Courbe à terme", "Trajectoire de taux attendue (vert) comparée à celle d'il y a une semaine (rouge pointillé). C'est une moyenne pondérée des scénarios."],
       ["RBA, RBNZ, BoJ", "Pas de contrats à terme accessibles gratuitement : seules les dates de réunion s'affichent."],
     ],
     these: ["C'est « le pricé » du Niveau 2. Une donnée fait bouger la devise seulement si elle change ces probabilités.",
+      "Une probabilité proche de 50/50 = le marché est indécis : la prochaine donnée peut faire un gros mouvement.",
       "Une courbe qui monte par rapport à la semaine dernière = le marché devient plus hawkish."],
   },
   positions: {

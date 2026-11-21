@@ -254,6 +254,7 @@ async function loadRates(){
   try{ RT=await api("/api/rates"); }catch(e){ $("#rtBody").innerHTML=`<div class="empty">${esc(e.message)}</div>`; return; }
   const banks=Object.keys(RT.banks||{});
   if(!banks.length){ $("#rtBody").innerHTML='<div class="empty">Calcul en cours… reviens dans une minute.</div>'; return; }
+  if(!banks.includes(rtBank)) rtBank=banks[0];
   $("#rtBanks").innerHTML=banks.map(c=>`<button class="chip ${c===rtBank?"on":""}" data-b="${c}">${FLAGS[c]||""} ${c}</button>`).join("");
   renderRates();
 }
@@ -261,29 +262,38 @@ $("#rtBanks").addEventListener("click",e=>{const b=e.target.closest("button");if
 function renderRates(){
   const b=RT.banks[rtBank]; const body=$("#rtBody");
   if(!b.ok){ body.innerHTML=`<div class="empty"><b>${esc(b.bank)}</b> · ${esc(b.error||"non disponible")}<br><span class="dim">Prochaines réunions : ${b.meetings.slice(0,4).map(m=>fDs.format(new Date(m+"T12:00:00"))).join(" · ")}</span></div>`; return; }
-  const n=b.next||{}; const dir=n.hike>n.cut?"hike":"cut"; const pDir=Math.max(n.hike||0,n.cut||0);
+  const n=b.next||{}; const dist=n.dist||[];
   const days=d=>Math.round((new Date(d+"T12:00:00")-Date.now())/864e5);
-  const bar=(l,v,cls)=>`<div class="scen"><span>${l}</span><div class="sbarh"><div class="${cls}" style="width:${v}%"></div></div><b class="mono">${v}%</b></div>`;
+  const pct=v=>(v>=10?Math.round(v):v.toFixed(1)).toString().replace(".",",")+" %";
+  const mv=bps=>bps>0?`Hausse de ${bps} pb`:bps<0?`Baisse de ${-bps} pb`:"Statu quo";
+  const top=dist.length?dist.reduce((a,x)=>x.prob>a.prob?x:a):null;
+  const scen=x=>`<div class="scen"><span>${mv(x.bps)} <span class="mute">→ ${x.rate.toFixed(2).replace(".",",")} %</span></span><div class="sbarh"><div class="${x.bps>0?"hk":x.bps<0?"ct":"hd"}" style="width:${x.prob}%"></div></div><b class="mono">${pct(x.prob)}</b></div>`;
+  // colonnes du tableau : chaque niveau de taux rond qui a au moins 1 % de probabilité à une réunion
+  const lv=[...new Set(b.rows.flatMap(r=>(r.dist||[]).filter(x=>x.prob>=1).map(x=>x.bps)))].sort((a,c)=>a-c);
+  const cell=(r,l)=>{const x=(r.dist||[]).find(d=>d.bps===l); if(!x||x.prob<0.5) return '<td class="n mono dim">—</td>';
+    const best=Math.max(...r.dist.map(d=>d.prob)); return `<td class="n mono ${x.prob===best?(l>0?"pos":l<0?"neg":""):"mute"}" style="${x.prob===best?"font-weight:700":""}">${pct(x.prob)}</td>`;};
   body.innerHTML=`
    <div class="rtcards">
-     <div class="rtc"><small>Prochain mouvement</small><b>${esc(b.next_move||"—")}</b></div>
-     <div class="rtc"><small>Probabilité</small><b class="${b.next_move==="Hausse"?"pos":b.next_move==="Baisse"?"neg":""}">${b.probability??"—"}%</b></div>
-     <div class="rtc"><small>Variation attendue</small><b class="${n.change_bps>0?"pos":n.change_bps<0?"neg":""}">${n.change_bps>0?"+":""}${n.change_bps??"—"} pb</b></div>
-     <div class="rtc"><small>Taux actuel</small><b>${b.current!=null?b.current.toFixed(2)+"%":"—"}</b></div>
-     <div class="rtc"><small>Réunion</small><b>${n.date?fDs.format(new Date(n.date+"T12:00:00")):"—"}</b></div>
+     <div class="rtc"><small>Prochaine réunion</small><b>${n.date?fDs.format(new Date(n.date+"T12:00:00")):"—"}</b></div>
+     <div class="rtc"><small>Scénario le plus probable</small><b class="${top?.bps>0?"pos":top?.bps<0?"neg":""}">${top?mv(top.bps):"—"}</b></div>
+     <div class="rtc"><small>Probabilité</small><b>${top?pct(top.prob):"—"}</b></div>
+     <div class="rtc"><small>Taux actuel</small><b>${b.current!=null?b.current.toFixed(2).replace(".",",")+" %":"—"}</b></div>
+     <div class="rtc"><small>Taux si scénario</small><b>${top?top.rate.toFixed(2).replace(".",",")+" %":"—"}</b></div>
    </div>
    <div class="rtgrid">
-     <div><div class="dh">DISTRIBUTION DES SCÉNARIOS · ${esc(b.bank)}</div>
-       ${bar("Hausse",n.hike||0,"hk")}${bar("Statu quo",n.hold||0,"hd")}${bar("Baisse",n.cut||0,"ct")}
-       <div class="dh" style="margin-top:14px">RÉUNIONS</div>
-       <div style="overflow-x:auto"><table class="cal rtt"><thead><tr><th>Réunion</th><th class="n">Jours</th><th class="n">Taux implicite</th><th class="n">Δ pb</th><th class="n">Baisse</th><th class="n">Statu quo</th><th class="n">Hausse</th></tr></thead><tbody>
-       ${b.rows.map(r=>`<tr><td class="mono">${fDs.format(new Date(r.date+"T12:00:00"))}</td><td class="n mono mute">${days(r.date)}j</td><td class="n mono"><b>${r.rate.toFixed(2)}%</b></td><td class="n mono ${r.change_bps>0?"pos":r.change_bps<0?"neg":"mute"}">${r.change_bps>0?"+":""}${r.change_bps}</td><td class="n mono ${r.cut>=50?"neg":"mute"}">${r.cut}%</td><td class="n mono">${r.hold}%</td><td class="n mono ${r.hike>=50?"pos":"mute"}">${r.hike}%</td></tr>`).join("")}</tbody></table></div></div>
+     <div><div class="dh">SCÉNARIOS DE LA PROCHAINE RÉUNION · ${esc(b.bank)}</div>
+       ${dist.map(scen).join("")||'<div class="empty">—</div>'}
+       <div class="dh" style="margin-top:14px">PROBABILITÉ DE CHAQUE NIVEAU DE TAUX, RÉUNION PAR RÉUNION</div>
+       <div style="overflow-x:auto"><table class="cal rtt"><thead><tr><th>Réunion</th><th class="n">Jours</th>${lv.map(l=>`<th class="n">${(b.current+l/100).toFixed(2).replace(".",",")} %<div class="dim" style="font-size:9px">${l>0?"+":""}${l} pb</div></th>`).join("")}</tr></thead><tbody>
+       ${b.rows.map(r=>`<tr><td class="mono">${fDs.format(new Date(r.date+"T12:00:00"))}</td><td class="n mono mute">${days(r.date)}j</td>${lv.map(l=>cell(r,l)).join("")}</tr>`).join("")}</tbody></table></div>
+       <p class="note">Chaque ligne = probabilité que le taux soit à ce niveau <b>après</b> cette réunion, en paliers ronds de 25 pb par rapport au taux actuel (${b.current.toFixed(2).replace(".",",")} %). En gras : le scénario le plus probable.</p></div>
      <div><div class="dh">COURBE À TERME IMPLICITE</div><div class="stchart" style="height:340px"><canvas id="rtCanvas"></canvas></div>
-       <p class="note">Taux directeur implicite à chaque réunion, déduit des futures de taux (${rtBank==="USD"?"Fed funds 30 jours":rtBank==="CAD"?"CORRA 3 mois":rtBank==="EUR"?"Euribor 3 mois":rtBank==="GBP"?"SONIA 3 mois":"SARON 3 mois"}). Probabilité = variation attendue ÷ 25 pb. Estimation indicative, pas une prévision.</p></div>
+       <p class="note">Taux implicite déduit des futures de taux (${rtBank==="USD"?"Fed funds 30 jours":rtBank==="CAD"?"CORRA 3 mois":rtBank==="EUR"?"Euribor 3 mois":rtBank==="GBP"?"SONIA 3 mois":"SARON 3 mois"}). La courbe est une moyenne pondérée des scénarios ; les probabilités à gauche découpent cette moyenne en paliers ronds de 25 pb, comme le CME FedWatch : un mouvement attendu de +13 pb devient 52 % de chances de +25 pb et 48 % de statu quo. Estimation indicative, pas une prévision.</p></div>
    </div>`;
   const labels=b.rows.map(r=>fDs.format(new Date(r.date+"T12:00:00")));
   const ds=[{label:"Courbe actuelle",data:b.rows.map(r=>r.rate),borderColor:"#22c3a6",backgroundColor:"#22c3a6",borderWidth:2,pointRadius:3,tension:0.25}];
   if(b.last_week_curve){ const lw=b.last_week_curve; const m=lw.map(p=>p.rate); ds.push({label:"Semaine dernière",data:b.rows.map(r=>{const t=new Date(r.date).getTime();let best=lw[0];for(const p of lw){if(Math.abs(new Date(p.date)-t)<Math.abs(new Date(best.date)-t))best=p;}return best?best.rate:null;}),borderColor:"#ef4454",borderDash:[4,4],borderWidth:1.5,pointRadius:0,tension:0.25}); }
+  if(!window.Chart) return;
   if(rtChart) rtChart.destroy();
   rtChart=new Chart($("#rtCanvas"),{type:"line",data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,animation:false,
     plugins:{legend:{labels:{color:"#9aa4b1",boxWidth:10,font:{size:10}}}},

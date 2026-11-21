@@ -274,3 +274,7 @@ body.chfull .helpbar{display:none}
   .help table.spec td{display:block;padding-top:0;padding-bottom:10px}
   .helpbar{margin-bottom:6px}
 }
+#v-taux .scen{grid-template-columns:190px 1fr 56px}
+@media(max-width:760px){#v-taux .scen{grid-template-columns:130px 1fr 50px}}
+#v-taux .rtgrid>div{min-width:0}
+#v-taux .rtt th,#v-taux .rtt td{white-space:nowrap}
