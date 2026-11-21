@@ -253,3 +253,24 @@ table.rtt td,table.rtt th{padding:6px 8px;font-size:12px}
 
 .chlive{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3a414b;flex:none}
 .chlive.on{background:#18c787;animation:livepulse 1.6s infinite}
+
+/* aide par onglet */
+.helpbar{display:flex;justify-content:flex-end;margin:0 0 8px}
+.helpbtn{font-size:11px;letter-spacing:.06em}
+.helpbtn span{color:var(--acc)}
+body.chfull .helpbar{display:none}
+.help h4{margin:14px 0 6px;font-size:11px;letter-spacing:.1em;color:var(--acc2);font-family:var(--mono,ui-monospace,monospace)}
+.help p{margin:6px 0;font-size:13px;line-height:1.5}
+.help table.spec th{white-space:nowrap;vertical-align:top}
+.help table.spec td{font-size:12.5px;line-height:1.45}
+.help ul{margin:4px 0;padding-left:18px;font-size:13px;line-height:1.5}
+/* positions */
+.capsum{display:flex;gap:8px;flex-wrap:wrap;padding:10px 12px 0}
+.capsum .kpi{min-width:150px}
+.stale{color:var(--orange);font-size:11px}
+@media(max-width:760px){
+  .help table.spec, .help table.spec tbody, .help table.spec tr{display:block}
+  .help table.spec th{display:block;white-space:normal;padding-bottom:2px;color:var(--acc2)}
+  .help table.spec td{display:block;padding-top:0;padding-bottom:10px}
+  .helpbar{margin-bottom:6px}
+}

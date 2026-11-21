@@ -12,7 +12,7 @@ from datetime import timedelta
 
 from fastapi.responses import Response
 
-from . import calendar_data as cal, engine, push, weekly, seasonality, storage, sentiment, macro, indicators, fiches, cot, market, rates, flows
+from . import calendar_data as cal, engine, push, weekly, seasonality, storage, sentiment, macro, indicators, fiches, cot, market, rates, flows, capflows
 from .config import WEB_DIR, APP_TOKEN, PORT, TIMEZONE, ANTHROPIC_API_KEY, TE_API_KEY
 from .countries import CURRENCIES
 
@@ -252,6 +252,19 @@ def get_flows():
 async def flows_refresh():
     try:
         return await asyncio.to_thread(flows.refresh)
+    except Exception as e:
+        raise HTTPException(400, str(e)[:200])
+
+
+@app.get("/api/capflows")
+def get_capflows():
+    return capflows.latest() or {"series": [], "summary": []}
+
+
+@app.post("/api/capflows/refresh")
+async def capflows_refresh():
+    try:
+        return await asyncio.to_thread(capflows.refresh)
     except Exception as e:
         raise HTTPException(400, str(e)[:200])
 

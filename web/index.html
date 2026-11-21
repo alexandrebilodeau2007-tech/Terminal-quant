@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="icon" href="/icons/icon-192.png">
 <title>Macro Terminal</title>
-<link rel="stylesheet" href="/styles.css?v=13">
+<link rel="stylesheet" href="/styles.css?v=14">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js" defer></script>
@@ -45,6 +45,7 @@
 </header>
 
 <main>
+  <div class="helpbar"><button class="chip helpbtn" id="helpBtn">❓ COMMENT L'UTILISER · <span id="helpTab">ACCUEIL</span></button></div>
   <!-- ACCUEIL -->
   <section class="view on" id="v-accueil"></section>
 
@@ -131,7 +132,9 @@
 
   <!-- POSITIONS -->
   <section class="view" id="v-positions">
-    <div class="panel"><div class="ph"><b>Positions institutionnelles</b><div class="r chips" id="posCls"></div></div></div>
+    <div class="panel"><div class="ph"><b>Positionnement</b> <span class="mono dim hide-m">· qui achète, qui vend</span>
+      <div class="r chips" id="posTabs"></div></div>
+      <div class="pb" id="posClsRow" style="padding:8px 12px"><div class="chips" id="posCls"></div></div></div>
     <div id="posBody"><div class="empty">Chargement…</div></div>
   </section>
 
@@ -165,7 +168,8 @@
   <section class="view" id="v-alertes"></section>
 </main>
 <div class="toast" id="toast"></div>
-<script src="/app.js?v=16"></script>
+<script src="/app.js?v=17"></script>
 <script src="/charts.js?v=7"></script>
+<script src="/help.js?v=1"></script>
 </body>
 </html>

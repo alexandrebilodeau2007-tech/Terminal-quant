@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from . import calendar_data as cal, central_banks, push, storage, weekly, sources, sentiment, cot, rates, macro, flows
+from . import calendar_data as cal, central_banks, push, storage, weekly, sources, sentiment, cot, rates, macro, flows, capflows
 from .config import (TIMEZONE, REMINDER_MINUTES, FAST_POLL_SECONDS, RELEASE_TIMEOUT_MINUTES,
                      WEEK_REFRESH_MINUTES, NEWS_REFRESH_MINUTES, WEEKLY_DAY, WEEKLY_HOUR, FJ_REFRESH_SECONDS)
 from .countries import CURRENCIES
@@ -14,7 +14,7 @@ from .countries import CURRENCIES
 log = logging.getLogger("engine")
 TZ = ZoneInfo(TIMEZONE)
 
-STATE = {"last_week": 0.0, "last_history": 0.0, "last_news": 0.0, "last_fj": 0.0, "last_sent": 0.0, "last_cot": 0.0, "last_rates": 0.0, "last_flows": 0.0, "last_poll": {}, "running": False,
+STATE = {"last_week": 0.0, "last_history": 0.0, "last_news": 0.0, "last_fj": 0.0, "last_sent": 0.0, "last_cot": 0.0, "last_rates": 0.0, "last_flows": 0.0, "last_capflows": 0.0, "last_poll": {}, "running": False,
          "last_error": None}
 
 
@@ -260,6 +260,31 @@ def check_alerts():
         storage.save("week.json", week)  # les objets ont été mis à jour en place
 
 
+def _fx_closed(now=None) -> bool:
+    """Marché des changes fermé : du vendredi 17 h au dimanche 17 h (heure de l'Est)."""
+    now = now or datetime.now(ZoneInfo("America/Toronto"))
+    wd, h = now.weekday(), now.hour
+    return (wd == 4 and h >= 17) or wd == 5 or (wd == 6 and h < 17)
+
+
+def _sent_interval() -> int:
+    """Myfxbook : 100 requêtes par jour au maximum. 20 min = 72 par jour ; marché fermé = 1 par heure."""
+    return 3600 if _fx_closed() else 1200
+
+
+def _cot_interval() -> int:
+    """Le COT sort le vendredi vers 15 h 30 (heure de l'Est) : on vérifie toutes les 30 min jusqu'à l'avoir."""
+    now = datetime.now(ZoneInfo("America/Toronto"))
+    last = (cot.latest() or {}).get("rows") or []
+    newest = max((r.get("date", "") for r in last), default="")
+    tuesday = (now - timedelta(days=(now.weekday() - 1) % 7)).date().isoformat()
+    friday_release = now.weekday() == 4 and (now.hour, now.minute) >= (15, 35)
+    after_release = friday_release or now.weekday() in (5, 6)
+    if after_release and newest < tuesday:
+        return 1800
+    return 6 * 3600
+
+
 async def loop():
     STATE["running"] = True
     log.info("Moteur démarré")
@@ -269,7 +294,7 @@ async def loop():
                 await asyncio.to_thread(refresh_week)
             if time.time() - STATE["last_fj"] > FJ_REFRESH_SECONDS:
                 await asyncio.to_thread(refresh_fj)
-            if time.time() - STATE["last_sent"] > 300:
+            if time.time() - STATE["last_sent"] > _sent_interval():
                 STATE["last_sent"] = time.time()
                 try:
                     await asyncio.to_thread(sentiment.refresh)
@@ -287,7 +312,13 @@ async def loop():
                     await asyncio.to_thread(flows.refresh)
                 except Exception as ex:
                     log.info("Flux OI: %s", ex)
-            if time.time() - STATE["last_cot"] > 6 * 3600:
+            if time.time() - STATE["last_capflows"] > 6 * 3600:
+                STATE["last_capflows"] = time.time()
+                try:
+                    await asyncio.to_thread(capflows.refresh)
+                except Exception as ex:
+                    log.info("Flux de capitaux: %s", ex)
+            if time.time() - STATE["last_cot"] > _cot_interval():
                 STATE["last_cot"] = time.time()
                 try:
                     await asyncio.to_thread(cot.refresh)

@@ -83,6 +83,7 @@ function show(v){
   if(v==="saison") initSeason();
   if(v==="calendrier"){ renderFilters(); loadCalView(); }
   if(v==="fiches") loadFiches();
+  if(window.syncHelp) syncHelp();
   window.scrollTo(0,0);
 }
 $("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(b)show(b.dataset.v)});
@@ -359,26 +360,69 @@ $("#newsCcy").addEventListener("click",e=>{const b=e.target.closest("button");if
 $("#newsSrc").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;NEWS_F.src=b.dataset.s;store.set("newsFilter",NEWS_F);loadNews()});
 
 
-/* ---------------- positions institutionnelles ---------------- */
+/* ---------------- positionnement : retail · institutionnel · comparatif ---------------- */
+const POS_TABS=[["retail","👥 RETAIL"],["inst","🏦 INSTITUTIONNEL"],["vs","⚖ COMPARATIF"]];
 const POS_CLS=[["fx","Devises"],["idx","Indices boursiers"],["rates","Taux"],["cmd","Matières premières"]];
-let POS_C=store.get("posCls","fx"), POS_COT=null, POS_FL=null;
+let POS_T=store.get("posTab","inst"), POS_C=store.get("posCls","fx"), POS_COT=null, POS_FL=null, POS_CAP=null;
+function openPositions(t){ POS_T=t; store.set("posTab",t); show("positions"); }
 async function loadPositions(){
-  try{ [POS_COT,POS_FL]=await Promise.all([api("/api/cot"),api("/api/flows")]); }catch(e){ $("#posBody").innerHTML=`<div class="empty">${esc(e.message)}</div>`; return; }
+  try{
+    [POS_COT,POS_FL,SENT,POS_CAP]=await Promise.all([api("/api/cot"),api("/api/flows"),api("/api/sentiment"),api("/api/capflows").catch(()=>null)]);
+    COT=POS_COT;
+  }catch(e){ $("#posBody").innerHTML=`<div class="empty">${esc(e.message)}</div>`; return; }
   renderPositions();
 }
-function oiSpark(v){ if(!v||v.length<2) return ""; const lo=Math.min(...v),hi=Math.max(...v),w=70,h=18;
+function oiSpark(v,color="#7d8896"){ if(!v||v.length<2) return ""; const lo=Math.min(...v),hi=Math.max(...v),w=70,h=18;
   const pts=v.map((x,i)=>`${(i/(v.length-1)*w).toFixed(1)},${(h-(hi>lo?(x-lo)/(hi-lo):.5)*h).toFixed(1)}`).join(" ");
-  return `<svg width="${w}" height="${h}" style="vertical-align:middle"><polyline points="${pts}" fill="none" stroke="#7d8896" stroke-width="1.2"/></svg>`; }
+  return `<svg width="${w}" height="${h}" style="vertical-align:middle"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.2"/></svg>`; }
+function ageTxt(sec){ if(!sec) return ""; const m=Math.round((Date.now()/1000-sec)/60); return m<60?`il y a ${m} min`:`il y a ${Math.floor(m/60)} h ${String(m%60).padStart(2,"0")}`; }
+function fxClosed(){ const p=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:TZ,weekday:"short",hour:"numeric",hour12:false}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  const d=p.weekday, h=+p.hour%24; return (d==="Fri"&&h>=17)||d==="Sat"||(d==="Sun"&&h<17); }
 function renderPositions(){
+  $("#posTabs").innerHTML=POS_TABS.map(([k,l])=>`<button class="chip ${POS_T===k?"on":""}" data-t="${k}">${l}</button>`).join("");
+  $("#posClsRow").style.display=POS_T==="inst"?"":"none";
   $("#posCls").innerHTML=POS_CLS.map(([k,l])=>`<button class="chip ${POS_C===k?"on":""}" data-k="${k}">${l}</button>`).join("");
+  $("#posBody").innerHTML = POS_T==="retail"?posRetail():POS_T==="vs"?posVs():posInst();
+}
+function posRetail(){
+  const d=SENT?.data, rows=d?.rows||[];
+  const old=d?.updated && (Date.now()/1000-d.updated)>2*3600 && !fxClosed();
+  return `<div class="panel"><div class="ph"><b>Sentiment retail</b> · Myfxbook Community Outlook${d?.updated?" · MAJ "+fT.format(new Date(d.updated*1000))+" ("+ageTxt(d.updated)+")":""}</div>
+    ${old?`<div class="pb stale">⚠ Données de plus de 2 h : Myfxbook limite l'accès à 100 requêtes par jour. Le serveur réessaie automatiquement.</div>`:""}
+    ${SENT?.configured||rows.length?`<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Paire</th><th style="min-width:180px">Long / Short</th><th class="n">Positions</th><th class="n hide-m">Prix moy. long</th><th class="n hide-m">Prix moy. short</th><th class="n">Lecture</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td class="ccy">${esc(r.symbol)}</td><td>${sentBar(r)}</td><td class="n mute">${r.positions??"—"}</td><td class="n hide-m mute">${r.avg_long??"—"}</td><td class="n hide-m mute">${r.avg_short??"—"}</td><td class="n ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}">${esc(r.signal)}</td></tr>`).join("")}
+    </tbody></table></div>`:'<div class="empty">Chargement du sentiment Myfxbook…</div>'}
+    <p class="note" style="padding:0 12px 12px">Traders particuliers des courtiers reliés à Myfxbook. Lecture contrarienne : quand 65 % ou plus sont d'un côté, le biais va dans l'autre sens (la foule a souvent tort aux extrêmes). Le prix moyen montre où la foule est entrée : si le prix est loin de son prix moyen, elle est en perte et risque de couper. Mise à jour toutes les 20 min (1 fois par heure quand le marché est fermé).</p></div>`;
+}
+function posVs(){
+  return `<div class="panel"><div class="ph"><b>Retail vs institutionnels</b> · % long / short sur la paire${COT?.rows?.[0]?" · COT au "+esc(COT.rows[0].date):""}</div>
+    ${vsTable()}
+    <p class="note" style="padding:0 12px 12px">Retail = traders particuliers (Myfxbook, en direct). Institutionnels = hedge funds et asset managers du rapport COT (hebdomadaire), convertis dans le sens de la paire (ex. USDJPY : position courte sur le yen = longue sur la paire). Les banques (dealers) ne sont pas comparées parce qu'elles sont surtout en contrepartie de leurs clients. <b>Divergence</b> = retail à 60 % ou plus d'un côté et hedge funds de l'autre : signal contrarien dans le sens des hedge funds, à confirmer avec ta macro et ton analyse technique. Le COT date du mardi précédent : la situation a pu changer.</p></div>`;
+}
+const fmtOI=n=>n==null?"—":n>=1e6?(n/1e6).toFixed(2)+"M":n>=1e3?(n/1e3).toFixed(1)+"K":String(n);
+function capAmt(v,unit,scale){ if(v==null) return "—"; const sc=scale==="B"?" Md":scale==="M"?" M":scale==="T"?" T":"";
+  return `${v>0?"+":""}${Number(v).toLocaleString("fr-CA",{maximumFractionDigits:1})}${sc}${unit?" "+unit:""}`; }
+function posCap(){
+  const c=POS_CAP; if(!c||!c.series?.length) return `<div class="panel"><div class="ph"><b>Flux de capitaux officiels</b></div><div class="empty">Chargement des flux (Japon, États-Unis, Canada, Suisse)…</div></div>`;
+  const cls=r=>r==="soutien"||r==="entrées nettes"?"pos":r==="pression"||r==="sorties nettes"?"neg":"mute";
+  return `<div class="panel"><div class="ph"><b>Flux de capitaux officiels</b> · achats de titres par les investisseurs étrangers et nationaux${c.updated?" · MAJ "+fT.format(new Date(c.updated*1000)):""}</div>
+    <div class="capsum">${c.summary.map(s=>`<div class="kpi"><div class="l">${FLAGS[s.ccy]} ${s.ccy} · ${s.window} ${s.freq==="hebdo"?"dernières semaines":"derniers mois"}</div><div class="v ${cls(s.reading)}" style="font-size:15px">${(u=>capAmt(s.net,/[BMT]$/.test(u)?u.slice(0,-1):u,/[BMT]$/.test(u)?u.slice(-1):""))(s.unit)}</div><div class="mono ${cls(s.reading)}" style="font-size:10px">${esc(s.reading)}</div></div>`).join("")}</div>
+    <div style="overflow-x:auto"><table class="cal"><thead><tr><th>Série</th><th class="n">Dernier</th><th class="n hide-m">Période</th><th class="n">Somme récente</th><th class="hide-m">Tendance</th><th class="n">Effet sur la devise</th></tr></thead><tbody>
+    ${c.series.map(s=>`<tr><td><span class="ccy">${FLAGS[s.ccy]} ${s.ccy}</span> ${esc(s.label)}<div class="dim mono" style="font-size:9px">${esc(s.freq)} · ${esc(s.title)}</div></td>
+      <td class="n mono">${capAmt(s.last.actual,s.unit,s.scale)}<div class="dim mono" style="font-size:9px">${esc(s.last.date)}</div></td>
+      <td class="n mono mute hide-m">${esc(s.last.period||"")}</td>
+      <td class="n mono">${s.sum_recent!=null?capAmt(s.sum_recent,s.unit,s.scale)+`<div class="dim mono" style="font-size:9px">${s.window} ${s.freq==="hebdo"?"sem.":"mois"}</div>`:s.change!=null?capAmt(s.change,s.unit,s.scale)+'<div class="dim mono" style="font-size:9px">variation</div>':"—"}</td>
+      <td class="hide-m">${oiSpark(s.history.map(h=>h.actual),s.effect>0?"#18c787":s.effect<0?"#ef4454":"#7d8896")}</td>
+      <td class="n mono ${cls(s.reading)}" style="font-size:11px">${esc(s.reading)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="note" style="padding:0 12px 12px">Sources officielles : ministère des Finances du Japon (hebdomadaire), Trésor américain (TIC, mensuel, environ 6 semaines de retard), Statistique Canada (mensuel), BNS (mensuel), via le calendrier TradingView. Ces montants sont déplacés surtout par des institutions : assureurs, fonds de pension, banques centrales, gestionnaires d'actifs. <b>Soutien</b> = entrée de capitaux, favorable à la devise ; <b>pression</b> = sortie. Au Japon, quand les assureurs vendent des obligations étrangères (chiffre négatif), ils rapatrient des yens : c'est un soutien. Les réserves suisses incluent l'effet de change et de l'or : une hausse n'est qu'un indice d'intervention. C'est une tendance de fond, pas un signal d'entrée.</p></div>`;
+}
+function posInst(){
   const fl=(POS_FL?.rows||[]).filter(r=>r.class===POS_C);
   const cot=(POS_COT?.rows||[]).filter(r=>(r.class||"fx")===POS_C);
   const hasPrev=!!POS_FL?.prev_day;
-  const fmtOI=n=>n==null?"—":n>=1e6?(n/1e6).toFixed(2)+"M":n>=1e3?(n/1e3).toFixed(1)+"K":String(n);
-  const sg=r=>r.groups?.[r.spec||"lev"];
-  $("#posBody").innerHTML=`
-   <div class="panel"><div class="ph"><b>Flux quotidiens</b> · prix + intérêts ouverts des contrats à terme${POS_FL?.updated?" · MAJ "+fT.format(new Date(POS_FL.updated*1000)):""}</div>
-    ${fl.length?`<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Actif</th><th class="n">Prix</th><th class="n">Var. jour</th><th class="n">Intérêts ouverts</th><th class="n">Δ OI jour</th><th class="hide-m">Tendance OI (20 j)</th><th class="n">Lecture du jour</th></tr></thead><tbody>
+  return `
+   <div class="panel"><div class="ph"><b>Flux quotidiens</b> · prix + intérêts ouverts des contrats à terme${POS_FL?.updated?" · MAJ "+fT.format(new Date(POS_FL.updated*1000)):""}${hasPrev?` · séance ${esc(POS_FL.day)} vs ${esc(POS_FL.prev_day)}`:""}</div>
+    ${fl.length?`<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Actif</th><th class="n">Prix</th><th class="n">Var. jour</th><th class="n">Intérêts ouverts</th><th class="n">Δ OI</th><th class="hide-m">Tendance OI (20 séances)</th><th class="n">Lecture</th></tr></thead><tbody>
     ${fl.map(r=>`<tr><td><span class="ccy">${POS_C==="fx"?(FLAGS[r.key]||"")+" "+r.key:esc(r.name)}</span><div class="dim mono" style="font-size:9px">${esc(r.ticker)}</div></td>
       <td class="n mono">${r.price!=null?Number(r.price).toLocaleString("fr-CA",{maximumFractionDigits:r.price<0.1?6:r.price<10?4:2}):"—"}</td>
       <td class="n mono ${r.chg_pct>=0?"pos":"neg"}">${r.chg_pct!=null?(r.chg_pct>=0?"+":"")+r.chg_pct.toFixed(2)+"%":"—"}</td>
@@ -386,14 +430,16 @@ function renderPositions(){
       <td class="n mono ${r.doi>0?"pos":r.doi<0?"neg":"mute"}">${r.doi_pct!=null?(r.doi_pct>0?"+":"")+r.doi_pct.toFixed(1)+"%":"—"}</td>
       <td class="hide-m">${oiSpark(r.oi_series)}</td>
       <td class="n mono ${r.tone==="pos"?"pos":r.tone==="neg"?"neg":"mute"}" style="font-size:11px">${esc(r.reading)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">Chargement…</div>'}
-    <p class="note" style="padding:0 12px 12px">${hasPrev?"":"<b>La comparaison jour sur jour commence demain</b> : le serveur garde une photo par jour des intérêts ouverts. "}Lecture : prix ↑ + OI ↑ = nouveaux acheteurs · prix ↓ + OI ↑ = nouveaux vendeurs · prix ↑ + OI ↓ = rachat de shorts · prix ↓ + OI ↓ = liquidation de longs. Une chute d'OI de plus de 25 % = roulement vers le contrat suivant. C'est un indicateur de flux de tous les participants, pas le détail par catégorie (celui-ci n'existe qu'en hebdomadaire, ci-dessous).</p></div>
+    <p class="note" style="padding:0 12px 12px">${hasPrev?"":"<b>La comparaison commence à la prochaine séance</b> : le serveur garde une photo par séance des intérêts ouverts. "}Lecture : prix ↑ + OI ↑ = nouveaux acheteurs · prix ↓ + OI ↑ = nouveaux vendeurs · prix ↑ + OI ↓ = rachat de shorts · prix ↓ + OI ↓ = liquidation de longs. Une chute d'OI de plus de 25 % = roulement vers le contrat suivant. L'OI est publié une fois par séance, avec un jour de décalage. C'est le flux de tous les participants, pas le détail par catégorie (hebdomadaire, ci-dessous).</p></div>
    <div class="panel"><div class="ph"><b>Positionnement par catégorie</b> · rapport COT de la CFTC (hebdomadaire)${cot[0]?" · données au "+esc(cot[0].date):""}</div>
     ${cot.length?cotTable(cot):'<div class="empty">Chargement du rapport COT…</div>'}
     <p class="note" style="padding:0 12px 12px">${POS_C==="cmd"
       ?"<b>Producteurs</b> : producteurs et négociants qui couvrent leur production (souvent vendeurs structurels). <b>Banques (swap dealers)</b> : banques qui couvrent des swaps vendus à leurs clients. <b>Managed money</b> : hedge funds et CTA, l'argent spéculatif le plus suivi."
       :"<b>Banques (dealers)</b> : grandes banques, souvent en contrepartie de leurs clients. <b>Asset managers</b> : fonds de pension, fonds communs, assureurs. <b>Hedge funds</b> : argent spéculatif, le groupe le plus suivi."}
-      Indice 6 m / 1 an (groupe spéculatif) : 0 = position la plus courte de la période, 100 = la plus longue ; au-delà de 90 ou sous 10 = extrême. Données au mardi, publiées le vendredi 15 h 30.</p></div>`;
+      Chaque case : barre % long / % short, position nette et variation sur la semaine. Indice 6 m / 1 an (groupe spéculatif) : 0 = position la plus courte de la période, 100 = la plus longue ; au-delà de 90 ou sous 10 = extrême, risque de retournement. Données au mardi, publiées le vendredi 15 h 30 (heure de l'Est).</p></div>
+   ${POS_C==="fx"?posCap():""}`;
 }
+$("#posTabs").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;POS_T=b.dataset.t;store.set("posTab",POS_T);renderPositions();});
 $("#posCls").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;POS_C=b.dataset.k;store.set("posCls",POS_C);renderPositions();});
 
 /* ---------------- accueil (tableau de bord) ---------------- */
@@ -452,10 +498,10 @@ async function loadDashboard(){
      ${d.released.map(e=>`<div class="li"><span class="t">${fT.format(new Date(e.time))}</span><span class="ccy">${e.currency}</span><span class="grow">${esc(e.title)}</span><span class="v"><b>${esc(e.actual_str)}</b> <span class="mute">/ ${esc(e.forecast_str)}</span></span>${verdict(e)}</div>`).join("")||'<div class="empty">Aucun chiffre publié récemment.</div>'}</div>
    <div class="panel c12"><div class="ph"><b>Banques centrales</b> · ton et semaine<div class="r"><button class="chip" onclick="show('macro')">MACRO →</button></div></div>
      <div class="stgrid">${d.stances.sort((a,b)=>b.score-a.score).map(x=>`<div class="st" onclick="show('devises');openCurrency('${x.code}')" style="cursor:pointer"><div class="c">${x.flag} ${x.code}</div><div class="r">${x.rate!=null?x.rate+"%":"—"} · ${x.red}🔴 ${x.orange}🟠</div>${stanceBadge(x)}</div>`).join("")}</div></div>
-   <div class="panel c6"><div class="ph"><b>Sentiment retail</b> · % long / % short</div>
+   <div class="panel c6"><div class="ph"><b>Sentiment retail</b> · % long / % short<div class="r"><button class="chip" onclick="openPositions('retail')">DÉTAIL →</button></div></div>
      ${d.sentiment_configured?(d.sentiment.map(r=>`<div class="li"><span class="ccy" style="min-width:64px">${esc(r.symbol)}</span><span class="grow">${sentBar(r)}</span><span class="v ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}" style="font-size:10px">${esc(r.signal)}</span></div>`).join("")||'<div class="empty">Chargement…</div>'):'<div class="empty">Chargement du sentiment Myfxbook…</div>'}</div>
-   ${(()=>{const v=vsRows(d.sentiment,d.cot).filter(x=>x.cls!=="mute");return v.length?`<div class="panel c12"><div class="ph"><b>Divergences retail vs institutionnels</b><div class="r"><button class="chip" onclick="show('macro')">DÉTAIL →</button></div></div>${v.map(x=>`<div class="li"><span class="ccy" style="min-width:64px">${x.pair}</span><span class="grow ${x.cls}" style="font-size:12px">${x.sig}</span><span class="v mono mute" style="font-size:10px">retail ${x.r.long}% long · HF ${x.hf.long}% long</span></div>`).join("")}</div>`:""})()}
-   <div class="panel c6"><div class="ph"><b>Positionnement institutionnel</b> · COT hedge funds<div class="r"><button class="chip" onclick="show('macro')">DÉTAIL →</button></div></div>
+   ${(()=>{const v=vsRows(d.sentiment,d.cot).filter(x=>x.cls!=="mute");return v.length?`<div class="panel c12"><div class="ph"><b>Divergences retail vs institutionnels</b><div class="r"><button class="chip" onclick="openPositions('vs')">DÉTAIL →</button></div></div>${v.map(x=>`<div class="li"><span class="ccy" style="min-width:64px">${x.pair}</span><span class="grow ${x.cls}" style="font-size:12px">${x.sig}</span><span class="v mono mute" style="font-size:10px">retail ${x.r.long}% long · HF ${x.hf.long}% long</span></div>`).join("")}</div>`:""})()}
+   <div class="panel c6"><div class="ph"><b>Positionnement institutionnel</b> · COT hedge funds<div class="r"><button class="chip" onclick="openPositions('inst')">DÉTAIL →</button></div></div>
      ${(d.cot||[]).map(r=>{const g=r.groups.lev; return g?`<div class="li"><span class="ccy" style="min-width:64px">${FLAGS[r.ccy]} ${r.ccy}</span><span class="grow">${sentBar({long:g.pct_long,short:100-g.pct_long})}</span><span class="v mono ${g.net>0?"pos":"neg"}" style="font-size:10px">${kfmt(g.net)}</span><span class="v mono" style="font-size:10px">${cotRead(r)}</span></div>`:""}).join("")||'<div class="empty">Chargement du rapport COT…</div>'}</div>
    <div class="panel c6"><div class="ph"><b>Fil de nouvelles</b><div class="r"><button class="chip" onclick="show('nouvelles')">TOUT →</button></div></div>
      <div class="pb news" style="padding-top:0">${d.news.map(n=>`<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}<small>${n.time?fT.format(new Date(n.time)):""} · ${esc(n.source||"")}</small></a>`).join("")}</div></div>
@@ -467,7 +513,7 @@ function stanceBadgeLbl(l){return `<span class="badge ${String(l).toLowerCase()}
 let COT=null, MX=null, MX_SORT=store.get("mxSort",{key:"rate",dir:-1}), SENT=null;
 async function loadMacro(){
   const el=$("#v-macro");
-  try{ MX=await api("/api/macro"); SENT=await api("/api/sentiment"); COT=await api("/api/cot"); }catch{ el.innerHTML='<div class="empty">Serveur injoignable.</div>'; return }
+  try{ MX=await api("/api/macro"); }catch{ el.innerHTML='<div class="empty">Serveur injoignable.</div>'; return }
   renderMacro();
 }
 function mxVal(r,k){ const c=r[k]; if(!c) return null; if(k==="stance") return c.score; return c.value ?? null; }
@@ -479,22 +525,13 @@ function renderMacro(){
     if(k==="rate") return `${esc(c.str)}${c.change?` <span class="${c.change>0?"neg":"pos"}" style="font-size:10px">${c.change>0?"+":""}${c.change}pb</span>`:""}`;
     const cls=c.bias==="positif"?"heat-pos":c.bias==="négatif"?"heat-neg":"";
     return `<span class="${cls}" title="${esc(c.period||"")} · préc. ${esc(c.prev)}">${esc(c.str)}</span>`;};
-  const sent=SENT?.data?.rows||[];
   el.innerHTML=`
    <div class="panel"><div class="ph"><b>Macro comparée</b> · clique sur une colonne pour trier · vert/rouge = dernier chiffre bon/mauvais pour la devise</div>
     <div style="overflow-x:auto"><table class="cal mx"><thead><tr><th data-k="code">Devise</th>${cols.map(c=>`<th class="n ${MX_SORT.key===c.key?"sorted":""}" data-k="${c.key}">${esc(c.label)}${MX_SORT.key===c.key?(MX_SORT.dir>0?" ▲":" ▼"):""}</th>`).join("")}</tr></thead>
     <tbody>${rows.map(r=>`<tr style="cursor:pointer" data-c="${r.code}"><td><span class="ccy">${r.flag} ${r.code}</span> <small class="dim">${esc(r.bank.split("(")[0])}</small></td>${cols.map(c=>`<td class="n">${cell(r,c.key)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="note" style="padding:0 12px 12px">Source : calendrier TradingView (données Trading Economics). Touche une ligne pour ouvrir la fiche du pays.</p></div>
-   <div class="panel"><div class="ph"><b>Sentiment retail</b> · Myfxbook Community Outlook${SENT?.data?.updated?" · MAJ "+fT.format(new Date(SENT.data.updated*1000)):""}</div>
-    ${SENT?.configured?`<div style="overflow-x:auto"><table class="cal"><thead><tr><th>Paire</th><th style="min-width:180px">Long / Short</th><th class="n">Positions</th><th class="n hide-m">Prix moy. long</th><th class="n hide-m">Prix moy. short</th><th class="n">Lecture</th></tr></thead><tbody>
-      ${sent.map(r=>`<tr><td class="ccy">${esc(r.symbol)}</td><td>${sentBar(r)}</td><td class="n mute">${r.positions??"—"}</td><td class="n hide-m mute">${r.avg_long??"—"}</td><td class="n hide-m mute">${r.avg_short??"—"}</td><td class="n ${r.signal.includes("HAUSSIER")?"pos":r.signal.includes("BAISSIER")?"neg":"mute"}">${esc(r.signal)}</td></tr>`).join("")}
-    </tbody></table></div>`:'<div class="empty">Chargement du sentiment Myfxbook… (mis à jour toutes les 5 min)</div>'}
-   </div>
-   <div class="panel"><div class="ph"><b>Retail vs institutionnels</b> · % long / short sur la paire</div>
-    ${vsTable()}
-    <p class="note" style="padding:0 12px 12px">Retail = traders particuliers (Myfxbook, en direct). Institutionnels = hedge funds et asset managers du rapport COT (hebdomadaire), convertis dans le sens de la paire (ex. USDJPY : position courte sur le yen = longue sur la paire). Les banques (dealers) ne sont pas comparées ici parce qu'elles sont surtout en contrepartie de leurs clients. Une divergence (retail ≥ 60 % d'un côté, hedge funds de l'autre) est un signal contrarien ; à confirmer avec ton analyse technique.</p></div>
-   <div class="panel"><div class="ph"><b>Positionnement institutionnel</b> · COT hebdo + flux quotidiens<div class="r"><button class="chip" onclick="show('positions')">OUVRIR POSITIONS →</button></div></div>
-    <div class="pb mute" style="font-size:12px">Devises, indices, taux et matières premières : voir l'onglet POSITIONS.</div></div>`;
+    <p class="note" style="padding:0 12px 12px">Source : calendrier TradingView (données Trading Economics). Dernier chiffre publié pour chaque indicateur ; garde le doigt (ou la souris) sur une case pour voir la période et le chiffre précédent. « t/t » = inflation trimestrielle, affichée quand le pays ne publie pas de chiffre annuel mensuel (Nouvelle-Zélande). Touche une ligne pour ouvrir la fiche du pays.</p></div>
+   <div class="panel"><div class="ph"><b>Positionnement</b> · retail, institutionnel et comparatif<div class="r"><button class="chip" onclick="openPositions('inst')">OUVRIR POSITIONS →</button></div></div>
+    <div class="pb mute" style="font-size:12px">Le sentiment retail (Myfxbook), le positionnement institutionnel (COT, flux d'intérêts ouverts, flux de capitaux officiels) et leur comparatif sont regroupés dans l'onglet POSITIONS.</div></div>`;
   el.querySelector("thead").onclick=e=>{const th=e.target.closest("th");if(!th)return;const k=th.dataset.k;if(k==="code")return;
     MX_SORT=MX_SORT.key===k?{key:k,dir:-MX_SORT.dir}:{key:k,dir:-1};store.set("mxSort",MX_SORT);renderMacro();};
   el.querySelector("tbody").onclick=e=>{const tr=e.target.closest("tr");if(tr){show("devises");openCurrency(tr.dataset.c)}};

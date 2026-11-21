@@ -40,7 +40,7 @@ HISTORY = [
 FF = [
     {"title": "ZEW Economic Sentiment", "country": "EUR", "date": (NOW + timedelta(hours=5)).isoformat(),
      "impact": "High", "forecast": "40.0", "previous": "39.3"},
-    {"title": "RBA Gov Speaks", "country": "AUD", "date": (NOW + timedelta(days=2)).isoformat(),
+    {"title": "RBA Gov Speaks", "country": "AUD", "date": (NOW + timedelta(hours=3)).isoformat(),
      "impact": "Medium", "forecast": "", "previous": ""},
 ]
 NEWS = [{"title": "Fed officials signal no rush to cut as inflation stays sticky", "link": "https://x", "time": NOW.isoformat(),

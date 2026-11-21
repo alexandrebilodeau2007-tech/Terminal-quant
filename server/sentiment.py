@@ -14,7 +14,8 @@ from . import storage
 
 log = logging.getLogger("sentiment")
 API = "https://www.myfxbook.com/api"
-_state = {"session": None, "ts": 0}
+_state = {"session": None, "ts": 0, "blocked_until": 0}
+DAILY_LIMIT_MSG = "API limit"
 
 
 def _settings():
@@ -31,7 +32,10 @@ def _login(client):
     r = client.get(f"{API}/login.json?email={quote(s['myfxbook_email'])}&password={quote(s['myfxbook_password'])}")
     data = r.json()
     if data.get("error"):
-        raise RuntimeError(data.get("message", "Connexion Myfxbook refusée"))
+        msg = data.get("message", "Connexion Myfxbook refusée")
+        if DAILY_LIMIT_MSG.lower() in msg.lower():
+            _state["blocked_until"] = _next_utc_midnight()
+        raise RuntimeError(msg)
     _state["session"] = data["session"]
 
 
@@ -67,7 +71,15 @@ def _scrape():
     return parse_outlook(r.text)
 
 
+def _next_utc_midnight():
+    t = time.gmtime()
+    return time.time() - (t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec) + 86400 + 60
+
+
 def _api():
+    """Myfxbook limite l'API à 100 requêtes par jour : si la limite est atteinte, on attend minuit UTC."""
+    if time.time() < _state["blocked_until"]:
+        raise RuntimeError("Limite quotidienne Myfxbook atteinte, nouvel essai après minuit UTC")
     with httpx.Client(timeout=20, headers={"User-Agent": "Mozilla/5.0"}) as c:
         if not _state["session"]:
             _login(c)
@@ -77,7 +89,10 @@ def _api():
             _login(c)
             data = c.get(f"{API}/get-community-outlook.json?session={_state['session']}").json()
         if data.get("error"):
-            raise RuntimeError(data.get("message", "Erreur Myfxbook"))
+            msg = data.get("message", "Erreur Myfxbook")
+            if DAILY_LIMIT_MSG.lower() in msg.lower():
+                _state["blocked_until"] = _next_utc_midnight()
+            raise RuntimeError(msg)
     return data.get("symbols", [])
 
 
@@ -105,7 +120,7 @@ def refresh():
         })
     rows.sort(key=lambda r: -(r["positions"] or 0))
     rows = [r for r in rows if (r["positions"] or 0) >= 200] or rows  # retire les cryptos quasi vides
-    out = {"updated": time.time(), "source": source, "rows": rows}
+    out = {"updated": time.time(), "source": source, "rows": rows, "threshold": 65}
     storage.save("sentiment.json", out)
     return out
 

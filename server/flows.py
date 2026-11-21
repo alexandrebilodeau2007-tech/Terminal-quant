@@ -66,12 +66,39 @@ def reading(dp, doi_pct):
     return "Liquidation de longs", "neg"
 
 
+def _same_oi(a: dict, b: dict) -> bool:
+    """Vrai si les intérêts ouverts n'ont pas changé (TradingView publie l'OI une fois par séance)."""
+    common = [t for t in a if t in b and a[t].get("oi") and b[t].get("oi")]
+    return bool(common) and all(a[t]["oi"] == b[t]["oi"] for t in common)
+
+
 def refresh():
-    """Une photo par jour (la dernière de la journée l'emporte) ; garde 90 jours."""
+    """Une photo par séance : on n'ajoute un jour que si les intérêts ouverts ont été mis à jour.
+    Sinon (fin de semaine, OI pas encore publié) on met seulement à jour les prix de la dernière photo,
+    pour éviter d'afficher « positions stables » partout. Garde 90 séances."""
     data = _scan()
     hist = storage.load("flows_hist.json", {"days": {}})
-    day = datetime.now(TZ).date().isoformat()
-    hist["days"][day] = {t: {"close": d[0], "oi": d[1], "chg": d[2]} for t, d in data.items() if d and d[0] is not None}
+    snap = {t: {"close": d[0], "oi": d[1], "chg": d[2]} for t, d in data.items() if d and d[0] is not None}
+    today = datetime.now(TZ).date().isoformat()
+    # nettoyage : une seule photo par valeur d'OI (enlève les doublons créés avant ce correctif)
+    clean, prev_snap = {}, None
+    for d in sorted(hist["days"]):
+        if prev_snap is not None and _same_oi(hist["days"][d], prev_snap):
+            continue
+        clean[d] = hist["days"][d]
+        prev_snap = hist["days"][d]
+    hist["days"] = clean
+    earlier = [d for d in sorted(hist["days"]) if d != today]
+    if earlier and _same_oi(snap, hist["days"][earlier[-1]]):
+        # OI pas encore mis à jour : même séance que la dernière photo, on rafraîchit seulement les prix
+        hist["days"].pop(today, None)
+        for t, v in snap.items():
+            if t in hist["days"][earlier[-1]]:
+                hist["days"][earlier[-1]][t].update({"close": v["close"], "chg": v["chg"]})
+        day = earlier[-1]
+    else:
+        hist["days"][today] = snap
+        day = today
     for d in sorted(hist["days"])[:-90]:
         hist["days"].pop(d)
     storage.save("flows_hist.json", hist)
