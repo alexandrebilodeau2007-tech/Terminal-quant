@@ -12,15 +12,48 @@ from . import storage
 
 log = logging.getLogger("seasonality")
 
-SYMBOLS = {
-    "DXY": ("DX-Y.NYB", "dx.f"), "EURUSD": ("EURUSD=X", "eurusd"), "GBPUSD": ("GBPUSD=X", "gbpusd"),
-    "USDJPY": ("JPY=X", "usdjpy"), "USDCAD": ("CAD=X", "usdcad"), "AUDUSD": ("AUDUSD=X", "audusd"),
-    "NZDUSD": ("NZDUSD=X", "nzdusd"), "USDCHF": ("CHF=X", "usdchf"), "USDCNH": ("CNH=X", "usdcnh"),
-    "EURJPY": ("EURJPY=X", "eurjpy"), "GBPJPY": ("GBPJPY=X", "gbpjpy"), "EURGBP": ("EURGBP=X", "eurgbp"),
-    "AUDJPY": ("AUDJPY=X", "audjpy"),
-    "XAUUSD (Or)": ("GC=F", "xauusd"), "XAGUSD (Argent)": ("SI=F", "xagusd"), "WTI": ("CL=F", "cl.f"),
-    "S&P 500": ("^GSPC", "^spx"), "Nasdaq 100": ("^NDX", "^ndx"), "Bitcoin": ("BTC-USD", "btcusd"),
+# (nom affiché) : (symbole Yahoo Finance, symbole Stooq de secours), regroupés par classe d'actifs
+GROUPS = {
+    "Devises majeures": {
+        "DXY": ("DX-Y.NYB", "dx.f"), "EURUSD": ("EURUSD=X", "eurusd"), "GBPUSD": ("GBPUSD=X", "gbpusd"),
+        "USDJPY": ("JPY=X", "usdjpy"), "USDCAD": ("CAD=X", "usdcad"), "AUDUSD": ("AUDUSD=X", "audusd"),
+        "NZDUSD": ("NZDUSD=X", "nzdusd"), "USDCHF": ("CHF=X", "usdchf"), "USDCNH": ("CNH=X", "usdcnh"),
+    },
+    "Devises croisées": {
+        "EURJPY": ("EURJPY=X", "eurjpy"), "GBPJPY": ("GBPJPY=X", "gbpjpy"), "AUDJPY": ("AUDJPY=X", "audjpy"),
+        "CADJPY": ("CADJPY=X", "cadjpy"), "CHFJPY": ("CHFJPY=X", "chfjpy"), "NZDJPY": ("NZDJPY=X", "nzdjpy"),
+        "EURGBP": ("EURGBP=X", "eurgbp"), "EURCHF": ("EURCHF=X", "eurchf"), "EURCAD": ("EURCAD=X", "eurcad"),
+        "EURAUD": ("EURAUD=X", "euraud"), "EURNZD": ("EURNZD=X", "eurnzd"), "GBPCHF": ("GBPCHF=X", "gbpchf"),
+        "GBPCAD": ("GBPCAD=X", "gbpcad"), "GBPAUD": ("GBPAUD=X", "gbpaud"), "GBPNZD": ("GBPNZD=X", "gbpnzd"),
+        "AUDNZD": ("AUDNZD=X", "audnzd"), "AUDCAD": ("AUDCAD=X", "audcad"), "AUDCHF": ("AUDCHF=X", "audchf"),
+        "NZDCAD": ("NZDCAD=X", "nzdcad"), "CADCHF": ("CADCHF=X", "cadchf"),
+    },
+    "Métaux": {
+        "XAUUSD (Or)": ("GC=F", "xauusd"), "XAGUSD (Argent)": ("SI=F", "xagusd"), "Platine": ("PL=F", "xptusd"),
+        "Palladium": ("PA=F", "xpdusd"), "Cuivre": ("HG=F", "hg.f"),
+    },
+    "Énergie": {
+        "WTI": ("CL=F", "cl.f"), "Brent": ("BZ=F", "cb.f"), "Gaz naturel": ("NG=F", "ng.f"),
+        "Essence (RBOB)": ("RB=F", "rb.f"), "Mazout (Heating oil)": ("HO=F", "ho.f"),
+    },
+    "Agricoles": {
+        "Blé": ("ZW=F", "zw.f"), "Maïs": ("ZC=F", "zc.f"), "Soja": ("ZS=F", "zs.f"), "Café": ("KC=F", "kc.f"),
+        "Sucre": ("SB=F", "sb.f"), "Cacao": ("CC=F", "cc.f"), "Coton": ("CT=F", "ct.f"), "Bovins vivants": ("LE=F", "le.f"),
+    },
+    "Indices boursiers": {
+        "S&P 500": ("^GSPC", "^spx"), "Nasdaq 100": ("^NDX", "^ndx"), "Dow Jones": ("^DJI", "^dji"),
+        "Russell 2000": ("^RUT", "^rut"), "VIX": ("^VIX", "^vix"), "S&P/TSX (Canada)": ("^GSPTSE", "^tsx"),
+        "DAX (Allemagne)": ("^GDAXI", "^dax"), "FTSE 100 (R.-U.)": ("^FTSE", "^ukx"), "CAC 40 (France)": ("^FCHI", "^cac"),
+        "Euro Stoxx 50": ("^STOXX50E", "^stx"), "Nikkei 225 (Japon)": ("^N225", "^nkx"),
+        "Hang Seng (Hong Kong)": ("^HSI", "^hsi"), "ASX 200 (Australie)": ("^AXJO", "^aor"),
+    },
+    "Taux": {
+        "Rendement US 10 ans": ("^TNX", "10usy.b"), "Rendement US 5 ans": ("^FVX", "5usy.b"),
+        "Rendement US 30 ans": ("^TYX", "30usy.b"), "Note US 10 ans (futures)": ("ZN=F", "zn.f"),
+    },
+    "Crypto": {"Bitcoin": ("BTC-USD", "btcusd"), "Ethereum": ("ETH-USD", "ethusd")},
 }
+SYMBOLS = {k: v for g in GROUPS.values() for k, v in g.items()}
 
 
 def _download(symbol_key: str) -> pd.Series:

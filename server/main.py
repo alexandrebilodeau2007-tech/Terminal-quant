@@ -373,7 +373,9 @@ def dashboard():
 
 
 @app.get("/api/seasonality/symbols")
-def season_symbols():
+def season_symbols(grouped: bool = False):
+    if grouped:
+        return [{"group": g, "symbols": list(d)} for g, d in seasonality.GROUPS.items()]
     return list(seasonality.SYMBOLS.keys())
 
 

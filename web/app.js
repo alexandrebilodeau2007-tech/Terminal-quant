@@ -626,7 +626,12 @@ let seasonInit=false;
 function mmdd(d){return String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 async function initSeason(){
   if(seasonInit) return; seasonInit=true;
-  try{ const syms=await api("/api/seasonality/symbols"); $("#sSym").innerHTML=syms.map(s=>`<option>${esc(s)}</option>`).join(""); }catch{}
+  try{
+    const gs=await api("/api/seasonality/symbols?grouped=true");
+    $("#sSym").innerHTML=gs.map(g=>`<optgroup label="${esc(g.group)}">${g.symbols.map(s=>`<option>${esc(s)}</option>`).join("")}</optgroup>`).join("");
+    const last=store.get("seasonSym",""); if(last&&gs.some(g=>g.symbols.includes(last))) $("#sSym").value=last;
+  }catch{}
+  $("#sSym").onchange=()=>{ store.set("seasonSym",$("#sSym").value); runSeason(); };
   const t=new Date(); $("#sStart").value=mmdd(t); $("#sEnd").value=mmdd(new Date(t.getTime()+30*864e5));
   $("#sGo").onclick=runSeason; runSeason();
 }

@@ -153,7 +153,7 @@ const HELP = {
   saison: {
     but: "La saisonnalité d'un actif, façon Seasonax : son parcours moyen dans l'année et le rendement d'une fenêtre de dates, année par année.",
     touches: [
-      ["Actif", "Choisit le symbole."],
+      ["Actif", "Choisit le symbole, classé par catégorie : devises majeures et croisées, métaux (or, argent, platine, palladium, cuivre), énergie, agricoles, indices boursiers, taux et crypto. Le choix est gardé pour la prochaine visite."],
       ["Années", "Nombre d'années d'historique (5 à 25)."],
       ["MM-JJ → MM-JJ", "Fenêtre à tester (ex. 11-21 → 12-21)."],
       ["ANALYSER", "Lance le calcul."],
