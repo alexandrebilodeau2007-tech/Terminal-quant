@@ -17,7 +17,7 @@ GROUPS = {
     "Devises majeures": {
         "DXY": ("DX-Y.NYB", "dx.f"), "EURUSD": ("EURUSD=X", "eurusd"), "GBPUSD": ("GBPUSD=X", "gbpusd"),
         "USDJPY": ("JPY=X", "usdjpy"), "USDCAD": ("CAD=X", "usdcad"), "AUDUSD": ("AUDUSD=X", "audusd"),
-        "NZDUSD": ("NZDUSD=X", "nzdusd"), "USDCHF": ("CHF=X", "usdchf"), "USDCNH": ("CNH=X", "usdcnh"),
+        "NZDUSD": ("NZDUSD=X", "nzdusd"), "USDCHF": ("CHF=X", "usdchf"), "USDCNY": ("CNY=X", "usdcny"),
     },
     "Devises croisées": {
         "EURJPY": ("EURJPY=X", "eurjpy"), "GBPJPY": ("GBPJPY=X", "gbpjpy"), "AUDJPY": ("AUDJPY=X", "audjpy"),
