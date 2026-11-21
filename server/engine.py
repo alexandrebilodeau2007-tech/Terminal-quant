@@ -175,6 +175,8 @@ def refresh_fj():
         new = sources.fetch_financialjuice()
     except Exception as e:
         log.info("FinancialJuice: %s", e)
+        if "429" in str(e):  # limite Cloudflare (erreur 1015) : pause de 15 min
+            STATE["last_fj"] = time.time() + 900
         return
     notify_news(new)
     _merge_news("fj.json", new, keep_hours=72, cap=800)

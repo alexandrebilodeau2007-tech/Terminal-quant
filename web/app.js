@@ -361,27 +361,36 @@ $("#newsSrc").addEventListener("click",e=>{const b=e.target.closest("button");if
 
 
 
-/* FinancialJuice : la page de chaque nouvelle demande un compte. La manchette EST la nouvelle :
-   on l'affiche dans le terminal, avec des liens de contexte publics (aucun compte requis). */
+/* FinancialJuice : sur leur site, une fenêtre d'inscription cache la nouvelle. Le serveur lit la page publique
+   (sans compte) et on affiche ici le texte, les tableaux et les graphiques. */
 function newsAttrs(n){
-  if(n.source==="FinancialJuice") return `href="#" data-fj="${esc(n.title)}" data-fjt="${esc(n.time||"")}"`;
+  if(n.source==="FinancialJuice") return `href="#" data-fj="${esc(n.title)}" data-fjt="${esc(n.time||"")}" data-fjl="${esc(n.link||"")}"`;
   return `href="${esc(n.link)}" target="_blank" rel="noopener"`;
 }
-function openFJ(title,time){
-  const q=encodeURIComponent(title.replace(/^[^:]{0,60}:\s*/,"").slice(0,160));
+async function openFJ(title,time,link){
   const t=time?new Date(time):null;
   const ccys=CCYS.filter(c=>NEWS_KW[c].some(k=>(" "+title+" ").toLowerCase().includes(k)));
+  const q=encodeURIComponent(title.replace(/^[^:]{0,60}:\s*/,"").slice(0,160));
   const d=document.createElement("div"); d.className="modal";
   d.innerHTML=`<div class="panel mbox"><div class="ph"><b>⚡ FinancialJuice</b>${t?` · ${fDs.format(t)} ${fT.format(t)}`:""}<div class="r"><button class="chip" data-x>✕</button></div></div>
     <div class="pb"><div style="font-size:17px;line-height:1.45;font-weight:600">${esc(title)}</div>
     ${ccys.length?`<div class="chips" style="margin-top:10px">${ccys.map(c=>`<span class="chip">${FLAGS[c]} ${c}</span>`).join("")}</div>`:""}
-    <p class="note">Sur FinancialJuice, la manchette est la nouvelle complète (fil « squawk ») : il n'y a pas d'article derrière. Pour le contexte, ces recherches publiques ne demandent aucun compte :</p>
-    <div class="chips"><a class="btn" href="https://news.google.com/search?q=${q}&hl=fr-CA" target="_blank" rel="noopener">GOOGLE ACTUALITÉS</a>
-    <a class="btn ghost" href="https://www.google.com/search?q=${q}&tbm=nws" target="_blank" rel="noopener">RECHERCHE GOOGLE</a></div></div></div>`;
+    <div id="fjBody" style="margin-top:12px"><div class="empty" style="padding:10px">Chargement du contenu…</div></div>
+    <div class="chips" style="margin-top:12px"><a class="btn ghost" href="https://news.google.com/search?q=${q}&hl=fr-CA" target="_blank" rel="noopener">CONTEXTE · GOOGLE ACTUALITÉS</a></div></div></div>`;
   d.onclick=e=>{ if(e.target===d||e.target.closest("[data-x]")) d.remove(); };
   document.body.appendChild(d);
+  const body=d.querySelector("#fjBody");
+  if(!link){ body.innerHTML='<p class="note">Manchette seulement.</p>'; return; }
+  try{
+    const x=await api("/api/fj/detail?link="+encodeURIComponent(link));
+    const tok=encodeURIComponent(store.get("token",""));
+    const lines=(x.lines||[]).filter(l=>l.toLowerCase()!==title.toLowerCase());
+    body.innerHTML = (lines.length?`<ul style="margin:0;padding-left:18px;line-height:1.6;font-size:14px" class="mono">${lines.map(l=>`<li>${esc(l)}</li>`).join("")}</ul>`:"")
+      + (x.image?`<img src="/api/fj/img/${esc(x.id)}?token=${tok}" style="width:100%;margin-top:10px;border-radius:4px;background:#fff" alt="Graphique FinancialJuice">`:"")
+      + (!lines.length&&!x.image?'<p class="note">La manchette est la nouvelle complète : FinancialJuice ne publie rien de plus pour celle-ci.</p>':"");
+  }catch(e){ body.innerHTML=`<p class="note">Contenu indisponible pour le moment (${esc(String(e.message).slice(0,120))}).</p>`; }
 }
-document.addEventListener("click",e=>{const a=e.target.closest("a[data-fj]"); if(!a) return; e.preventDefault(); e.stopPropagation(); openFJ(a.dataset.fj,a.dataset.fjt);},true);
+document.addEventListener("click",e=>{const a=e.target.closest("a[data-fj]"); if(!a) return; e.preventDefault(); e.stopPropagation(); openFJ(a.dataset.fj,a.dataset.fjt,a.dataset.fjl);},true);
 
 /* ---------------- positionnement : retail · institutionnel · comparatif ---------------- */
 const POS_TABS=[["retail","👥 RETAIL"],["inst","🏦 INSTITUTIONNEL"],["vs","⚖ COMPARATIF"]];

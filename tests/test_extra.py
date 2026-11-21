@@ -7,7 +7,7 @@ from datetime import date
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 os.environ["DATA_DIR"] = tempfile.mkdtemp()
 
-from server import capflows, flows, macro, rates, storage  # noqa: E402
+from server import capflows, fjdetail, flows, macro, rates, storage  # noqa: E402
 
 
 def test_inflation_matchers():
@@ -89,6 +89,21 @@ def test_flows_per_contract_timing():
     r = {x["key"]: x for x in out["rows"]}
     assert r["EUR"]["doi_pct"] == round(50 / 450 * 100, 2), "EUR comparé au 18 (OI pas encore mis à jour)"
     assert r["USD"]["doi_pct"] == 10.0
+
+
+def test_fj_detail_parse():
+    page = ('<meta property="og:title" content="Monday FX Option Expiries" />'
+            '<meta property="og:description" content="&lt;div&gt;&lt;ul&gt;&lt;li&gt;&lt;strong&gt;USD/JPY: &lt;/strong&gt;159.25 ($1.43b)&lt;/li&gt;'
+            '&lt;li&gt;EUR/USD: 1.1325 (EU864.7m)&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;" />'
+            '<meta property="og:image" content="https://www.financialjuice.com/assets/images/need-to-know.jpg" />')
+    d = fjdetail.parse(page)
+    assert d["title"] == "Monday FX Option Expiries"
+    assert d["lines"] == ["USD/JPY: 159.25 ($1.43b)", "EUR/USD: 1.1325 (EU864.7m)"] and d["image"] == ""
+    d = fjdetail.parse('<meta property="og:description" content="" /><meta property="og:image" content="https://www.financialjuice.com/images/9861333.png" />')
+    assert d["lines"] == [] and d["image"].endswith("9861333.png")
+    assert fjdetail.news_id("https://www.financialjuice.com/News/9862406/Monday-FX.aspx?xy=rss") == "9862406"
+    assert fjdetail.news_id("https://evil.com/News/1/x.aspx") is None
+    assert fjdetail.clean_url("https://www.financialjuice.com/News/9862406/Monday-FX.aspx?xy=rss").endswith("Monday-FX.aspx")
 
 
 if __name__ == "__main__":

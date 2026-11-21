@@ -48,7 +48,7 @@ INVESTINGLIVE_FEEDS = [u.strip() for u in os.getenv(
 ).split(",") if u.strip()]
 INVESTINGLIVE_HOME = os.getenv("INVESTINGLIVE_HOME", "https://investinglive.com/")
 FINANCIALJUICE_FEED = os.getenv("FINANCIALJUICE_FEED", "https://www.financialjuice.com/feed.ashx?xy=rss")
-FJ_REFRESH_SECONDS = int(os.getenv("FJ_REFRESH_SECONDS", "60"))
+FJ_REFRESH_SECONDS = int(os.getenv("FJ_REFRESH_SECONDS", "120"))  # 60 s déclenchait la limite Cloudflare
 EXTRA_NEWS_FEEDS = [u.strip() for u in os.getenv(
     "EXTRA_NEWS_FEEDS",
     "https://www.investing.com/rss/news_1.rss,https://www.investing.com/rss/news_95.rss",

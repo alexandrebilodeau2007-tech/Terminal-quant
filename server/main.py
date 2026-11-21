@@ -12,7 +12,7 @@ from datetime import timedelta
 
 from fastapi.responses import Response
 
-from . import calendar_data as cal, engine, push, weekly, seasonality, storage, sentiment, macro, indicators, fiches, cot, market, rates, flows, capflows
+from . import calendar_data as cal, engine, push, weekly, seasonality, storage, sentiment, macro, indicators, fiches, cot, market, rates, flows, capflows, fjdetail
 from .config import WEB_DIR, APP_TOKEN, PORT, TIMEZONE, ANTHROPIC_API_KEY, TE_API_KEY
 from .countries import CURRENCIES
 
@@ -254,6 +254,25 @@ async def flows_refresh():
         return await asyncio.to_thread(flows.refresh)
     except Exception as e:
         raise HTTPException(400, str(e)[:200])
+
+
+@app.get("/api/fj/detail")
+async def fj_detail(link: str):
+    try:
+        return await asyncio.to_thread(fjdetail.get, link)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(502, str(e)[:200])
+
+
+@app.get("/api/fj/img/{nid}")
+async def fj_img(nid: str):
+    try:
+        data = await asyncio.to_thread(fjdetail.image, nid)
+    except Exception as e:
+        raise HTTPException(404, str(e)[:120])
+    return Response(content=data, media_type="image/png", headers={"Cache-Control": "max-age=604800"})
 
 
 @app.get("/api/capflows")
